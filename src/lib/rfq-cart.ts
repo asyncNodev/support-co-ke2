@@ -32,3 +32,32 @@ export function clearRFQCart(): void {
     console.error("Failed to clear cart:", error);
   }
 }
+
+export function addToRFQCart(productId: Id<"products">, name: string, quantity: number = 1): void {
+  const cart = getRFQCart();
+  const existingItem = cart.find((item) => item.productId === productId);
+  
+  if (existingItem) {
+    existingItem.quantity += quantity;
+  } else {
+    cart.push({ productId, name, quantity });
+  }
+  
+  saveRFQCart(cart);
+}
+
+export function removeFromRFQCart(productId: Id<"products">): void {
+  const cart = getRFQCart();
+  const updatedCart = cart.filter((item) => item.productId !== productId);
+  saveRFQCart(updatedCart);
+}
+
+export function updateRFQCartQuantity(productId: Id<"products">, quantity: number): void {
+  const cart = getRFQCart();
+  const item = cart.find((item) => item.productId === productId);
+  
+  if (item) {
+    item.quantity = quantity;
+    saveRFQCart(cart);
+  }
+}

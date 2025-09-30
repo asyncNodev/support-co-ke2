@@ -139,13 +139,52 @@ export const getAllUsers = query({
       });
     }
 
-    if (args.role) {
+    if (args.role !== undefined) {
+      const role = args.role;
       return await ctx.db
         .query("users")
-        .withIndex("by_role", (q) => q.eq("role", args.role))
+        .withIndex("by_role", (q) => q.eq("role", role))
         .collect();
     }
 
+    return await ctx.db.query("users").collect();
+  },
+});
+
+// Get users by role (admin only)
+export const getUsersByRole = query({
+  args: {
+    role: v.optional(v.union(v.literal("admin"), v.literal("vendor"), v.literal("buyer"))),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!currentUser || currentUser.role !== "admin") {
+      throw new ConvexError({
+        message: "Not authorized",
+        code: "FORBIDDEN",
+      });
+    }
+
+    if (args.role !== undefined) {
+      const role = args.role;
+      return await ctx.db
+        .query("users")
+        .withIndex("by_role", (q) => q.eq("role", role))
+        .collect();
+    }
+    
     return await ctx.db.query("users").collect();
   },
 });

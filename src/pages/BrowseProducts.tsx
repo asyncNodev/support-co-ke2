@@ -1,45 +1,51 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "convex/react";
-import { ShoppingCart, Zap, Search } from "lucide-react";
+import { ShoppingCart, Zap, Search, Package } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button.tsx";
 import { Input } from "@/components/ui/input.tsx";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
+import { Card } from "@/components/ui/card.tsx";
 import { SignInButton } from "@/components/ui/signin.tsx";
-import { useAuth } from "@/hooks/use-auth.ts";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
+import {
+  EmptyState,
+  EmptyStateIcon,
+  EmptyStateTitle,
+  EmptyStateDescription,
+  EmptyStateContent,
+} from "@/components/ui/empty-state.tsx";
+import { useAuth } from "@/hooks/use-auth.ts";
+import { addToRFQCart, getRFQCart } from "@/lib/rfq-cart.ts";
+import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel.d.ts";
 
 export default function BrowseProducts() {
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<Id<"categories"> | null>(null);
-  const [rfqCart, setRfqCart] = useState<Array<{ productId: Id<"products">; name: string; quantity: number }>>([]);
+  const [selectedCategory, setSelectedCategory] = useState<Id<"categories"> | undefined>();
 
   const categories = useQuery(api.categories.getCategories);
-  const products = useQuery(api.products.getProducts, selectedCategory ? { categoryId: selectedCategory } : {});
+  const products = useQuery(api.products.getProducts, {
+    categoryId: selectedCategory,
+  });
+
+  const cart = getRFQCart();
 
   const filteredProducts = products?.filter((product) =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.description.toLowerCase().includes(searchQuery.toLowerCase())
+  ) ?? [];
 
-  const addToRFQCart = (productId: Id<"products">, name: string) => {
-    const existing = rfqCart.find((item) => item.productId === productId);
-    if (existing) {
-      setRfqCart(
-        rfqCart.map((item) =>
-          item.productId === productId ? { ...item, quantity: item.quantity + 1 } : item
-        )
-      );
-    } else {
-      setRfqCart([...rfqCart, { productId, name, quantity: 1 }]);
+  const handleAddToCart = (productId: Id<"products">, productName: string) => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in to add items to RFQ");
+      return;
     }
-  };
-
-  const removeFromRFQCart = (productId: Id<"products">) => {
-    setRfqCart(rfqCart.filter((item) => item.productId !== productId));
+    addToRFQCart(productId, productName);
+    toast.success(`${productName} added to RFQ cart`);
   };
 
   return (
@@ -52,148 +58,135 @@ export default function BrowseProducts() {
             <span className="text-2xl font-bold">QuickQuote B2B</span>
           </Link>
           <nav className="flex items-center gap-4">
-            <div className="relative">
-              <Button variant="outline" className="gap-2">
-                <ShoppingCart className="size-4" />
-                RFQ Cart {rfqCart.length > 0 && `(${rfqCart.length})`}
-              </Button>
-            </div>
+            {isAuthenticated && (
+              <>
+                <Link to="/buyer">
+                  <Button variant="ghost">My RFQs</Button>
+                </Link>
+                <Link to="/browse">
+                  <Button variant="ghost" className="relative">
+                    <ShoppingCart className="size-4 mr-2" />
+                    RFQ Cart
+                    {cart.length > 0 && (
+                      <Badge variant="destructive" className="ml-2 size-5 p-0 flex items-center justify-center">
+                        {cart.length}
+                      </Badge>
+                    )}
+                  </Button>
+                </Link>
+              </>
+            )}
             <SignInButton />
           </nav>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2">Browse Products</h1>
-          <p className="text-muted-foreground">Select products to add to your RFQ cart</p>
-        </div>
-
-        {/* Search and Categories */}
-        <div className="grid md:grid-cols-[250px_1fr] gap-8">
-          {/* Sidebar */}
-          <div className="space-y-6">
-            <div>
-              <h3 className="font-semibold mb-3">Search</h3>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
+      {/* Search and filters */}
+      <div className="border-b bg-muted/50">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Search products..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
             </div>
+            <Button
+              variant={selectedCategory === undefined ? "default" : "outline"}
+              onClick={() => setSelectedCategory(undefined)}
+            >
+              All Categories
+            </Button>
+          </div>
 
-            <div>
-              <h3 className="font-semibold mb-3">Categories</h3>
-              <div className="space-y-2">
+          {/* Category filters */}
+          {categories && categories.length > 0 && (
+            <div className="flex gap-2 mt-4 flex-wrap">
+              {categories.map((category) => (
                 <Button
-                  variant={selectedCategory === null ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => setSelectedCategory(null)}
+                  key={category._id}
+                  variant={selectedCategory === category._id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedCategory(category._id)}
                 >
-                  All Categories
+                  {category.name}
                 </Button>
-                {categories === undefined ? (
-                  Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)
-                ) : (
-                  categories?.map((category) => (
-                    <Button
-                      key={category._id}
-                      variant={selectedCategory === category._id ? "secondary" : "ghost"}
-                      className="w-full justify-start"
-                      onClick={() => setSelectedCategory(category._id)}
-                    >
-                      {category.name}
-                    </Button>
-                  ))
-                )}
-              </div>
+              ))}
             </div>
-
-            {/* RFQ Cart */}
-            {rfqCart.length > 0 && (
-              <div className="border rounded-lg p-4 space-y-3">
-                <h3 className="font-semibold">RFQ Cart</h3>
-                <div className="space-y-2 max-h-64 overflow-y-auto">
-                  {rfqCart.map((item) => (
-                    <div key={item.productId} className="flex items-center justify-between text-sm">
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate">{item.name}</p>
-                        <p className="text-muted-foreground text-xs">Qty: {item.quantity}</p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeFromRFQCart(item.productId)}
-                      >
-                        Remove
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-                <Link to="/buyer">
-                  <Button className="w-full">Submit RFQ</Button>
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* Products Grid */}
-          <div>
-            {products === undefined ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <Card key={i}>
-                    <CardHeader>
-                      <Skeleton className="h-40 w-full" />
-                      <Skeleton className="h-6 w-3/4 mt-4" />
-                      <Skeleton className="h-4 w-1/2" />
-                    </CardHeader>
-                  </Card>
-                ))}
-              </div>
-            ) : filteredProducts && filteredProducts.length > 0 ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProducts.map((product) => (
-                  <Card key={product._id}>
-                    <CardHeader>
-                      {product.image && (
-                        <div className="aspect-video bg-muted rounded-lg overflow-hidden mb-4">
-                          <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-                        </div>
-                      )}
-                      <CardTitle className="line-clamp-2">{product.name}</CardTitle>
-                      <CardDescription>
-                        {product.category?.name && <Badge variant="secondary">{product.category.name}</Badge>}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-sm text-muted-foreground line-clamp-3">{product.description}</p>
-                    </CardContent>
-                    <CardFooter className="flex gap-2">
-                      <Link to={`/product/${product._id}`} className="flex-1">
-                        <Button variant="outline" className="w-full">
-                          View Details
-                        </Button>
-                      </Link>
-                      <Button onClick={() => addToRFQCart(product._id, product.name)} className="gap-2">
-                        <ShoppingCart className="size-4" />
-                        Add
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-20">
-                <p className="text-muted-foreground">No products found</p>
-              </div>
-            )}
-          </div>
+          )}
         </div>
+      </div>
+
+      {/* Products grid */}
+      <div className="container mx-auto px-4 py-8">
+        {!products ? (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-64" />
+            ))}
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <EmptyState>
+            <EmptyStateIcon>
+              <Package />
+            </EmptyStateIcon>
+            <EmptyStateContent>
+              <EmptyStateTitle>No products found</EmptyStateTitle>
+              <EmptyStateDescription>
+                {selectedCategory
+                  ? "No products in this category"
+                  : "No products available"}
+              </EmptyStateDescription>
+            </EmptyStateContent>
+          </EmptyState>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredProducts.map((product) => (
+              <Card key={product._id} className="overflow-hidden flex flex-col">
+                <div className="aspect-square relative bg-muted">
+                  {product.image ? (
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      className="object-cover w-full h-full"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center w-full h-full">
+                      <Package className="size-16 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+                <div className="p-4 flex-1 flex flex-col">
+                  <Badge variant="secondary" className="mb-2 w-fit">
+                    {product.categoryName}
+                  </Badge>
+                  <h3 className="text-lg font-semibold mb-2 line-clamp-2">{product.name}</h3>
+                  <p className="text-sm text-muted-foreground line-clamp-2 mb-4 flex-1">
+                    {product.description}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => navigate(`/product/${product._id}`)}
+                    >
+                      View Details
+                    </Button>
+                    <Button
+                      onClick={() => handleAddToCart(product._id, product.name)}
+                      className="gap-2"
+                    >
+                      <ShoppingCart className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

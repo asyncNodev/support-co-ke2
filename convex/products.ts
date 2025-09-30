@@ -1,33 +1,37 @@
-import { ConvexError, v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { query, mutation } from "./_generated/server";
+import type { Id } from "./_generated/dataModel.d.ts";
+import { v } from "convex/values";
+import { ConvexError } from "convex/values";
 
-// Get all products
 export const getProducts = query({
   args: {
     categoryId: v.optional(v.id("categories")),
   },
   handler: async (ctx, args) => {
-    if (args.categoryId) {
-      const products = await ctx.db
+    let products;
+    
+    if (args.categoryId !== undefined) {
+      const categoryId: Id<"categories"> = args.categoryId;
+      products = await ctx.db
         .query("products")
-        .withIndex("by_category", (q) => q.eq("categoryId", args.categoryId))
+        .withIndex("by_category", (q) => q.eq("categoryId", categoryId))
         .collect();
-
-      return await Promise.all(
-        products.map(async (product) => {
-          const category = await ctx.db.get(product.categoryId);
-          return { ...product, category };
-        })
-      );
+    } else {
+      products = await ctx.db.query("products").collect();
     }
-
-    const products = await ctx.db.query("products").collect();
-    return await Promise.all(
+    
+    // Get category names
+    const productsWithCategory = await Promise.all(
       products.map(async (product) => {
         const category = await ctx.db.get(product.categoryId);
-        return { ...product, category };
+        return {
+          ...product,
+          categoryName: category?.name ?? "Unknown",
+        };
       })
     );
+    
+    return productsWithCategory;
   },
 });
 
