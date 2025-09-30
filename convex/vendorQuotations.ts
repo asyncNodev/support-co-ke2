@@ -231,3 +231,40 @@ export const getProductsWithoutQuotation = query({
     );
   },
 });
+
+// Get quotations sent to buyers
+export const getMySentQuotations = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return [];
+    }
+
+    const vendor = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!vendor || vendor.role !== "vendor") {
+      return [];
+    }
+
+    const sentQuotations = await ctx.db
+      .query("sentQuotations")
+      .withIndex("by_vendor", (q) => q.eq("vendorId", vendor._id))
+      .collect();
+
+    return await Promise.all(
+      sentQuotations.map(async (sent) => {
+        const product = await ctx.db.get(sent.productId);
+        const buyer = await ctx.db.get(sent.buyerId);
+        return {
+          ...sent,
+          productName: product?.name ?? "Unknown Product",
+          buyerName: buyer?.name ?? "Unknown Buyer",
+        };
+      })
+    );
+  },
+});

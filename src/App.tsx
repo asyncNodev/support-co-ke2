@@ -5,6 +5,7 @@ import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import BrowseProducts from "./pages/BrowseProducts.tsx";
 import ProductDetail from "./pages/ProductDetail.tsx";
+import Register from "./pages/Register.tsx";
 import AdminDashboard from "./pages/admin/Dashboard.tsx";
 import VendorDashboard from "./pages/vendor/Dashboard.tsx";
 import BuyerDashboard from "./pages/buyer/Dashboard.tsx";
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/" element={<Index />} />
           <Route path="/browse" element={<BrowseProducts />} />
           <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/vendor" element={<VendorDashboard />} />
           <Route path="/buyer" element={<BuyerDashboard />} />
