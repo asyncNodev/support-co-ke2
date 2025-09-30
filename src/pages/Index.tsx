@@ -134,6 +134,9 @@ export default function Index() {
       <footer className="border-t py-8 bg-muted/50">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} QuickQuote B2B. All rights reserved.</p>
+          <Link to="/seed-data" className="text-primary hover:underline mt-2 block">
+            🔧 Seed Demo Data
+          </Link>
         </div>
       </footer>
     </div>
