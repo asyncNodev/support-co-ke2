@@ -226,3 +226,64 @@ export const updateProfile = mutation({
     return null;
   },
 });
+
+export const verifyUser = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "Not authenticated",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.subject))
+      .unique();
+
+    if (!currentUser || currentUser.role !== "admin") {
+      throw new ConvexError({
+        message: "Only admins can verify users",
+        code: "FORBIDDEN",
+      });
+    }
+
+    await ctx.db.patch(args.userId, { verified: true });
+    return { success: true };
+  },
+});
+
+export const makeUserAdmin = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "Not authenticated",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.subject))
+      .unique();
+
+    if (!user) {
+      throw new ConvexError({
+        message: "User not found",
+        code: "NOT_FOUND",
+      });
+    }
+
+    // Update user to admin role and verify them
+    await ctx.db.patch(user._id, { 
+      role: "admin",
+      verified: true,
+    });
+
+    return { success: true };
+  },
+});

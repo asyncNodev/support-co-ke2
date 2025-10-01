@@ -11,6 +11,7 @@ import VendorDashboard from "./pages/vendor/Dashboard.tsx";
 import BuyerDashboard from "./pages/buyer/Dashboard.tsx";
 import RFQDetails from "./pages/buyer/RFQDetails.tsx";
 import SeedData from "./pages/SeedData.tsx";
+import MakeAdmin from "./pages/MakeAdmin.tsx";
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/buyer" element={<BuyerDashboard />} />
           <Route path="/buyer/rfq/:id" element={<RFQDetails />} />
           <Route path="/seed-data" element={<SeedData />} />
+          <Route path="/make-admin" element={<MakeAdmin />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
