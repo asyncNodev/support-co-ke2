@@ -261,29 +261,34 @@ export const makeUserAdmin = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new ConvexError({
-        message: "Not authenticated",
+        message: "User not logged in",
         code: "UNAUTHENTICATED",
       });
     }
 
-    const user = await ctx.db
+    const existingUser = await ctx.db
       .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.subject))
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
       .unique();
 
-    if (!user) {
-      throw new ConvexError({
-        message: "User not found",
-        code: "NOT_FOUND",
+    if (existingUser) {
+      // User exists, just upgrade to admin
+      await ctx.db.patch(existingUser._id, {
+        role: "admin",
+        verified: true,
       });
+      return { success: true, message: "You are now an admin!" };
+    } else {
+      // User doesn't exist, create as admin directly
+      await ctx.db.insert("users", {
+        authId: identity.tokenIdentifier,
+        email: identity.email ?? "admin@example.com",
+        name: identity.name ?? "Admin User",
+        role: "admin",
+        verified: true,
+        registeredAt: Date.now(),
+      });
+      return { success: true, message: "Admin account created!" };
     }
-
-    // Update user to admin role and verify them
-    await ctx.db.patch(user._id, { 
-      role: "admin",
-      verified: true,
-    });
-
-    return { success: true };
   },
 });

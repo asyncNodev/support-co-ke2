@@ -1,20 +1,22 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useUser } from "@/hooks/use-auth.ts";
+import { useAuth } from "@/hooks/use-auth.ts";
+import { ShieldCheck, AlertCircle, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card.tsx";
-import { AlertCircle, CheckCircle, ShieldAlert } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert.tsx";
+import { toast } from "sonner";
+import { ConvexError } from "convex/values";
 
 export default function MakeAdmin() {
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading: authLoading } = useUser();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const currentUser = useQuery(api.users.getCurrentUser);
   const makeAdmin = useMutation(api.users.makeUserAdmin);
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<null | string>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -23,17 +25,23 @@ export default function MakeAdmin() {
   }, [authLoading, isAuthenticated, navigate]);
 
   const handleMakeAdmin = async () => {
-    setStatus("loading");
-    setErrorMessage("");
     try {
-      await makeAdmin();
-      setStatus("success");
+      setIsLoading(true);
+      setError(null);
+      const result = await makeAdmin();
+      toast.success(result.message);
       setTimeout(() => {
         navigate("/admin");
-      }, 2000);
-    } catch (error) {
-      setStatus("error");
-      setErrorMessage(error instanceof Error ? error.message : "Failed to upgrade account");
+      }, 1500);
+    } catch (err) {
+      const errorMessage =
+        err instanceof ConvexError
+          ? (err.data as { message: string }).message
+          : "Failed to upgrade to admin";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -75,7 +83,7 @@ export default function MakeAdmin() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <ShieldAlert className="size-5 text-primary" />
+            <ShieldCheck className="size-5 text-primary" />
             Upgrade to Admin
           </CardTitle>
           <CardDescription>
@@ -94,28 +102,26 @@ export default function MakeAdmin() {
             </div>
           </div>
 
-          {status === "success" && (
-            <Alert>
-              <CheckCircle className="size-4" />
-              <AlertDescription>
-                Successfully upgraded to admin! Redirecting...
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {status === "error" && (
+          {isLoading ? null : error ? (
             <Alert variant="destructive">
               <AlertCircle className="size-4" />
-              <AlertDescription>{errorMessage}</AlertDescription>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="size-4" />
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
 
           <Button
             onClick={handleMakeAdmin}
-            disabled={status === "loading" || status === "success"}
+            disabled={isLoading}
             className="w-full"
           >
-            {status === "loading" ? "Upgrading..." : "Make Me Admin"}
+            {isLoading ? "Upgrading..." : "Make Me Admin"}
           </Button>
 
           <Button
