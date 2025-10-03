@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -33,16 +33,18 @@ export default function BuyerDashboard() {
   const [declineReason, setDeclineReason] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Redirect if not authenticated or not a buyer
-  if (isAuthenticated && currentUser && currentUser.role !== "buyer") {
-    navigate("/");
-    return null;
-  }
+  // Handle redirects in useEffect
+  useEffect(() => {
+    if (isAuthenticated && currentUser && currentUser.role !== "buyer") {
+      navigate("/");
+    }
+  }, [isAuthenticated, currentUser, navigate]);
 
-  if (isAuthenticated && currentUser === null) {
-    navigate("/register");
-    return null;
-  }
+  useEffect(() => {
+    if (isAuthenticated && currentUser === null) {
+      navigate("/register");
+    }
+  }, [isAuthenticated, currentUser, navigate]);
 
   const isPending = currentUser === undefined || myRFQs === undefined || myQuotations === undefined;
 

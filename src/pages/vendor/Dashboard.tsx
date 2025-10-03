@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel.d.ts";
@@ -39,18 +39,21 @@ export default function VendorDashboard() {
 
   const createQuotation = useMutation(api.vendorQuotations.createQuotation);
 
-  if (!isAuthenticated) {
-    navigate("/");
-    return null;
-  }
+  // Handle redirects in useEffect
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate("/");
+    }
+  }, [isAuthenticated, navigate]);
+
+  useEffect(() => {
+    if (currentUser && currentUser.role !== "vendor") {
+      navigate("/");
+    }
+  }, [currentUser, navigate]);
 
   if (!currentUser) {
     return <div className="p-8">Loading...</div>;
-  }
-
-  if (currentUser.role !== "vendor") {
-    navigate("/");
-    return null;
   }
 
   if (!currentUser.verified) {
