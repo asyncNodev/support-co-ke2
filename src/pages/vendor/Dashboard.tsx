@@ -1,270 +1,308 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel.d.ts";
-import { useUser } from "@/hooks/use-auth.ts";
+import { useAuth } from "@/hooks/use-auth.ts";
 import { Button } from "@/components/ui/button.tsx";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card.tsx";
-import { Badge } from "@/components/ui/badge.tsx";
-import { Skeleton } from "@/components/ui/skeleton.tsx";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
 import { Input } from "@/components/ui/input.tsx";
 import { Label } from "@/components/ui/label.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
+import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { Package, FileText, Bell, Send } from "lucide-react";
+import { format } from "date-fns";
 import { toast } from "sonner";
-import { Package, Clock, AlertCircle, Plus } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog.tsx";
+import type { Id } from "@/convex/_generated/dataModel";
 
 export default function VendorDashboard() {
-  const { isAuthenticated } = useUser({ shouldRedirect: true });
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const currentUser = useQuery(api.users.getCurrentUser, isAuthenticated ? {} : "skip");
   const pendingRFQs = useQuery(api.vendorQuotations.getPendingRFQs, isAuthenticated ? {} : "skip");
+  const myProducts = useQuery(api.products.getProducts, {});
   const myQuotations = useQuery(api.vendorQuotations.getMyQuotations, isAuthenticated ? {} : "skip");
-  const availableProducts = useQuery(api.vendorQuotations.getProductsWithoutQuotation, isAuthenticated ? {} : "skip");
-  const sentQuotations = useQuery(api.vendorQuotations.getMySentQuotations, isAuthenticated ? {} : "skip");
+  const notifications = useQuery(api.notifications.getMyNotifications, isAuthenticated ? {} : "skip");
   
-  const submitOnDemand = useMutation(api.vendorQuotations.submitOnDemandQuotation);
-  const createQuotation = useMutation(api.vendorQuotations.createQuotation);
+  const submitQuotation = useMutation(api.vendorQuotations.submitOnDemandQuotation);
+  const markNotificationRead = useMutation(api.notifications.markAsRead);
 
-  type PendingRFQItem = NonNullable<typeof pendingRFQs>[0]["items"][0] & { 
-    rfqId: Id<"rfqs">;
-    expectedDeliveryTime?: string;
-    createdAt: number;
-  };
-  const [selectedRFQ, setSelectedRFQ] = useState<PendingRFQItem | null>(null);
-  const [selectedProduct, setSelectedProduct] = useState<Id<"products"> | null>(null);
+  const [quotationDialog, setQuotationDialog] = useState<{
+    open: boolean;
+    rfqId: Id<"rfqs"> | null;
+    productId: Id<"products"> | null;
+    productName: string;
+    quantity: number;
+  }>({ open: false, rfqId: null, productId: null, productName: "", quantity: 0 });
+
+  const [formData, setFormData] = useState({
+    price: "",
+    specifications: "",
+    paymentTerms: "cash" as "cash" | "credit",
+    deliveryTime: "",
+    warranty: "",
+    countryOfOrigin: "",
+  });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Flatten pending RFQs into individual items
-  const flattenedPendingItems: PendingRFQItem[] = pendingRFQs?.flatMap(rfq => 
-    rfq.items.map(item => ({
-      ...item,
-      rfqId: rfq._id,
-      expectedDeliveryTime: rfq.expectedDeliveryTime,
-      createdAt: rfq.createdAt
-    }))
-  ) || [];
-
-  if (!isAuthenticated || !currentUser) {
-    return null;
-  }
-
-  if (currentUser.role !== "vendor") {
+  // Redirect if not authenticated or not a vendor
+  if (isAuthenticated && currentUser && currentUser.role !== "vendor") {
     navigate("/");
     return null;
   }
 
-  if (!currentUser.verified) {
+  if (isAuthenticated && currentUser === null) {
+    navigate("/register");
+    return null;
+  }
+
+  const isPending = currentUser === undefined;
+
+  const handleOpenQuotationDialog = (
+    rfqId: Id<"rfqs">,
+    productId: Id<"products">,
+    productName: string,
+    quantity: number
+  ) => {
+    setQuotationDialog({
+      open: true,
+      rfqId,
+      productId,
+      productName,
+      quantity,
+    });
+    setFormData({
+      price: "",
+      specifications: "",
+      paymentTerms: "cash",
+      deliveryTime: "",
+      warranty: "",
+      countryOfOrigin: "",
+    });
+  };
+
+  const handleSubmitQuotation = async () => {
+    if (!quotationDialog.rfqId || !quotationDialog.productId) return;
+
+    if (!formData.price || parseFloat(formData.price) <= 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+
+    if (!formData.specifications.trim()) {
+      toast.error("Please enter product specifications");
+      return;
+    }
+
+    if (!formData.deliveryTime.trim()) {
+      toast.error("Please enter delivery time");
+      return;
+    }
+
+    if (!formData.warranty.trim()) {
+      toast.error("Please enter warranty period");
+      return;
+    }
+
+    if (!formData.countryOfOrigin.trim()) {
+      toast.error("Please enter country of origin");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await submitQuotation({
+        rfqId: quotationDialog.rfqId,
+        productId: quotationDialog.productId,
+        price: parseFloat(formData.price),
+        quantity: quotationDialog.quantity,
+        productSpecifications: formData.specifications,
+        paymentTerms: formData.paymentTerms,
+        deliveryTime: formData.deliveryTime,
+        warrantyPeriod: formData.warranty,
+        countryOfOrigin: formData.countryOfOrigin,
+      });
+
+      toast.success("Quotation submitted successfully!");
+      setQuotationDialog({
+        open: false,
+        rfqId: null,
+        productId: null,
+        productName: "",
+        quantity: 0,
+      });
+    } catch (error) {
+      toast.error("Failed to submit quotation");
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleMarkNotificationRead = async (notificationId: Id<"notifications">) => {
+    try {
+      await markNotificationRead({ notificationId });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  if (isPending) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-8">
-        <Card className="max-w-lg">
-          <CardHeader>
-            <AlertCircle className="size-12 text-yellow-500 mb-4" />
-            <CardTitle>Account Pending Verification</CardTitle>
-            <CardDescription>
-              Your vendor account is pending admin approval. You'll be notified once verified and can start submitting quotations.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="min-h-screen bg-background">
+        <header className="border-b">
+          <div className="container mx-auto px-4 py-4">
+            <Skeleton className="h-8 w-48" />
+          </div>
+        </header>
+        <div className="container mx-auto px-4 py-8">
+          <Skeleton className="h-96 w-full" />
+        </div>
       </div>
     );
   }
 
-  const handleSubmitOnDemand = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!selectedRFQ) return;
+  // Flatten pending RFQs to individual items
+  const flattenedPendingItems = pendingRFQs?.flatMap(rfq =>
+    rfq.items?.map(item => ({
+      rfqId: rfq._id,
+      rfqCreatedAt: rfq._creationTime,
+      expectedDeliveryTime: rfq.expectedDeliveryTime,
+      productId: item.productId,
+      productName: "productName" in item ? item.productName : "Unknown Product",
+      quantity: item.quantity,
+    })) || []
+  ) || [];
 
-    const formData = new FormData(e.currentTarget);
-    setIsSubmitting(true);
-
-    try {
-      await submitOnDemand({
-        rfqId: selectedRFQ.rfqId,
-        productId: selectedRFQ.productId,
-        price: Number(formData.get("price")),
-        quantity: Number(formData.get("quantity")),
-        paymentTerms: formData.get("paymentTerms") as "cash" | "credit",
-        deliveryTime: formData.get("deliveryTime") as string,
-        warrantyPeriod: formData.get("warrantyPeriod") as string,
-        countryOfOrigin: formData.get("countryOfOrigin") as string,
-        productSpecifications: formData.get("productSpecifications") as string,
-        productDescription: formData.get("productDescription") as string,
-      });
-      toast.success("Quotation submitted successfully!");
-      setSelectedRFQ(null);
-    } catch (error) {
-      toast.error("Failed to submit quotation");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleCreateQuotation = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!selectedProduct) return;
-
-    const formData = new FormData(e.currentTarget);
-    setIsSubmitting(true);
-
-    try {
-      await createQuotation({
-        productId: selectedProduct,
-        price: Number(formData.get("price")),
-        quantity: Number(formData.get("quantity")),
-        paymentTerms: formData.get("paymentTerms") as "cash" | "credit",
-        deliveryTime: formData.get("deliveryTime") as string,
-        warrantyPeriod: formData.get("warrantyPeriod") as string,
-        countryOfOrigin: formData.get("countryOfOrigin") as string,
-        productSpecifications: formData.get("productSpecifications") as string,
-        productDescription: formData.get("productDescription") as string,
-      });
-      toast.success("Pre-filled quotation created!");
-      setSelectedProduct(null);
-    } catch (error) {
-      toast.error("Failed to create quotation");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  const unreadNotifications = notifications?.filter(n => !n.read).length || 0;
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur">
-        <div className="container mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold">Vendor Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Manage your quotations and RFQ responses</p>
+      <header className="border-b">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <Link to="/" className="text-2xl font-bold">QuickQuote B2B</Link>
+          <div className="flex items-center gap-4">
+            <Button asChild variant="ghost">
+              <Link to="/browse">Browse Products</Link>
+            </Button>
+            <div className="text-sm">
+              <p className="font-medium">{currentUser?.name}</p>
+              <p className="text-muted-foreground">
+                Vendor {!currentUser?.verified && <Badge variant="destructive" className="ml-2">Unverified</Badge>}
+              </p>
+            </div>
+          </div>
         </div>
       </header>
 
-      {/* Content */}
+      {/* Dashboard */}
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="pending" className="space-y-6">
+        <h1 className="text-3xl font-bold mb-8">Vendor Dashboard</h1>
+
+        {!currentUser?.verified && (
+          <Card className="mb-6 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20">
+            <CardHeader>
+              <CardTitle className="text-yellow-900 dark:text-yellow-100">Account Pending Verification</CardTitle>
+              <CardDescription className="text-yellow-800 dark:text-yellow-200">
+                Your account is awaiting admin approval. You can add products and prepare quotations, but they won't be visible to buyers until you're verified.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+
+        <Tabs defaultValue="rfqs" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="pending">
+            <TabsTrigger value="rfqs" className="gap-2">
+              <FileText className="size-4" />
               Pending RFQs
-              {flattenedPendingItems && flattenedPendingItems.length > 0 && (
-                <Badge variant="destructive" className="ml-2">{flattenedPendingItems.length}</Badge>
+              {flattenedPendingItems.length > 0 && (
+                <Badge variant="destructive">{flattenedPendingItems.length}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="quotations">My Quotations ({myQuotations?.length || 0})</TabsTrigger>
-            <TabsTrigger value="sent">Sent ({sentQuotations?.filter(q => q.opened).length || 0})</TabsTrigger>
+            <TabsTrigger value="products" className="gap-2">
+              <Package className="size-4" />
+              My Products
+              {myProducts && myProducts.length > 0 && (
+                <Badge variant="secondary">{myProducts.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="quotations" className="gap-2">
+              <Send className="size-4" />
+              My Quotations
+              {myQuotations && myQuotations.length > 0 && (
+                <Badge variant="secondary">{myQuotations.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="gap-2">
+              <Bell className="size-4" />
+              Notifications
+              {unreadNotifications > 0 && (
+                <Badge variant="destructive">{unreadNotifications}</Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
 
-          {/* Pending RFQs */}
-          <TabsContent value="pending" className="space-y-4">
+          {/* Pending RFQs Tab */}
+          <TabsContent value="rfqs">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="size-5" />
-                  RFQs Awaiting Your Quotation
-                </CardTitle>
+                <CardTitle>RFQs Needing Your Quotation</CardTitle>
                 <CardDescription>
-                  Buyers have requested quotations for products you supply. Submit your pricing to win the order.
+                  Submit quotations for products buyers are requesting (buyer information is anonymous until approved)
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {!pendingRFQs ? (
-                  <Skeleton className="h-32" />
-                ) : flattenedPendingItems.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No pending RFQs</p>
+                {flattenedPendingItems.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FileText className="size-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No pending RFQs</p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
-                    {flattenedPendingItems.map((rfq) => (
-                      <div key={`${rfq.rfqId}-${rfq.productId}`} className="border rounded-lg p-4">
-                        <div className="flex items-start justify-between">
-                          <div className="space-y-2 flex-1">
-                            <h3 className="font-semibold">{rfq.productName}</h3>
-                            <div className="flex gap-4 text-sm text-muted-foreground">
-                              <span>Buyer: <strong>Anonymous</strong></span>
-                              <span>Qty: <strong>{rfq.quantity}</strong></span>
-                              {rfq.expectedDeliveryTime && (
-                                <span>Expected: <strong>{rfq.expectedDeliveryTime}</strong></span>
-                              )}
+                    {flattenedPendingItems.map((item, idx) => (
+                      <Card key={idx}>
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="text-lg">{item.productName}</CardTitle>
+                              <CardDescription>
+                                From: Anonymous Buyer • Submitted {format(item.rfqCreatedAt, "PPP")}
+                              </CardDescription>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              Requested {new Date(rfq.createdAt).toLocaleDateString()}
-                            </p>
+                            <Button
+                              onClick={() =>
+                                handleOpenQuotationDialog(
+                                  item.rfqId,
+                                  item.productId,
+                                  item.productName,
+                                  item.quantity
+                                )
+                              }
+                            >
+                              Submit Quotation
+                            </Button>
                           </div>
-                          <Dialog open={selectedRFQ?.productId === rfq.productId && selectedRFQ?.rfqId === rfq.rfqId} onOpenChange={(open) => !open && setSelectedRFQ(null)}>
-                            <DialogTrigger asChild>
-                              <Button onClick={() => setSelectedRFQ(rfq)}>
-                                Submit Quotation
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                              <DialogHeader>
-                                <DialogTitle>Submit Quotation for {rfq.productName}</DialogTitle>
-                                <DialogDescription>
-                                  Buyer information will remain anonymous until they choose your quotation
-                                </DialogDescription>
-                              </DialogHeader>
-                              <form onSubmit={handleSubmitOnDemand} className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="space-y-2">
-                                    <Label htmlFor="price">Price (KES) *</Label>
-                                    <Input id="price" name="price" type="number" required placeholder="1000" />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="quantity">Quantity Available *</Label>
-                                    <Input id="quantity" name="quantity" type="number" required placeholder={rfq.quantity.toString()} />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="paymentTerms">Payment Terms *</Label>
-                                    <Select name="paymentTerms" required>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select terms" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="cash">Cash</SelectItem>
-                                        <SelectItem value="credit">Credit</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="deliveryTime">Delivery Time *</Label>
-                                    <Input id="deliveryTime" name="deliveryTime" required placeholder="7-10 days" />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="warrantyPeriod">Warranty Period *</Label>
-                                    <Input id="warrantyPeriod" name="warrantyPeriod" required placeholder="1 year" />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label htmlFor="countryOfOrigin">Country of Origin *</Label>
-                                    <Input id="countryOfOrigin" name="countryOfOrigin" required placeholder="Kenya" />
-                                  </div>
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="productSpecifications">Product Specifications *</Label>
-                                  <Textarea id="productSpecifications" name="productSpecifications" required placeholder="Detailed technical specifications..." rows={3} />
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="productDescription">Additional Description</Label>
-                                  <Textarea id="productDescription" name="productDescription" placeholder="Additional information..." rows={2} />
-                                </div>
-                                <div className="flex justify-end gap-2">
-                                  <Button type="button" variant="outline" onClick={() => setSelectedRFQ(null)}>
-                                    Cancel
-                                  </Button>
-                                  <Button type="submit" disabled={isSubmitting}>
-                                    {isSubmitting ? "Submitting..." : "Submit Quotation"}
-                                  </Button>
-                                </div>
-                              </form>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
-                      </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Quantity Needed:</span>
+                              <p className="font-semibold">{item.quantity} units</p>
+                            </div>
+                            {item.expectedDeliveryTime && (
+                              <div>
+                                <span className="text-muted-foreground">Expected Delivery:</span>
+                                <p className="font-semibold">{item.expectedDeliveryTime}</p>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
                     ))}
                   </div>
                 )}
@@ -272,126 +310,99 @@ export default function VendorDashboard() {
             </Card>
           </TabsContent>
 
-          {/* My Pre-filled Quotations */}
-          <TabsContent value="quotations" className="space-y-4">
+          {/* Products Tab */}
+          <TabsContent value="products">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Package className="size-5" />
-                      Pre-filled Quotations
-                    </CardTitle>
-                    <CardDescription>Quotations ready for instant matching</CardDescription>
-                  </div>
-                  {availableProducts && availableProducts.length > 0 && (
-                    <Dialog open={selectedProduct !== null} onOpenChange={(open) => !open && setSelectedProduct(null)}>
-                      <DialogTrigger asChild>
-                        <Button>
-                          <Plus className="size-4 mr-2" />
-                          Add Quotation
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>Create Pre-filled Quotation</DialogTitle>
-                          <DialogDescription>
-                            Add quotation for products you supply for instant matching
-                          </DialogDescription>
-                        </DialogHeader>
-                        <form onSubmit={handleCreateQuotation} className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="product">Select Product *</Label>
-                            <Select onValueChange={(value) => setSelectedProduct(value as Id<"products">)} required>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Choose a product" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {availableProducts?.map((product) => (
-                                  <SelectItem key={product._id} value={product._id}>
-                                    {product.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="price">Price (KES) *</Label>
-                              <Input id="price" name="price" type="number" required placeholder="1000" />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="quantity">Quantity Available *</Label>
-                              <Input id="quantity" name="quantity" type="number" required placeholder="100" />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="paymentTerms">Payment Terms *</Label>
-                              <Select name="paymentTerms" required>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select terms" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="cash">Cash</SelectItem>
-                                  <SelectItem value="credit">Credit</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="deliveryTime">Delivery Time *</Label>
-                              <Input id="deliveryTime" name="deliveryTime" required placeholder="7-10 days" />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="warrantyPeriod">Warranty Period *</Label>
-                              <Input id="warrantyPeriod" name="warrantyPeriod" required placeholder="1 year" />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="countryOfOrigin">Country of Origin *</Label>
-                              <Input id="countryOfOrigin" name="countryOfOrigin" required placeholder="Kenya" />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="productSpecifications">Product Specifications *</Label>
-                            <Textarea id="productSpecifications" name="productSpecifications" required placeholder="Detailed technical specifications..." rows={3} />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="productDescription">Additional Description</Label>
-                            <Textarea id="productDescription" name="productDescription" placeholder="Additional information..." rows={2} />
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <Button type="button" variant="outline" onClick={() => setSelectedProduct(null)}>
-                              Cancel
-                            </Button>
-                            <Button type="submit" disabled={isSubmitting || !selectedProduct}>
-                              {isSubmitting ? "Creating..." : "Create Quotation"}
-                            </Button>
-                          </div>
-                        </form>
-                      </DialogContent>
-                    </Dialog>
-                  )}
-                </div>
+                <CardTitle>Available Products</CardTitle>
+                <CardDescription>
+                  All products in the system (managed by admin)
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                {!myQuotations ? (
-                  <Skeleton className="h-32" />
-                ) : myQuotations.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No quotations yet. Create your first one!</p>
+                {!myProducts || myProducts.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Package className="size-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No products available</p>
+                  </div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {myProducts.map((product: { _id: Id<"products">; name: string; categoryName?: string; description: string }) => (
+                      <Card key={product._id}>
+                        <CardHeader>
+                          <CardTitle className="text-lg">{product.name}</CardTitle>
+                          {product.categoryName && (
+                            <Badge variant="outline">{product.categoryName}</Badge>
+                          )}
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {product.description}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Quotations Tab */}
+          <TabsContent value="quotations">
+            <Card>
+              <CardHeader>
+                <CardTitle>My Submitted Quotations</CardTitle>
+                <CardDescription>
+                  Track your quotations and their status
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!myQuotations || myQuotations.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Send className="size-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No quotations submitted yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
                     {myQuotations.map((quot) => (
-                      <div key={quot._id} className="border rounded p-4 flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold">{quot.product?.name}</h3>
-                          <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-                            <span>Price: <strong>KES {quot.price.toLocaleString()}</strong></span>
-                            <span>Qty: <strong>{quot.quantity}</strong></span>
-                            <span>{quot.paymentTerms}</span>
+                      <Card key={quot._id}>
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="text-lg">
+                                {quot.product?.name || "Unknown Product"}
+                              </CardTitle>
+                              <CardDescription>
+                                Price: KES {quot.price.toLocaleString()} • Qty: {quot.quantity}
+                              </CardDescription>
+                            </div>
+                            <Badge variant={quot.active ? "default" : "secondary"}>
+                              {quot.active ? "Active" : "Inactive"}
+                            </Badge>
                           </div>
-                        </div>
-                        <Badge variant={quot.active ? "default" : "secondary"}>
-                          {quot.active ? "Active" : "Inactive"}
-                        </Badge>
-                      </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <span className="text-muted-foreground">Payment:</span>
+                              <p className="font-semibold capitalize">{quot.paymentTerms}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Delivery:</span>
+                              <p className="font-semibold">{quot.deliveryTime}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Warranty:</span>
+                              <p className="font-semibold">{quot.warrantyPeriod}</p>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Origin:</span>
+                              <p className="font-semibold">{quot.countryOfOrigin}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
                     ))}
                   </div>
                 )}
@@ -399,39 +410,46 @@ export default function VendorDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Sent Quotations */}
-          <TabsContent value="sent" className="space-y-4">
+          {/* Notifications Tab */}
+          <TabsContent value="notifications">
             <Card>
               <CardHeader>
-                <CardTitle>Quotations Sent to Buyers</CardTitle>
-                <CardDescription>Track which buyers have opened your quotations</CardDescription>
+                <CardTitle>Notifications</CardTitle>
+                <CardDescription>
+                  Updates about your quotations and RFQs
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                {!sentQuotations ? (
-                  <Skeleton className="h-32" />
-                ) : sentQuotations.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No quotations sent yet</p>
+                {!notifications || notifications.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Bell className="size-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No notifications</p>
+                  </div>
                 ) : (
-                  <div className="space-y-2">
-                    {sentQuotations.filter(q => q.opened).map((quot) => (
-                      <div key={quot._id} className="border rounded p-4">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="font-semibold">{quot.productName}</h3>
-                            <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-                              <span>Price: <strong>KES {quot.price.toLocaleString()}</strong></span>
-                              <span>Qty: <strong>{quot.quantity}</strong></span>
-                              {quot.chosen && <Badge variant="default">Chosen by Buyer!</Badge>}
+                  <div className="space-y-3">
+                    {notifications.map((notification) => (
+                      <Card
+                        key={notification._id}
+                        className={notification.read ? "opacity-60" : "border-primary"}
+                        onClick={() => !notification.read && handleMarkNotificationRead(notification._id)}
+                      >
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="text-base">{notification.title}</CardTitle>
+                              <CardDescription className="mt-1">
+                                {notification.message}
+                              </CardDescription>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-2">
-                              Sent {new Date(quot.sentAt).toLocaleDateString()}
-                            </p>
+                            {!notification.read && (
+                              <Badge variant="default">New</Badge>
+                            )}
                           </div>
-                          <Badge variant={quot.quotationType === "pre-filled" ? "default" : "secondary"}>
-                            {quot.quotationType === "pre-filled" ? "Pre-filled" : "On-demand"}
-                          </Badge>
-                        </div>
-                      </div>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {format(notification.createdAt, "PPP 'at' p")}
+                          </p>
+                        </CardHeader>
+                      </Card>
                     ))}
                   </div>
                 )}
@@ -440,6 +458,122 @@ export default function VendorDashboard() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Submit Quotation Dialog */}
+      <Dialog
+        open={quotationDialog.open}
+        onOpenChange={(open) =>
+          !open &&
+          setQuotationDialog({
+            open: false,
+            rfqId: null,
+            productId: null,
+            productName: "",
+            quantity: 0,
+          })
+        }
+      >
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Submit Quotation</DialogTitle>
+            <DialogDescription>
+              For: {quotationDialog.productName} (Qty: {quotationDialog.quantity})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="price">Price per Unit (KES) *</Label>
+              <Input
+                id="price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                placeholder="e.g., 4500"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="specifications">Product Specifications *</Label>
+              <Textarea
+                id="specifications"
+                value={formData.specifications}
+                onChange={(e) => setFormData({ ...formData, specifications: e.target.value })}
+                placeholder="Detailed technical specifications..."
+                rows={3}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="paymentTerms">Payment Terms *</Label>
+              <Select
+                value={formData.paymentTerms}
+                onValueChange={(value: "cash" | "credit") =>
+                  setFormData({ ...formData, paymentTerms: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="credit">Credit</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="deliveryTime">Delivery Time *</Label>
+              <Input
+                id="deliveryTime"
+                value={formData.deliveryTime}
+                onChange={(e) => setFormData({ ...formData, deliveryTime: e.target.value })}
+                placeholder="e.g., 3-5 business days"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="warranty">Warranty Period *</Label>
+              <Input
+                id="warranty"
+                value={formData.warranty}
+                onChange={(e) => setFormData({ ...formData, warranty: e.target.value })}
+                placeholder="e.g., 12 months"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="countryOfOrigin">Country of Origin *</Label>
+              <Input
+                id="countryOfOrigin"
+                value={formData.countryOfOrigin}
+                onChange={(e) => setFormData({ ...formData, countryOfOrigin: e.target.value })}
+                placeholder="e.g., Kenya"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setQuotationDialog({
+                  open: false,
+                  rfqId: null,
+                  productId: null,
+                  productName: "",
+                  quantity: 0,
+                })
+              }
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSubmitQuotation} disabled={isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Submit Quotation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

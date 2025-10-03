@@ -1,125 +1,375 @@
-import { useQuery } from "convex/react";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth.ts";
 import { Button } from "@/components/ui/button.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
-import { ArrowRight, Package, Clock, CheckCircle } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
+import { Textarea } from "@/components/ui/textarea.tsx";
+import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { Package, FileText, CheckCircle, XCircle, Clock, ShoppingBag } from "lucide-react";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import type { Id } from "@/convex/_generated/dataModel";
 
 export default function BuyerDashboard() {
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { isAuthenticated } = useAuth();
   const currentUser = useQuery(api.users.getCurrentUser, isAuthenticated ? {} : "skip");
-  const myRFQs = useQuery(api.rfqs.getMyRFQs, currentUser ? {} : "skip");
+  const myRFQs = useQuery(api.rfqs.getMyRFQs, isAuthenticated ? {} : "skip");
+  const myQuotations = useQuery(api.rfqs.getMyQuotationsSent, isAuthenticated ? {} : "skip");
+  
+  const approveQuotation = useMutation(api.rfqs.chooseQuotation);
+  const declineQuotation = useMutation(api.rfqs.declineQuotation);
 
-  if (authLoading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  if (!isAuthenticated) {
+  const [declineDialog, setDeclineDialog] = useState<{
+    open: boolean;
+    quotationId: Id<"sentQuotations"> | null;
+  }>({ open: false, quotationId: null });
+  const [declineReason, setDeclineReason] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Redirect if not authenticated or not a buyer
+  if (isAuthenticated && currentUser && currentUser.role !== "buyer") {
     navigate("/");
     return null;
   }
-  if (!currentUser) {
+
+  if (isAuthenticated && currentUser === null) {
     navigate("/register");
     return null;
   }
-  if (currentUser.role !== "buyer") {
-    navigate("/");
-    return null;
+
+  const isPending = currentUser === undefined || myRFQs === undefined || myQuotations === undefined;
+
+  const handleApprove = async (quotationId: Id<"sentQuotations">) => {
+    try {
+      await approveQuotation({ sentQuotationId: quotationId });
+      toast.success("Quotation approved! Vendor contact information has been shared.");
+    } catch (error) {
+      toast.error("Failed to approve quotation");
+      console.error(error);
+    }
+  };
+
+  const handleDeclineClick = (quotationId: Id<"sentQuotations">) => {
+    setDeclineDialog({ open: true, quotationId });
+    setDeclineReason("");
+  };
+
+  const handleDeclineSubmit = async () => {
+    if (!declineDialog.quotationId) return;
+    if (!declineReason.trim()) {
+      toast.error("Please provide a reason for declining");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await declineQuotation({
+        sentQuotationId: declineDialog.quotationId,
+        reason: declineReason,
+      });
+      toast.success("Quotation declined");
+      setDeclineDialog({ open: false, quotationId: null });
+      setDeclineReason("");
+    } catch (error) {
+      toast.error("Failed to decline quotation");
+      console.error(error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isPending) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b">
+          <div className="container mx-auto px-4 py-4">
+            <Skeleton className="h-8 w-48" />
+          </div>
+        </header>
+        <div className="container mx-auto px-4 py-8">
+          <Skeleton className="h-96 w-full" />
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Package className="size-8 text-primary" />
-            <span className="text-2xl font-bold">Buyer Dashboard</span>
+          <Link to="/" className="text-2xl font-bold">QuickQuote B2B</Link>
+          <div className="flex items-center gap-4">
+            <Button asChild variant="ghost">
+              <Link to="/browse">Browse Products</Link>
+            </Button>
+            <div className="text-sm">
+              <p className="font-medium">{currentUser?.name}</p>
+              <p className="text-muted-foreground">Buyer</p>
+            </div>
           </div>
-          <Button variant="outline" onClick={() => navigate("/")}>
-            Back to Home
-          </Button>
         </div>
       </header>
 
+      {/* Dashboard */}
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Welcome, {currentUser.name}</h1>
-          <p className="text-muted-foreground">Manage your RFQs and review quotations</p>
-        </div>
+        <h1 className="text-3xl font-bold mb-8">Buyer Dashboard</h1>
 
-        {/* Quick Actions */}
-        <div className="grid md:grid-cols-2 gap-4 mb-8">
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate("/browse")}>
-            <CardHeader>
-              <CardTitle>Browse Products</CardTitle>
-              <CardDescription>Search and add products to your RFQ cart</CardDescription>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>My RFQs</CardTitle>
-              <CardDescription>View and manage your submitted RFQs</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{myRFQs?.length || 0}</div>
-            </CardContent>
-          </Card>
-        </div>
+        <Tabs defaultValue="quotations" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="quotations" className="gap-2">
+              <FileText className="size-4" />
+              Quotations
+              {myQuotations && myQuotations.length > 0 && (
+                <Badge variant="secondary">{myQuotations.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="rfqs" className="gap-2">
+              <Package className="size-4" />
+              My RFQs
+              {myRFQs && myRFQs.length > 0 && (
+                <Badge variant="secondary">{myRFQs.length}</Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-        {/* My RFQs List */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent RFQs</CardTitle>
-            <CardDescription>Click on an RFQ to view quotations</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {!myRFQs || myRFQs.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                No RFQs yet. Start by browsing products and adding them to your cart.
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {myRFQs.map((rfq) => {
-                  const statusColor = 
-                    rfq.status === "completed" ? "text-green-600" :
-                    rfq.status === "quoted" ? "text-blue-600" :
-                    "text-orange-600";
-                  
-                  const StatusIcon = 
-                    rfq.status === "completed" ? CheckCircle :
-                    rfq.status === "quoted" ? Package :
-                    Clock;
+          {/* Quotations Tab */}
+          <TabsContent value="quotations">
+            <Card>
+              <CardHeader>
+                <CardTitle>Received Quotations</CardTitle>
+                <CardDescription>
+                  Review and approve quotations from suppliers
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!myQuotations || myQuotations.length === 0 ? (
+                  <div className="text-center py-12">
+                    <ShoppingBag className="size-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground mb-4">No quotations yet</p>
+                    <Button asChild>
+                      <Link to="/browse">Browse Products</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Product Name</TableHead>
+                          <TableHead>Vendor</TableHead>
+                          <TableHead>Specifications</TableHead>
+                          <TableHead>Price (KES)</TableHead>
+                          <TableHead>Payment Terms</TableHead>
+                          <TableHead>Delivery Time</TableHead>
+                          <TableHead>Warranty</TableHead>
+                          <TableHead>Country of Origin</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {myQuotations.map((quot) => (
+                          <TableRow key={quot._id}>
+                            <TableCell className="font-medium">
+                              {quot.product?.name || "Unknown Product"}
+                            </TableCell>
+                            <TableCell>
+                              {"vendor" in quot && quot.vendor && quot.chosen ? (
+                                <div>
+                                  <p className="font-medium">{quot.vendor.name}</p>
+                                  {"email" in quot.vendor && quot.vendor.email && (
+                                    <p className="text-sm text-muted-foreground">
+                                      {quot.vendor.email}
+                                    </p>
+                                  )}
+                                  {"phone" in quot.vendor && quot.vendor.phone && (
+                                    <p className="text-sm text-muted-foreground">
+                                      {quot.vendor.phone}
+                                    </p>
+                                  )}
+                                </div>
+                              ) : "vendor" in quot && quot.vendor && "name" in quot.vendor ? (
+                                quot.vendor.name
+                              ) : (
+                                "Unknown Vendor"
+                              )}
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              <div className="text-sm line-clamp-2">
+                                {quot.productSpecifications || "N/A"}
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-semibold">
+                              {quot.price.toLocaleString()}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={quot.paymentTerms === "cash" ? "default" : "secondary"}>
+                                {quot.paymentTerms}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{quot.deliveryTime}</TableCell>
+                            <TableCell>{quot.warrantyPeriod}</TableCell>
+                            <TableCell>{quot.countryOfOrigin}</TableCell>
+                            <TableCell>
+                              {quot.chosen ? (
+                                <Badge className="gap-1">
+                                  <CheckCircle className="size-3" />
+                                  Approved
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="gap-1">
+                                  <Clock className="size-3" />
+                                  Pending
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {!quot.chosen && (
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApprove(quot._id)}
+                                    className="gap-1"
+                                  >
+                                    <CheckCircle className="size-3" />
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => handleDeclineClick(quot._id)}
+                                    className="gap-1"
+                                  >
+                                    <XCircle className="size-3" />
+                                    Decline
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                  return (
-                    <Link key={rfq._id} to={`/buyer/rfq/${rfq._id}`}>
-                      <div className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer">
-                        <div className="flex items-center gap-4">
-                          <StatusIcon className={`size-8 ${statusColor}`} />
-                          <div>
-                            <div className="font-semibold">RFQ #{rfq._id.slice(-6)}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {new Date(rfq.createdAt).toLocaleDateString()}
+          {/* RFQs Tab */}
+          <TabsContent value="rfqs">
+            <Card>
+              <CardHeader>
+                <CardTitle>My RFQs</CardTitle>
+                <CardDescription>
+                  Track your submitted quotation requests
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!myRFQs || myRFQs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Package className="size-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground mb-4">No RFQs submitted yet</p>
+                    <Button asChild>
+                      <Link to="/browse">Browse Products</Link>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {myRFQs.map((rfq) => (
+                      <Card key={rfq._id} className="cursor-pointer hover:border-primary transition-colors">
+                        <Link to={`/buyer/rfq/${rfq._id}`}>
+                          <CardHeader>
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <CardTitle className="text-lg">
+                                  RFQ #{rfq._id.slice(-6)}
+                                </CardTitle>
+                                <CardDescription>
+                                  Submitted {format(rfq._creationTime, "PPP")}
+                                </CardDescription>
+                              </div>
+                              <Badge
+                                variant={
+                                  rfq.status === "completed"
+                                    ? "default"
+                                    : rfq.status === "quoted"
+                                    ? "secondary"
+                                    : "outline"
+                                }
+                              >
+                                {rfq.status}
+                              </Badge>
                             </div>
-                            <Badge className="mt-1" variant={
-                              rfq.status === "completed" ? "default" :
-                              rfq.status === "quoted" ? "secondary" :
-                              "outline"
-                            }>
-                              {rfq.status}
-                            </Badge>
-                          </div>
-                        </div>
-                        <ArrowRight className="size-5 text-muted-foreground" />
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-2">
+                              {rfq.items?.map((item, idx) => (
+                                <div key={idx} className="flex justify-between text-sm">
+                                  <span>{item.product?.name || "Unknown Product"}</span>
+                                  <span className="text-muted-foreground">
+                                    Qty: {item.quantity}
+                                  </span>
+                                </div>
+                              ))}
+                              {rfq.expectedDeliveryTime && (
+                                <p className="text-sm text-muted-foreground">
+                                  Expected by: {rfq.expectedDeliveryTime}
+                                </p>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Link>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
+
+      {/* Decline Dialog */}
+      <Dialog open={declineDialog.open} onOpenChange={(open) => setDeclineDialog({ open, quotationId: null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Decline Quotation</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for declining this quotation
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={declineReason}
+            onChange={(e) => setDeclineReason(e.target.value)}
+            placeholder="e.g., Price too high, Need faster delivery, etc."
+            rows={4}
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeclineDialog({ open: false, quotationId: null })}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeclineSubmit}
+              disabled={isSubmitting || !declineReason.trim()}
+            >
+              {isSubmitting ? "Declining..." : "Decline Quotation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

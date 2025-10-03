@@ -11,6 +11,7 @@ export const submitRFQ = mutation({
         quantity: v.number(),
       }),
     ),
+    expectedDeliveryTime: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -51,6 +52,7 @@ export const submitRFQ = mutation({
     const rfqId = await ctx.db.insert("rfqs", {
       buyerId: user._id,
       status: "pending",
+      expectedDeliveryTime: args.expectedDeliveryTime,
       createdAt: Date.now(),
     });
 
@@ -346,35 +348,66 @@ export const getMyQuotationsSent = query({
       return [];
     }
 
-    const vendor = await ctx.db
+    const user = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
       .first();
 
-    if (!vendor || vendor.role !== "vendor") {
+    if (!user) {
       return [];
     }
 
-    const sentQuotations = await ctx.db
-      .query("sentQuotations")
-      .withIndex("by_vendor", (q) => q.eq("vendorId", vendor._id))
-      .order("desc")
-      .collect();
+    // If buyer, get quotations sent to them
+    if (user.role === "buyer") {
+      const sentQuotations = await ctx.db
+        .query("sentQuotations")
+        .withIndex("by_buyer", (q) => q.eq("buyerId", user._id))
+        .order("desc")
+        .collect();
 
-    return await Promise.all(
-      sentQuotations.map(async (quotation) => {
-        const product = await ctx.db.get(quotation.productId);
-        const buyer = await ctx.db.get(quotation.buyerId);
-        const rfq = await ctx.db.get(quotation.rfqId);
+      return await Promise.all(
+        sentQuotations.map(async (quotation) => {
+          const product = await ctx.db.get(quotation.productId);
+          const vendor = await ctx.db.get(quotation.vendorId);
 
-        return {
-          ...quotation,
-          product,
-          buyer,
-          rfq,
-        };
-      })
-    );
+          return {
+            ...quotation,
+            product,
+            vendor: quotation.chosen
+              ? vendor
+              : vendor
+              ? { _id: vendor._id, name: vendor.name, email: vendor.email, phone: vendor.phone }
+              : null,
+          };
+        })
+      );
+    }
+
+    // If vendor, get their sent quotations
+    if (user.role === "vendor") {
+      const sentQuotations = await ctx.db
+        .query("sentQuotations")
+        .withIndex("by_vendor", (q) => q.eq("vendorId", user._id))
+        .order("desc")
+        .collect();
+
+      return await Promise.all(
+        sentQuotations.map(async (quotation) => {
+          const product = await ctx.db.get(quotation.productId);
+          const buyer = await ctx.db.get(quotation.buyerId);
+          const rfq = await ctx.db.get(quotation.rfqId);
+
+          return {
+            ...quotation,
+            product,
+            buyer,
+            rfq,
+          };
+        })
+      );
+    }
+
+    return [];
   },
 });
 
@@ -456,58 +489,116 @@ export const getPendingRFQs = query({
 
 // Choose quotation
 export const chooseQuotation = mutation({
-  args: {
-    sentQuotationId: v.id("sentQuotations"),
-  },
+  args: { sentQuotationId: v.id("sentQuotations") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new ConvexError({
-        message: "Not authenticated",
-        code: "UNAUTHENTICATED" as const,
+        message: "User not authenticated",
+        code: "UNAUTHENTICATED",
       });
     }
 
     const user = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+      .first();
 
     if (!user || user.role !== "buyer") {
       throw new ConvexError({
         message: "Only buyers can choose quotations",
-        code: "FORBIDDEN" as const,
+        code: "FORBIDDEN",
       });
     }
 
-    const sentQuotation = await ctx.db.get(args.sentQuotationId);
-    if (!sentQuotation) {
+    const quotation = await ctx.db.get(args.sentQuotationId);
+    if (!quotation) {
       throw new ConvexError({
         message: "Quotation not found",
-        code: "NOT_FOUND" as const,
+        code: "NOT_FOUND",
       });
     }
 
-    if (sentQuotation.buyerId !== user._id) {
+    if (quotation.buyerId !== user._id) {
       throw new ConvexError({
-        message: "This quotation doesn't belong to you",
-        code: "FORBIDDEN" as const,
+        message: "Not your quotation",
+        code: "FORBIDDEN",
       });
     }
 
     // Mark quotation as chosen
-    await ctx.db.patch(args.sentQuotationId, {
-      chosen: true,
+    await ctx.db.patch(args.sentQuotationId, { chosen: true });
+
+    // Update RFQ status to completed
+    await ctx.db.patch(quotation.rfqId, { status: "completed" });
+
+    // Notify vendor
+    await ctx.db.insert("notifications", {
+      userId: quotation.vendorId,
+      type: "quotation_chosen",
+      title: "Your Quotation Was Chosen!",
+      message: `Buyer ${user.name} has selected your quotation. Contact information: ${user.email}${user.phone ? `, ${user.phone}` : ""}`,
+      read: false,
+      relatedId: args.sentQuotationId,
+      createdAt: Date.now(),
     });
 
-    // Notify vendor that their quotation was chosen
+    return { success: true };
+  },
+});
+
+export const declineQuotation = mutation({
+  args: {
+    sentQuotationId: v.id("sentQuotations"),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not authenticated",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!user || user.role !== "buyer") {
+      throw new ConvexError({
+        message: "Only buyers can decline quotations",
+        code: "FORBIDDEN",
+      });
+    }
+
+    const quotation = await ctx.db.get(args.sentQuotationId);
+    if (!quotation) {
+      throw new ConvexError({
+        message: "Quotation not found",
+        code: "NOT_FOUND",
+      });
+    }
+
+    if (quotation.buyerId !== user._id) {
+      throw new ConvexError({
+        message: "Not your quotation",
+        code: "FORBIDDEN",
+      });
+    }
+
+    // Delete the quotation
+    await ctx.db.delete(args.sentQuotationId);
+
+    // Notify vendor with reason
     await ctx.db.insert("notifications", {
-      userId: sentQuotation.vendorId,
-      type: "quotation_chosen" as const,
-      title: "Quotation Chosen!",
-      message: `A buyer chose your quotation. You can now see their contact details.`,
+      userId: quotation.vendorId,
+      type: "quotation_chosen",
+      title: "Quotation Declined",
+      message: `Buyer declined your quotation. Reason: ${args.reason}`,
       read: false,
-      relatedId: sentQuotation.rfqId,
+      relatedId: quotation.rfqId,
       createdAt: Date.now(),
     });
 
