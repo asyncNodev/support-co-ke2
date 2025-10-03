@@ -1,30 +1,39 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useAuth } from "@/hooks/use-auth.ts";
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button.tsx";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card.tsx";
-import { Badge } from "@/components/ui/badge.tsx";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog.tsx";
-import { Input } from "@/components/ui/input.tsx";
-import { Label } from "@/components/ui/label.tsx";
-import { Textarea } from "@/components/ui/textarea.tsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
-import { Plus, Package, Users, BarChart3, Globe, CheckCircle, XCircle, Trash2, Upload } from "lucide-react";
-import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { Users, Package, BarChart3, Plus, Trash2, Upload } from "lucide-react";
 
 export default function AdminDashboard() {
-  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const currentUser = useQuery(api.users.getCurrentUser, isAuthenticated ? {} : "skip");
-  const analytics = useQuery(api.analytics.getAnalytics, {});
-  const categories = useQuery(api.categories.getCategories, {});
+  const analytics = useQuery(api.analytics.getAnalytics);
   const products = useQuery(api.products.getProducts, {});
+  const categories = useQuery(api.categories.getCategories);
   const users = useQuery(api.users.getAllUsers, {});
-  
+
   const createProduct = useMutation(api.products.createProduct);
   const deleteProduct = useMutation(api.products.deleteProduct);
   const createCategory = useMutation(api.categories.createCategory);
@@ -33,39 +42,19 @@ export default function AdminDashboard() {
 
   const [showProductDialog, setShowProductDialog] = useState(false);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
-  const [newProduct, setNewProduct] = useState({ name: "", categoryId: "", description: "", sku: "" });
-  const [newCategory, setNewCategory] = useState({ name: "", description: "" });
   const [showBulkUploadDialog, setShowBulkUploadDialog] = useState(false);
-
-  if (!isAuthenticated) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Authentication Required</CardTitle>
-            <CardDescription>Please sign in to access the admin dashboard</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
-
-  if (!currentUser) {
-    return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
-  }
-
-  if (currentUser.role !== "admin") {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
-            <CardDescription>You need admin privileges to access this page</CardDescription>
-          </CardHeader>
-        </Card>
-      </div>
-    );
-  }
+  
+  const [newProduct, setNewProduct] = useState({
+    name: "",
+    categoryId: "",
+    description: "",
+    image: "",
+  });
+  
+  const [newCategory, setNewCategory] = useState({
+    name: "",
+    description: "",
+  });
 
   const handleCreateProduct = async () => {
     try {
@@ -73,11 +62,11 @@ export default function AdminDashboard() {
         name: newProduct.name,
         categoryId: newProduct.categoryId as Id<"categories">,
         description: newProduct.description,
-        sku: newProduct.sku,
+        image: newProduct.image || undefined,
       });
       toast.success("Product created successfully");
       setShowProductDialog(false);
-      setNewProduct({ name: "", categoryId: "", description: "", sku: "" });
+      setNewProduct({ name: "", categoryId: "", description: "", image: "" });
     } catch (error) {
       toast.error("Failed to create product");
     }
@@ -122,6 +111,65 @@ export default function AdminDashboard() {
     } catch (error) {
       toast.error("Failed to verify user");
     }
+  };
+
+  const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      const lines = text.split("\n");
+      const headers = lines[0].split(",");
+
+      // Skip header row and process each line
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+
+        const values = line.split(",");
+        const name = values[0]?.trim();
+        const categoryName = values[1]?.trim();
+        const description = values[2]?.trim();
+        const photoUrl = values[3]?.trim();
+
+        if (!name || !categoryName) continue;
+
+        // Find category ID by name
+        const category = categories?.find(
+          (c) => c.name.toLowerCase() === categoryName.toLowerCase()
+        );
+        if (!category) {
+          toast.error(`Category not found: ${categoryName}`);
+          continue;
+        }
+
+        try {
+          await createProduct({
+            name,
+            categoryId: category._id,
+            description: description || "",
+            image: photoUrl || undefined,
+          });
+        } catch (error) {
+          toast.error(`Failed to create product: ${name}`);
+        }
+      }
+      toast.success("Bulk upload completed");
+      setShowBulkUploadDialog(false);
+    };
+    reader.readAsText(file);
+  };
+
+  const downloadCSVTemplate = () => {
+    const csvContent = "Name,Category,Description,Photo URL\nHospital Bed,Patient Care Equipment,Electric hospital bed with adjustable height,https://example.com/bed.jpg\nWheelchair,Patient Care Equipment,Standard wheelchair with armrests,https://example.com/wheelchair.jpg";
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "product_upload_template.csv";
+    a.click();
   };
 
   return (
@@ -183,13 +231,12 @@ export default function AdminDashboard() {
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="categories">Categories</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="scraping">Web Scraping</TabsTrigger>
           </TabsList>
 
           {/* Products Tab */}
           <TabsContent value="products" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold">Products Management</h2>
+              <h2 className="text-xl font-semibold">Products</h2>
               <div className="flex gap-2">
                 <Dialog open={showBulkUploadDialog} onOpenChange={setShowBulkUploadDialog}>
                   <DialogTrigger asChild>
@@ -198,56 +245,18 @@ export default function AdminDashboard() {
                       Bulk Upload CSV
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
+                  <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Bulk Upload Products from CSV</DialogTitle>
-                      <DialogDescription>
-                        Upload a CSV file with your products. Download the template below for the correct format.
-                      </DialogDescription>
+                      <DialogTitle>Bulk Upload Products (CSV)</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
-                      <div className="rounded-lg bg-muted p-4">
-                        <h3 className="font-semibold mb-2">CSV Format Required:</h3>
-                        <code className="text-sm block bg-background p-2 rounded">
-                          Name,Category,SKU,Description,Price,Specifications,Country of Origin,Warranty
-                        </code>
-                        <p className="text-sm text-muted-foreground mt-2">
-                          Example:<br/>
-                          <code className="text-xs bg-background p-1 rounded">
-                            Digital Blood Pressure Monitor,Diagnostic Equipment,DBP-001,Automatic digital BP monitor,4500,LCD Display; Memory 90 readings,China,12 months
-                          </code>
-                        </p>
-                      </div>
-                      <div>
-                        <Label htmlFor="csv-file">Upload CSV File</Label>
-                        <Input
-                          id="csv-file"
-                          type="file"
-                          accept=".csv"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              toast.info("CSV parsing feature coming soon!");
-                              // TODO: Parse CSV and create products in bulk
-                            }
-                          }}
-                        />
-                      </div>
-                      <Button className="w-full" variant="outline" onClick={() => {
-                        // Create sample CSV
-                        const csv = `Name,Category,SKU,Description,Price,Specifications,Country of Origin,Warranty
-Digital Blood Pressure Monitor,Diagnostic Equipment,DBP-001,Automatic digital BP monitor,4500,LCD Display; Memory 90 readings,China,12 months
-Pulse Oximeter,Diagnostic Equipment,POX-001,Fingertip pulse oximeter,3200,SpO2 and pulse rate,China,6 months`;
-                        const blob = new Blob([csv], { type: 'text/csv' });
-                        const url = window.URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = 'product_template.csv';
-                        a.click();
-                        toast.success("Template downloaded");
-                      }}>
+                      <p className="text-sm text-muted-foreground">
+                        Upload a CSV file with columns: Name, Category, Description, Photo URL
+                      </p>
+                      <Button variant="outline" onClick={downloadCSVTemplate}>
                         Download CSV Template
                       </Button>
+                      <Input type="file" accept=".csv" onChange={handleCSVUpload} />
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -260,21 +269,26 @@ Pulse Oximeter,Diagnostic Equipment,POX-001,Fingertip pulse oximeter,3200,SpO2 a
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Create New Product</DialogTitle>
+                      <DialogTitle>Add New Product</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label>Product Name</Label>
+                        <Label>Name</Label>
                         <Input
                           value={newProduct.name}
-                          onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                          onChange={(e) =>
+                            setNewProduct({ ...newProduct, name: e.target.value })
+                          }
+                          placeholder="Hospital Bed"
                         />
                       </div>
                       <div>
                         <Label>Category</Label>
                         <Select
                           value={newProduct.categoryId}
-                          onValueChange={(value) => setNewProduct({ ...newProduct, categoryId: value })}
+                          onValueChange={(value) =>
+                            setNewProduct({ ...newProduct, categoryId: value })
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select category" />
@@ -289,43 +303,53 @@ Pulse Oximeter,Diagnostic Equipment,POX-001,Fingertip pulse oximeter,3200,SpO2 a
                         </Select>
                       </div>
                       <div>
-                        <Label>SKU</Label>
-                        <Input
-                          value={newProduct.sku}
-                          onChange={(e) => setNewProduct({ ...newProduct, sku: e.target.value })}
-                        />
-                      </div>
-                      <div>
                         <Label>Description</Label>
                         <Textarea
                           value={newProduct.description}
-                          onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                          onChange={(e) =>
+                            setNewProduct({ ...newProduct, description: e.target.value })
+                          }
+                          placeholder="Product description"
                         />
                       </div>
-                      <Button onClick={handleCreateProduct} className="w-full">
-                        Create Product
-                      </Button>
+                      <div>
+                        <Label>Photo URL</Label>
+                        <Input
+                          value={newProduct.image}
+                          onChange={(e) =>
+                            setNewProduct({ ...newProduct, image: e.target.value })
+                          }
+                          placeholder="https://example.com/image.jpg"
+                        />
+                      </div>
+                      <Button onClick={handleCreateProduct}>Create Product</Button>
                     </div>
                   </DialogContent>
                 </Dialog>
               </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-3">
               {products?.map((product) => (
                 <Card key={product._id}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">{product.name}</CardTitle>
-                    <CardDescription>{product.sku}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground mb-2">{product.description}</p>
+                  <CardContent className="pt-6">
+                    {product.image && (
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="w-full h-32 object-cover rounded mb-2"
+                      />
+                    )}
+                    <h3 className="font-semibold">{product.name}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {product.description}
+                    </p>
                     <Button
                       variant="destructive"
                       size="sm"
+                      className="mt-4"
                       onClick={() => handleDeleteProduct(product._id)}
                     >
-                      <Trash2 className="mr-2 size-4" />
-                      Delete
+                      <Trash2 className="size-4" />
                     </Button>
                   </CardContent>
                 </Card>
@@ -336,7 +360,7 @@ Pulse Oximeter,Diagnostic Equipment,POX-001,Fingertip pulse oximeter,3200,SpO2 a
           {/* Categories Tab */}
           <TabsContent value="categories" className="space-y-4">
             <div className="flex justify-between items-center">
-              <h2 className="text-xl font-bold">Categories Management</h2>
+              <h2 className="text-xl font-semibold">Categories</h2>
               <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
                 <DialogTrigger asChild>
                   <Button>
@@ -346,47 +370,49 @@ Pulse Oximeter,Diagnostic Equipment,POX-001,Fingertip pulse oximeter,3200,SpO2 a
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Create New Category</DialogTitle>
+                    <DialogTitle>Add New Category</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
                     <div>
-                      <Label>Category Name</Label>
+                      <Label>Name</Label>
                       <Input
                         value={newCategory.name}
-                        onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                        onChange={(e) =>
+                          setNewCategory({ ...newCategory, name: e.target.value })
+                        }
+                        placeholder="Diagnostic Equipment"
                       />
                     </div>
                     <div>
                       <Label>Description</Label>
                       <Textarea
                         value={newCategory.description}
-                        onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                        onChange={(e) =>
+                          setNewCategory({ ...newCategory, description: e.target.value })
+                        }
+                        placeholder="Category description"
                       />
                     </div>
-                    <Button onClick={handleCreateCategory} className="w-full">
-                      Create Category
-                    </Button>
+                    <Button onClick={handleCreateCategory}>Create Category</Button>
                   </div>
                 </DialogContent>
               </Dialog>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-3">
               {categories?.map((category) => (
                 <Card key={category._id}>
-                  <CardHeader>
-                    <CardTitle>{category.name}</CardTitle>
-                    {category.description && (
-                      <CardDescription>{category.description}</CardDescription>
-                    )}
-                  </CardHeader>
-                  <CardContent>
+                  <CardContent className="pt-6">
+                    <h3 className="font-semibold">{category.name}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {category.description}
+                    </p>
                     <Button
                       variant="destructive"
                       size="sm"
+                      className="mt-4"
                       onClick={() => handleDeleteCategory(category._id)}
                     >
-                      <Trash2 className="mr-2 size-4" />
-                      Delete
+                      <Trash2 className="size-4" />
                     </Button>
                   </CardContent>
                 </Card>
@@ -396,114 +422,39 @@ Pulse Oximeter,Diagnostic Equipment,POX-001,Fingertip pulse oximeter,3200,SpO2 a
 
           {/* Users Tab */}
           <TabsContent value="users" className="space-y-4">
-            <h2 className="text-xl font-bold">Users Management</h2>
-            <div className="grid gap-4">
+            <h2 className="text-xl font-semibold">Users</h2>
+            <div className="space-y-2">
               {users?.map((user) => (
                 <Card key={user._id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>{user.name}</CardTitle>
-                        <CardDescription>{user.email}</CardDescription>
-                      </div>
-                      <div className="flex gap-2">
-                        <Badge variant={user.role === "admin" ? "default" : user.role === "vendor" ? "secondary" : "outline"}>
-                          {user.role}
-                        </Badge>
-                        {user.verified ? (
-                          <Badge variant="default" className="bg-green-500">
-                            <CheckCircle className="mr-1 size-3" />
-                            Verified
-                          </Badge>
-                        ) : (
-                          <Badge variant="destructive">
-                            <XCircle className="mr-1 size-3" />
-                            Unverified
-                          </Badge>
-                        )}
-                      </div>
+                  <CardContent className="flex items-center justify-between p-4">
+                    <div>
+                      <p className="font-medium">{user.name}</p>
+                      <p className="text-sm text-muted-foreground">{user.email}</p>
                     </div>
-                  </CardHeader>
-                  {!user.verified && user.role === "vendor" && (
-                    <CardContent>
-                      <Button
-                        size="sm"
-                        onClick={() => handleVerifyUser(user._id)}
-                      >
-                        <CheckCircle className="mr-2 size-4" />
-                        Verify Vendor
-                      </Button>
-                    </CardContent>
-                  )}
+                    <div className="flex items-center gap-2">
+                      <Badge variant={user.role === "admin" ? "default" : "secondary"}>
+                        {user.role}
+                      </Badge>
+                      {user.verified ? (
+                        <Badge variant="default">Verified</Badge>
+                      ) : (
+                        <>
+                          <Badge variant="destructive">Unverified</Badge>
+                          {user.role === "vendor" && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleVerifyUser(user._id)}
+                            >
+                              Verify Vendor
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
                 </Card>
               ))}
             </div>
-          </TabsContent>
-
-          {/* Web Scraping Tab */}
-          <TabsContent value="scraping" className="space-y-4">
-            <h2 className="text-xl font-bold">Web Scraping Sources</h2>
-            <Card>
-              <CardHeader>
-                <CardTitle>Kenyan Medical Supply Websites</CardTitle>
-                <CardDescription>
-                  These websites are configured for automatic product scraping
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between p-2 border rounded">
-                    <div className="flex items-center gap-2">
-                      <Globe className="size-4" />
-                      <span className="text-sm">alphamed.co.ke</span>
-                    </div>
-                    <Badge variant="default">Active</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 border rounded">
-                    <div className="flex items-center gap-2">
-                      <Globe className="size-4" />
-                      <span className="text-sm">mediplugequipment.co.ke</span>
-                    </div>
-                    <Badge variant="default">Active</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 border rounded">
-                    <div className="flex items-center gap-2">
-                      <Globe className="size-4" />
-                      <span className="text-sm">enzasupplies.co.ke</span>
-                    </div>
-                    <Badge variant="default">Active</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 border rounded">
-                    <div className="flex items-center gap-2">
-                      <Globe className="size-4" />
-                      <span className="text-sm">apicalmed.com</span>
-                    </div>
-                    <Badge variant="default">Active</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 border rounded">
-                    <div className="flex items-center gap-2">
-                      <Globe className="size-4" />
-                      <span className="text-sm">medipalmedicalsupplies.co.ke</span>
-                    </div>
-                    <Badge variant="default">Active</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 border rounded">
-                    <div className="flex items-center gap-2">
-                      <Globe className="size-4" />
-                      <span className="text-sm">medicalequipmentsupplieskenya.com</span>
-                    </div>
-                    <Badge variant="default">Active</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-2 border rounded">
-                    <div className="flex items-center gap-2">
-                      <Globe className="size-4" />
-                      <span className="text-sm">crownkenya.com</span>
-                    </div>
-                    <Badge variant="default">Active</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
       </div>
