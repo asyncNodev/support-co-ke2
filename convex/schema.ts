@@ -13,6 +13,9 @@ export default defineSchema({
     companyName: v.optional(v.string()),
     phone: v.optional(v.string()),
     address: v.optional(v.string()),
+    cr12Certificate: v.optional(v.string()),
+    latitude: v.optional(v.number()),
+    longitude: v.optional(v.number()),
     registeredAt: v.number(),
   })
     .index("by_authId", ["authId"])
@@ -57,6 +60,7 @@ export default defineSchema({
     active: v.boolean(),
     createdAt: v.number(),
     updatedAt: v.number(),
+    brand: v.optional(v.string()),
   })
     .index("by_vendor", ["vendorId"])
     .index("by_product", ["productId"])
@@ -104,6 +108,7 @@ export default defineSchema({
     opened: v.boolean(),
     chosen: v.boolean(),
     sentAt: v.number(),
+    brand: v.optional(v.string()),
   })
     .index("by_rfq", ["rfqId"])
     .index("by_buyer", ["buyerId"])

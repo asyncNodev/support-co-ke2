@@ -26,6 +26,9 @@ export const createUser = mutation({
     companyName: v.optional(v.string()),
     phone: v.optional(v.string()),
     address: v.optional(v.string()),
+    cr12Certificate: v.optional(v.string()),
+    latitude: v.optional(v.number()),
+    longitude: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -58,6 +61,9 @@ export const createUser = mutation({
       companyName: args.companyName,
       phone: args.phone,
       address: args.address,
+      cr12Certificate: args.cr12Certificate,
+      latitude: args.latitude,
+      longitude: args.longitude,
       registeredAt: Date.now(),
     });
 
