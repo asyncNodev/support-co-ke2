@@ -6,9 +6,12 @@ import { api } from "@/convex/_generated/api";
 import { SignInButton } from "@/components/ui/signin.tsx";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/use-auth.ts";
+import { toast } from "sonner";
 
 export default function Index() {
   const navigate = useNavigate();
+  const { isAuthenticated, signinRedirect } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -24,7 +27,32 @@ export default function Index() {
     return "/";
   };
 
-  // Filter products based on search query
+  const handleEnterAsHospital = () => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in first");
+      signinRedirect();
+      return;
+    }
+    if (!currentUser) {
+      navigate("/register");
+      return;
+    }
+    navigate("/buyer");
+  };
+
+  const handleEnterAsVendor = () => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in first");
+      signinRedirect();
+      return;
+    }
+    if (!currentUser) {
+      navigate("/register");
+      return;
+    }
+    navigate("/vendor");
+  };
+
   const suggestions = products?.filter((p) =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   ).slice(0, 5) || [];
@@ -119,18 +147,18 @@ export default function Index() {
             <Button
               size="lg"
               variant="default"
-              asChild
+              onClick={handleEnterAsHospital}
               className="px-8 py-6 text-lg"
             >
-              <Link to="/buyer">Enter as Hospital</Link>
+              Enter as Hospital
             </Button>
             <Button
               size="lg"
               variant="outline"
-              asChild
+              onClick={handleEnterAsVendor}
               className="px-8 py-6 text-lg"
             >
-              <Link to="/vendor">Enter as Vendor</Link>
+              Enter as Vendor
             </Button>
           </div>
         </div>
