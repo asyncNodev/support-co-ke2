@@ -4,7 +4,7 @@ import { v } from "convex/values";
 export default defineSchema({
   // User management with roles
   users: defineTable({
-    authId: v.string(), // From Hercules Auth
+    authId: v.string(),
     email: v.string(),
     name: v.string(),
     role: v.union(v.literal("admin"), v.literal("vendor"), v.literal("buyer")),
@@ -42,16 +42,16 @@ export default defineSchema({
   vendorQuotations: defineTable({
     vendorId: v.id("users"),
     productId: v.id("products"),
-    rfqId: v.optional(v.id("rfqs")), // Only for on-demand quotations
-    quotationType: v.union(v.literal("pre-filled"), v.literal("on-demand")),
-    source: v.union(v.literal("manual"), v.literal("auto-scraped")),
+    rfqId: v.optional(v.id("rfqs")),
+    quotationType: v.optional(v.union(v.literal("pre-filled"), v.literal("on-demand"))),
+    source: v.optional(v.union(v.literal("manual"), v.literal("auto-scraped"))),
     price: v.number(),
     quantity: v.number(),
     paymentTerms: v.union(v.literal("cash"), v.literal("credit")),
     deliveryTime: v.string(),
     warrantyPeriod: v.string(),
-    countryOfOrigin: v.string(),
-    productSpecifications: v.string(), // Detailed specifications from vendor
+    countryOfOrigin: v.optional(v.string()),
+    productSpecifications: v.optional(v.string()),
     productPhoto: v.optional(v.string()),
     productDescription: v.optional(v.string()),
     active: v.boolean(),
@@ -97,12 +97,12 @@ export default defineSchema({
     paymentTerms: v.string(),
     deliveryTime: v.string(),
     warrantyPeriod: v.string(),
-    countryOfOrigin: v.string(),
-    productSpecifications: v.string(),
+    countryOfOrigin: v.optional(v.string()),
+    productSpecifications: v.optional(v.string()),
     productPhoto: v.optional(v.string()),
     productDescription: v.optional(v.string()),
     opened: v.boolean(),
-    chosen: v.boolean(), // Buyer selected this quotation
+    chosen: v.boolean(),
     sentAt: v.number(),
   })
     .index("by_rfq", ["rfqId"])
@@ -114,7 +114,7 @@ export default defineSchema({
     buyerId: v.id("users"),
     vendorId: v.id("users"),
     rfqId: v.id("rfqs"),
-    rating: v.number(), // 1-5
+    rating: v.number(),
     review: v.optional(v.string()),
     createdAt: v.number(),
   })
@@ -135,7 +135,7 @@ export default defineSchema({
     title: v.string(),
     message: v.string(),
     read: v.boolean(),
-    relatedId: v.optional(v.string()), // RFQ ID or quotation ID
+    relatedId: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_user", ["userId"]),
 
