@@ -81,39 +81,57 @@ export default function Index() {
             Search and get quotations from verified Kenyan suppliers
           </p>
 
-          <div ref={searchRef} className="relative">
-            <form onSubmit={handleSearch} className="w-full">
-              <div className="relative">
-                <Search className="absolute left-6 top-1/2 -translate-y-1/2 size-6 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setShowSuggestions(e.target.value.length > 0);
-                  }}
-                  onFocus={() => searchQuery.length > 0 && setShowSuggestions(true)}
-                  placeholder="Search for medical supplies (e.g. Hospital Bed, Wheelchair)..."
-                  className="w-full pl-16 pr-6 py-6 text-lg rounded-xl border-2 border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-            </form>
+          <form onSubmit={handleSearch} className="w-full mb-8">
+            <div ref={searchRef} className="relative">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 size-6 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowSuggestions(e.target.value.length > 0);
+                }}
+                onFocus={() => searchQuery.length > 0 && setShowSuggestions(true)}
+                placeholder="Search for medical supplies (e.g. Hospital Bed, Wheelchair)..."
+                className="w-full pl-16 pr-6 py-6 text-lg rounded-xl border-2 border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              />
 
-            {/* Search Suggestions Dropdown */}
-            {showSuggestions && suggestions.length > 0 && (
-              <div className="absolute z-50 w-full mt-2 bg-background border-2 border-border rounded-xl shadow-lg max-h-96 overflow-y-auto">
-                {suggestions.map((product) => (
-                  <button
-                    key={product._id}
-                    onClick={() => handleSuggestionClick(product.name)}
-                    className="w-full px-6 py-3 text-left hover:bg-muted transition-colors flex items-center gap-3"
-                  >
-                    <Search className="size-4 text-muted-foreground" />
-                    <span>{product.name}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+              {showSuggestions && suggestions && suggestions.length > 0 && (
+                <div className="absolute z-50 w-full mt-2 bg-background border-2 border-border rounded-xl shadow-lg max-h-96 overflow-y-auto">
+                  {suggestions.map((product) => (
+                    <button
+                      key={product._id}
+                      type="button"
+                      onClick={() => handleSuggestionClick(product.name)}
+                      className="w-full px-6 py-3 text-left hover:bg-muted transition-colors flex items-center gap-3"
+                    >
+                      <Search className="size-4 text-muted-foreground" />
+                      <span>{product.name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </form>
+
+          {/* Enter as Hospital/Vendor Buttons */}
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Button
+              size="lg"
+              variant="default"
+              asChild
+              className="px-8 py-6 text-lg"
+            >
+              <Link to="/buyer">Enter as Hospital</Link>
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              asChild
+              className="px-8 py-6 text-lg"
+            >
+              <Link to="/vendor">Enter as Vendor</Link>
+            </Button>
           </div>
         </div>
       </div>
