@@ -71,6 +71,7 @@ export default defineSchema({
       v.literal("quoted"),
       v.literal("completed")
     ),
+    expectedDeliveryTime: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_buyer", ["buyerId"]),
 
@@ -148,4 +149,14 @@ export default defineSchema({
     metadata: v.optional(v.string()),
     timestamp: v.number(),
   }).index("by_type", ["type"]),
+
+  // Web scraping sources (admin configurable)
+  scrapingSources: defineTable({
+    name: v.string(),
+    url: v.string(),
+    country: v.string(),
+    active: v.boolean(),
+    lastScraped: v.optional(v.number()),
+    createdAt: v.number(),
+  }).index("by_active", ["active"]),
 });

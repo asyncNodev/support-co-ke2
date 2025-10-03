@@ -1,144 +1,207 @@
-import { useQuery } from "convex/react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel.d.ts";
-import { ArrowLeft, Package, ShoppingCart, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { ArrowLeft, Check, Star } from "lucide-react";
+import { toast } from "sonner";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table.tsx";
 
 export default function RFQDetails() {
   const { id } = useParams();
-  const rfqDetails = useQuery(api.rfqs.getRFQDetails, {
-    rfqId: id as Id<"rfqs">,
-  });
+  const navigate = useNavigate();
+  const rfqDetails = useQuery(api.rfqs.getRFQDetails, id ? { rfqId: id as Id<"rfqs"> } : "skip");
+  const chooseQuotation = useMutation(api.rfqs.chooseQuotation);
+
+  const handleChooseQuotation = async (quotationId: Id<"sentQuotations">) => {
+    try {
+      await chooseQuotation({ sentQuotationId: quotationId });
+      toast.success("Quotation selected! Vendor has been notified and your contact info has been shared.");
+    } catch (error) {
+      toast.error("Failed to select quotation");
+    }
+  };
+
+  if (!id) {
+    return (
+      <div className="min-h-screen bg-background p-8">
+        <p>Invalid RFQ ID</p>
+      </div>
+    );
+  }
 
   if (!rfqDetails) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="container mx-auto px-4 py-8">
-          <Skeleton className="h-8 w-48 mb-8" />
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-32 w-full" />
-            ))}
-          </div>
-        </div>
+      <div className="min-h-screen bg-background p-8">
+        <Skeleton className="h-96 w-full" />
       </div>
     );
   }
 
   // Group quotations by product
-  const itemsWithQuotations = rfqDetails.items.map((item) => ({
-    ...item,
-    productName: item.product?.name || "Unknown Product",
-    quotations: rfqDetails.quotations.filter(
-      (q) => q.productId === item.productId
-    ),
-  }));
+  const quotationsByProduct: Record<string, Array<typeof rfqDetails.quotations[0]>> = {};
+  rfqDetails.quotations.forEach((quot) => {
+    if (!quotationsByProduct[quot.productId]) {
+      quotationsByProduct[quot.productId] = [];
+    }
+    quotationsByProduct[quot.productId].push(quot);
+  });
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8">
-        <Link to="/buyer">
-          <Button variant="ghost" className="mb-6">
-            <ArrowLeft className="mr-2 size-4" />
-            Back to Dashboard
-          </Button>
-        </Link>
-
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">RFQ #{rfqDetails._id.slice(-8)}</h1>
-          <p className="text-muted-foreground">
-            Submitted on {new Date(rfqDetails.createdAt).toLocaleDateString()}
-          </p>
-        </div>
-
-        {itemsWithQuotations.map((item) => (
-          <div key={item.productId} className="mb-8">
-            <div className="flex items-center gap-3 mb-4">
-              <Package className="size-6 text-primary" />
-              <div>
-                <h2 className="text-2xl font-semibold">{item.productName}</h2>
-                <p className="text-sm text-muted-foreground">
-                  Requested Quantity: {item.quantity}
-                </p>
-              </div>
+      {/* Header */}
+      <header className="border-b bg-background/95 backdrop-blur">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/buyer")}>
+              <ArrowLeft className="size-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">RFQ Details</h1>
+              <p className="text-sm text-muted-foreground">
+                Submitted on {new Date(rfqDetails.createdAt).toLocaleDateString()}
+              </p>
             </div>
-
-            {item.quotations.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <ShoppingCart className="size-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-muted-foreground">
-                    No quotations received yet for this product
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {item.quotations.map((quotation) => (
-                  <Card key={quotation._id}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-lg">
-                            {quotation.vendor?.name}
-                          </CardTitle>
-                          {quotation.vendor?.companyName && (
-                            <p className="text-sm text-muted-foreground">
-                              {quotation.vendor.companyName}
-                            </p>
-                          )}
-                        </div>
-                        <Badge variant={quotation.quotationType === "pre-filled" ? "default" : "secondary"}>
-                          {quotation.quotationType === "pre-filled" ? "Pre-filled" : "On-demand"}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-3xl font-bold text-primary">
-                          ${quotation.price.toFixed(2)}
-                        </span>
-                        <div className="text-right text-sm">
-                          <p className="text-muted-foreground">Qty: {quotation.quantity}</p>
-                          <p className="text-muted-foreground">
-                            Unit: ${(quotation.price / quotation.quantity).toFixed(2)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Payment:</span>
-                          <span className="font-medium capitalize">{quotation.paymentTerms}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Delivery:</span>
-                          <span className="font-medium">{quotation.deliveryTime}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Warranty:</span>
-                          <span className="font-medium">{quotation.warrantyPeriod}</span>
-                        </div>
-                      </div>
-                      {quotation.productDescription && (
-                        <p className="text-sm text-muted-foreground pt-2 border-t">
-                          {quotation.productDescription}
-                        </p>
-                      )}
-                      <Button className="w-full" variant="outline">
-                        <TrendingUp className="mr-2 size-4" />
-                        Accept Quote
-                      </Button>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
           </div>
-        ))}
+          <Badge variant={rfqDetails.status === "quoted" ? "default" : "secondary"}>
+            {rfqDetails.status}
+          </Badge>
+        </div>
+      </header>
+
+      {/* Content */}
+      <div className="container mx-auto px-4 py-8">
+        {/* RFQ Items */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Requested Products</CardTitle>
+            <CardDescription>Items in your RFQ</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {rfqDetails.items.map((item) => (
+                <div key={item._id} className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <h3 className="font-semibold">{item.product?.name}</h3>
+                    <p className="text-sm text-muted-foreground">{item.product?.description}</p>
+                  </div>
+                  <Badge variant="outline">Qty: {item.quantity}</Badge>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Quotations by Product */}
+        {rfqDetails.items.map((item) => {
+          const quotations = quotationsByProduct[item.productId] || [];
+          if (quotations.length === 0) {
+            return (
+              <Card key={item.productId} className="mb-8">
+                <CardHeader>
+                  <CardTitle>{item.product?.name}</CardTitle>
+                  <CardDescription>No quotations available yet</CardDescription>
+                </CardHeader>
+              </Card>
+            );
+          }
+
+          return (
+            <Card key={item.productId} className="mb-8">
+              <CardHeader>
+                <CardTitle>{item.product?.name}</CardTitle>
+                <CardDescription>{quotations.length} quotation(s) available</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Vendor</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Price</TableHead>
+                        <TableHead>Quantity</TableHead>
+                        <TableHead>Payment Terms</TableHead>
+                        <TableHead>Delivery Time</TableHead>
+                        <TableHead>Warranty</TableHead>
+                        <TableHead>Country of Origin</TableHead>
+                        <TableHead>Specifications</TableHead>
+                        <TableHead>Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {quotations.map((quot) => (
+                        <TableRow key={quot._id}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{quot.vendor?.name}</span>
+                              {quot.vendorRating && (
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Star className="size-3 fill-yellow-400 text-yellow-400" />
+                                  {quot.vendorRating.toFixed(1)}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={quot.quotationType === "pre-filled" ? "default" : "secondary"}>
+                              {quot.quotationType === "pre-filled" ? "Instant" : "Custom"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-semibold">KES {quot.price.toLocaleString()}</TableCell>
+                          <TableCell>{quot.quantity}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{quot.paymentTerms}</Badge>
+                          </TableCell>
+                          <TableCell>{quot.deliveryTime}</TableCell>
+                          <TableCell>{quot.warrantyPeriod}</TableCell>
+                          <TableCell>{quot.countryOfOrigin}</TableCell>
+                          <TableCell className="max-w-xs truncate">
+                            {quot.productSpecifications}
+                          </TableCell>
+                          <TableCell>
+                            {quot.chosen ? (
+                              <Badge variant="default" className="gap-1">
+                                <Check className="size-3" /> Chosen
+                              </Badge>
+                            ) : (
+                              <Button
+                                size="sm"
+                                onClick={() => handleChooseQuotation(quot._id)}
+                              >
+                                Choose
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+
+        {rfqDetails.quotations.length === 0 && (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">
+                No quotations received yet. Vendors have been notified and will submit quotations soon.
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

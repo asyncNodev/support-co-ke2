@@ -1,11 +1,73 @@
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, ShoppingCart, Users, Zap, Shield, TrendingUp, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { SignInButton } from "@/components/ui/signin.tsx";
 import { useAuth } from "@/hooks/use-auth.ts";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+
+const PRODUCTS = [
+  "Steel Pipes",
+  "Copper Wire",
+  "Industrial Lubricants",
+  "Hydraulic Pumps",
+  "Ball Bearings",
+  "Conveyor Belts",
+  "Electric Motors",
+  "Safety Helmets",
+  "Welding Machines",
+  "Control Valves"
+];
 
 export default function Index() {
   const { isAuthenticated } = useAuth();
+  const currentUser = useQuery(api.users.getCurrentUser, isAuthenticated ? {} : "skip");
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (query.trim() === "") {
+      setSuggestions([]);
+      return;
+    }
+    const lowerQuery = query.toLowerCase();
+    const filtered = PRODUCTS.filter((product) =>
+      product.toLowerCase().includes(lowerQuery)
+    ).slice(0, 5);
+    setSuggestions(filtered);
+  }, [query]);
+
+  // Close suggestions when clicked outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target as Node)) {
+        setSuggestions([]);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Navigation links per role
+  const navLinks = [
+    { name: "Browse Products", to: "/browse" },
+  ];
+
+  if (isAuthenticated && currentUser) {
+    if (currentUser.role === "admin") {
+      navLinks.push({ name: "Admin Dashboard", to: "/admin" });
+    }
+    if (currentUser.role === "vendor") {
+      navLinks.push({ name: "Vendor Dashboard", to: "/vendor" });
+    }
+    if (currentUser.role === "buyer") {
+      navLinks.push({ name: "Buyer Dashboard", to: "/buyer" });
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -17,31 +79,53 @@ export default function Index() {
             <span className="text-2xl font-bold">QuickQuote B2B</span>
           </div>
           <nav className="flex items-center gap-4">
-            <Link to="/browse">
-              <Button variant="ghost">Browse Products</Button>
-            </Link>
-            <SignInButton />
+            {navLinks.map(({ name, to }) => (
+              <Link key={to} to={to}>
+                <Button variant="ghost">{name}</Button>
+              </Link>
+            ))}
+            {!isAuthenticated && <SignInButton />}
           </nav>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6 text-balance">
-          Instant B2B Quotations
-          <br />
-          <span className="text-primary">Powered by Auto-Matching</span>
-        </h1>
-        <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-          Submit your RFQ and get instant quotations from verified vendors. No waiting, no back-and-forth.
-        </p>
-        <div className="flex gap-4 justify-center flex-wrap">
-          <Link to="/browse">
-            <Button size="lg" className="gap-2">
-              Browse Products <ArrowRight className="size-4" />
-            </Button>
-          </Link>
-          {!isAuthenticated && <SignInButton size="lg" variant="outline" />}
+      {/* Search Section */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="max-w-xl mx-auto text-center">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6 text-balance">
+            Find Products Instantly
+          </h1>
+          <p className="text-lg text-muted-foreground mb-8">
+            Search our extensive catalog and get instant quotation matches.
+          </p>
+          <div className="relative" ref={suggestionsRef}>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search for products..."
+              className="w-full rounded border border-border bg-background px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-primary"
+              aria-label="Search products"
+            />
+            {suggestions.length > 0 && (
+              <ul className="absolute z-10 w-full bg-background border border-border rounded-b shadow-md mt-1 max-h-60 overflow-auto">
+                {suggestions.map((product) => (
+                  <li key={product}>
+                    <Link
+                      to={`/browse?search=${encodeURIComponent(product)}`}
+                      className="block px-4 py-2 hover:bg-primary/20"
+                      onClick={() => {
+                        setQuery("");
+                        setSuggestions([]);
+                      }}
+                    >
+                      {product}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       </section>
 
