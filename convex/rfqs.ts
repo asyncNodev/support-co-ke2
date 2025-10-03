@@ -22,16 +22,28 @@ export const submitRFQ = mutation({
       });
     }
 
-    const user = await ctx.db
+    let user = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
       .first();
 
+    // Auto-create buyer if doesn't exist
     if (!user) {
-      throw new ConvexError({
-        message: "User not found",
-        code: "NOT_FOUND",
+      const userId = await ctx.db.insert("users", {
+        authId: identity.tokenIdentifier,
+        email: identity.email ?? "unknown@example.com",
+        name: identity.name ?? "Unknown User",
+        role: "buyer",
+        verified: true,
+        registeredAt: Date.now(),
       });
+      user = await ctx.db.get(userId);
+      if (!user) {
+        throw new ConvexError({
+          message: "Failed to create user",
+          code: "INTERNAL_ERROR",
+        });
+      }
     }
 
     if (user.role !== "buyer") {
