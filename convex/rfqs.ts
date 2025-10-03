@@ -407,13 +407,15 @@ export const getMyQuotationsSent = query({
         sentQuotations.map(async (quotation) => {
           const product = await ctx.db.get(quotation.productId);
           const buyer = await ctx.db.get(quotation.buyerId);
-          const rfq = await ctx.db.get(quotation.rfqId);
 
           return {
             ...quotation,
-            product,
-            buyer,
-            rfq,
+            productName: product?.name || "Unknown Product",
+            // Only show buyer info if quotation was chosen (approved)
+            buyerName: quotation.chosen && buyer ? buyer.name : "Anonymous Buyer",
+            buyerEmail: quotation.chosen && buyer ? buyer.email : undefined,
+            buyerPhone: quotation.chosen && buyer ? buyer.phone : undefined,
+            buyerCompany: quotation.chosen && buyer ? buyer.companyName : undefined,
           };
         })
       );

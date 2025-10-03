@@ -4,7 +4,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel.d.ts";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button.tsx";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Input } from "@/components/ui/input.tsx";
@@ -12,6 +12,9 @@ import { Label } from "@/components/ui/label.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog.tsx";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
+import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { EmptyState, EmptyStateContent, EmptyStateIcon, EmptyStateTitle, EmptyStateDescription } from "@/components/ui/empty-state.tsx";
 import { Package, AlertCircle, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-auth.ts";
@@ -23,6 +26,9 @@ export default function VendorDashboard() {
   const categories = useQuery(api.categories.getCategories, {});
   const products = useQuery(api.products.getProducts, {});
   const myQuotations = useQuery(api.vendorQuotations.getMyQuotations, {});
+  const pendingRFQs = useQuery(api.vendorQuotations.getPendingRFQs, {});
+  const availableProducts = useQuery(api.products.getProducts, {});
+  const sentQuotations = useQuery(api.rfqs.getMyQuotationsSent, {});
   
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -352,11 +358,100 @@ export default function VendorDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>Sent Quotations</CardTitle>
+                <CardDescription>
+                  Track quotations sent to buyers and see approval status
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">
-                  Track quotations sent to buyers
-                </p>
+                {!sentQuotations && (
+                  <div className="space-y-2">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                )}
+                {sentQuotations && sentQuotations.length === 0 && (
+                  <EmptyState>
+                    <EmptyStateContent>
+                      <EmptyStateIcon>
+                        <Package className="size-8" />
+                      </EmptyStateIcon>
+                      <EmptyStateTitle>No quotations sent yet</EmptyStateTitle>
+                      <EmptyStateDescription>
+                        Your quotations will appear here when buyers request products you've added
+                      </EmptyStateDescription>
+                    </EmptyStateContent>
+                  </EmptyState>
+                )}
+                {sentQuotations && sentQuotations.length > 0 && (
+                  <div className="border rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Product</TableHead>
+                          <TableHead>Buyer</TableHead>
+                          <TableHead>Price</TableHead>
+                          <TableHead>Delivery</TableHead>
+                          <TableHead>Sent Date</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sentQuotations.map((quot: {
+                          _id: string;
+                          productName?: string;
+                          buyerName?: string;
+                          buyerEmail?: string;
+                          buyerPhone?: string;
+                          price: number;
+                          deliveryTime: string;
+                          sentAt: number;
+                          chosen: boolean;
+                          opened: boolean;
+                        }) => (
+                          <TableRow key={quot._id}>
+                            <TableCell className="font-medium">
+                              {quot.productName || "Unknown Product"}
+                            </TableCell>
+                            <TableCell>
+                              {quot.chosen && quot.buyerName !== "Anonymous Buyer" ? (
+                                <div>
+                                  <div className="font-medium">{quot.buyerName}</div>
+                                  <div className="text-sm text-muted-foreground">
+                                    {quot.buyerEmail}
+                                  </div>
+                                  {quot.buyerPhone && (
+                                    <div className="text-sm text-muted-foreground">
+                                      {quot.buyerPhone}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">Anonymous Buyer</span>
+                              )}
+                            </TableCell>
+                            <TableCell>KES {quot.price.toLocaleString()}</TableCell>
+                            <TableCell>{quot.deliveryTime}</TableCell>
+                            <TableCell>
+                              {new Date(quot.sentAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              {quot.chosen ? (
+                                <Badge variant="default" className="bg-green-500">
+                                  ✓ Approved
+                                </Badge>
+                              ) : quot.opened ? (
+                                <Badge variant="secondary">Opened</Badge>
+                              ) : (
+                                <Badge variant="outline">Sent</Badge>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

@@ -178,10 +178,22 @@ export default function BuyerDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {myQuotations.map((quot) => (
+                        {myQuotations.map((quot: {
+                          _id: Id<"sentQuotations">;
+                          product?: { name: string } | null;
+                          productName?: string;
+                          vendor?: { name: string; email: string; phone?: string } | null;
+                          price: number;
+                          deliveryTime: string;
+                          warrantyPeriod: string;
+                          paymentTerms: string;
+                          countryOfOrigin?: string;
+                          productSpecifications?: string;
+                          chosen: boolean;
+                        }) => (
                           <TableRow key={quot._id}>
                             <TableCell className="font-medium">
-                              {quot.product?.name || "Unknown Product"}
+                              {quot.product?.name || quot.productName || "Unknown Product"}
                             </TableCell>
                             <TableCell>
                               {"vendor" in quot && quot.vendor && quot.chosen ? (
