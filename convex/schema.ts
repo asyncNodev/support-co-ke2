@@ -38,10 +38,13 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_category", ["categoryId"]),
 
-  // Vendor quotations (pre-filled)
+  // Vendor quotations
   vendorQuotations: defineTable({
     vendorId: v.id("users"),
     productId: v.id("products"),
+    rfqId: v.optional(v.id("rfqs")), // Only for on-demand quotations
+    quotationType: v.union(v.literal("pre-filled"), v.literal("on-demand")),
+    source: v.union(v.literal("manual"), v.literal("auto-scraped")), // How it was added
     price: v.number(),
     quantity: v.number(),
     paymentTerms: v.union(v.literal("cash"), v.literal("credit")),
@@ -55,7 +58,8 @@ export default defineSchema({
   })
     .index("by_vendor", ["vendorId"])
     .index("by_product", ["productId"])
-    .index("by_vendor_and_product", ["vendorId", "productId"]),
+    .index("by_vendor_and_product", ["vendorId", "productId"])
+    .index("by_rfq", ["rfqId"]),
 
   // RFQ requests from buyers
   rfqs: defineTable({
@@ -84,6 +88,7 @@ export default defineSchema({
     vendorId: v.id("users"),
     productId: v.id("products"),
     quotationId: v.id("vendorQuotations"),
+    quotationType: v.union(v.literal("pre-filled"), v.literal("on-demand")),
     price: v.number(),
     quantity: v.number(),
     paymentTerms: v.string(),
@@ -117,7 +122,8 @@ export default defineSchema({
       v.literal("quotation_sent"),
       v.literal("rfq_received"),
       v.literal("vendor_approved"),
-      v.literal("buyer_approved")
+      v.literal("buyer_approved"),
+      v.literal("rfq_needs_quotation")
     ),
     title: v.string(),
     message: v.string(),

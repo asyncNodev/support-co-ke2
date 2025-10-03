@@ -2,14 +2,14 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel.d.ts";
 
-// Submit RFQ and auto-match with vendor quotations
+// Submit RFQ with items from cart
 export const submitRFQ = mutation({
   args: {
     items: v.array(
       v.object({
         productId: v.id("products"),
         quantity: v.number(),
-      })
+      }),
     ),
   },
   handler: async (ctx, args) => {
@@ -21,21 +21,35 @@ export const submitRFQ = mutation({
       });
     }
 
-    const buyer = await ctx.db
+    const user = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
       .first();
 
-    if (!buyer || buyer.role !== "buyer") {
+    if (!user) {
+      throw new ConvexError({
+        message: "User not found",
+        code: "NOT_FOUND",
+      });
+    }
+
+    if (user.role !== "buyer") {
       throw new ConvexError({
         message: "Only buyers can submit RFQs",
         code: "FORBIDDEN",
       });
     }
 
+    if (!user.verified) {
+      throw new ConvexError({
+        message: "Your account must be verified to submit RFQs",
+        code: "FORBIDDEN",
+      });
+    }
+
     // Create RFQ
     const rfqId = await ctx.db.insert("rfqs", {
-      buyerId: buyer._id,
+      buyerId: user._id,
       status: "pending",
       createdAt: Date.now(),
     });
@@ -49,52 +63,90 @@ export const submitRFQ = mutation({
       });
     }
 
-    // Auto-match with vendor quotations
+    // Auto-match with pre-filled vendor quotations and notify vendors without quotations
     let matchedCount = 0;
+    const vendorsToNotify = new Set<Id<"users">>();
+
     for (const item of args.items) {
-      // Find all active vendor quotations for this product
-      const vendorQuotations = await ctx.db
+      // Find all verified vendors with pre-filled quotations for this product
+      const quotations = await ctx.db
         .query("vendorQuotations")
         .withIndex("by_product", (q) => q.eq("productId", item.productId))
+        .filter((q) => q.eq(q.field("active"), true))
+        .filter((q) => q.eq(q.field("quotationType"), "pre-filled"))
         .collect();
 
-      const activeQuotations = vendorQuotations.filter((q) => q.active);
+      const product = await ctx.db.get(item.productId);
 
-      // Create sent quotations for each matching vendor
-      for (const quotation of activeQuotations) {
+      // Send pre-filled quotations
+      for (const quotation of quotations) {
         const vendor = await ctx.db.get(quotation.vendorId);
-        if (!vendor || !vendor.verified) continue;
+        if (vendor && vendor.verified && vendor.role === "vendor") {
+          await ctx.db.insert("sentQuotations", {
+            rfqId,
+            buyerId: user._id,
+            vendorId: vendor._id,
+            productId: item.productId,
+            quotationId: quotation._id,
+            quotationType: "pre-filled",
+            price: quotation.price,
+            quantity: quotation.quantity,
+            paymentTerms: quotation.paymentTerms,
+            deliveryTime: quotation.deliveryTime,
+            warrantyPeriod: quotation.warrantyPeriod,
+            productPhoto: quotation.productPhoto,
+            productDescription: quotation.productDescription,
+            opened: false,
+            sentAt: Date.now(),
+          });
 
-        await ctx.db.insert("sentQuotations", {
-          rfqId,
-          buyerId: buyer._id,
-          vendorId: quotation.vendorId,
-          productId: item.productId,
-          quotationId: quotation._id,
-          price: quotation.price,
-          quantity: quotation.quantity,
-          paymentTerms: quotation.paymentTerms,
-          deliveryTime: quotation.deliveryTime,
-          warrantyPeriod: quotation.warrantyPeriod,
-          productPhoto: quotation.productPhoto,
-          productDescription: quotation.productDescription,
-          opened: false,
-          sentAt: Date.now(),
-        });
+          // Notify vendor that their quotation was sent
+          await ctx.db.insert("notifications", {
+            userId: vendor._id,
+            type: "quotation_sent",
+            title: "Your quotation was sent!",
+            message: `Your pre-filled quotation for ${product?.name} was sent to a buyer`,
+            read: false,
+            relatedId: rfqId,
+            createdAt: Date.now(),
+          });
 
-        // Notify vendor
-        await ctx.db.insert("notifications", {
-          userId: quotation.vendorId,
-          type: "quotation_sent",
-          title: "Your Quotation Was Sent",
-          message: `Your quotation for ${(await ctx.db.get(item.productId))?.name} was sent to a buyer`,
-          read: false,
-          relatedId: rfqId,
-          createdAt: Date.now(),
-        });
-
-        matchedCount++;
+          matchedCount++;
+        }
       }
+
+      // Find ALL verified vendors (to notify those without quotations)
+      const allVerifiedVendors = await ctx.db
+        .query("users")
+        .withIndex("by_role", (q) => {
+          const role = "vendor" as const;
+          return q.eq("role", role);
+        })
+        .filter((q) => q.eq(q.field("verified"), true))
+        .collect();
+
+      // Notify vendors who DON'T have a pre-filled quotation for this product
+      for (const vendor of allVerifiedVendors) {
+        const hasQuotation = quotations.some(
+          (q) => q.vendorId === vendor._id
+        );
+        if (!hasQuotation) {
+          vendorsToNotify.add(vendor._id);
+        }
+      }
+    }
+
+    // Send notifications to vendors without pre-filled quotations
+    for (const vendorId of vendorsToNotify) {
+      await ctx.db.insert("notifications", {
+        userId: vendorId,
+        type: "rfq_needs_quotation",
+        title: "New RFQ needs your quotation",
+        message: `A buyer has submitted an RFQ. Review and submit your quotation.`,
+        read: false,
+        relatedId: rfqId,
+        createdAt: Date.now(),
+      });
     }
 
     // Update RFQ status
@@ -109,7 +161,11 @@ export const submitRFQ = mutation({
       timestamp: Date.now(),
     });
 
-    return { rfqId, matchedCount };
+    return {
+      rfqId,
+      matchedCount,
+      vendorsNotified: vendorsToNotify.size,
+    };
   },
 });
 
