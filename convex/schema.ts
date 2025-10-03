@@ -44,12 +44,14 @@ export default defineSchema({
     productId: v.id("products"),
     rfqId: v.optional(v.id("rfqs")), // Only for on-demand quotations
     quotationType: v.union(v.literal("pre-filled"), v.literal("on-demand")),
-    source: v.union(v.literal("manual"), v.literal("auto-scraped")), // How it was added
+    source: v.union(v.literal("manual"), v.literal("auto-scraped")),
     price: v.number(),
     quantity: v.number(),
     paymentTerms: v.union(v.literal("cash"), v.literal("credit")),
-    deliveryTime: v.string(), // e.g., "3-5 days"
-    warrantyPeriod: v.string(), // e.g., "1 year"
+    deliveryTime: v.string(),
+    warrantyPeriod: v.string(),
+    countryOfOrigin: v.string(),
+    productSpecifications: v.string(), // Detailed specifications from vendor
     productPhoto: v.optional(v.string()),
     productDescription: v.optional(v.string()),
     active: v.boolean(),
@@ -94,9 +96,12 @@ export default defineSchema({
     paymentTerms: v.string(),
     deliveryTime: v.string(),
     warrantyPeriod: v.string(),
+    countryOfOrigin: v.string(),
+    productSpecifications: v.string(),
     productPhoto: v.optional(v.string()),
     productDescription: v.optional(v.string()),
     opened: v.boolean(),
+    chosen: v.boolean(), // Buyer selected this quotation
     sentAt: v.number(),
   })
     .index("by_rfq", ["rfqId"])
@@ -123,7 +128,8 @@ export default defineSchema({
       v.literal("rfq_received"),
       v.literal("vendor_approved"),
       v.literal("buyer_approved"),
-      v.literal("rfq_needs_quotation")
+      v.literal("rfq_needs_quotation"),
+      v.literal("quotation_chosen")
     ),
     title: v.string(),
     message: v.string(),

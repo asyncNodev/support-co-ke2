@@ -42,6 +42,8 @@ export const upsertQuotation = mutation({
     paymentTerms: v.union(v.literal("cash"), v.literal("credit")),
     deliveryTime: v.string(),
     warrantyPeriod: v.string(),
+    countryOfOrigin: v.string(),
+    productSpecifications: v.string(),
     productPhoto: v.optional(v.string()),
     productDescription: v.optional(v.string()),
   },
@@ -49,63 +51,71 @@ export const upsertQuotation = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+        code: "UNAUTHENTICATED" as const,
       });
     }
 
-    const vendor = await ctx.db
+    const user = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+      .unique();
 
-    if (!vendor || vendor.role !== "vendor") {
+    if (!user || user.role !== "vendor") {
       throw new ConvexError({
-        message: "Only vendors can create quotations",
-        code: "FORBIDDEN",
+        message: "Only vendors can manage quotations",
+        code: "FORBIDDEN" as const,
       });
     }
 
-    // Check if quotation already exists
-    const existingQuotation = await ctx.db
+    if (!user.verified) {
+      throw new ConvexError({
+        message: "Vendor must be verified",
+        code: "FORBIDDEN" as const,
+      });
+    }
+
+    const existing = await ctx.db
       .query("vendorQuotations")
       .withIndex("by_vendor_and_product", (q) =>
-        q.eq("vendorId", vendor._id).eq("productId", args.productId)
+        q.eq("vendorId", user._id).eq("productId", args.productId),
       )
+      .filter((q) => q.eq(q.field("quotationType"), "pre-filled"))
       .first();
 
-    if (existingQuotation) {
-      // Update existing quotation
-      await ctx.db.patch(existingQuotation._id, {
+    if (existing) {
+      await ctx.db.patch(existing._id, {
         price: args.price,
         quantity: args.quantity,
         paymentTerms: args.paymentTerms,
         deliveryTime: args.deliveryTime,
         warrantyPeriod: args.warrantyPeriod,
+        countryOfOrigin: args.countryOfOrigin,
+        productSpecifications: args.productSpecifications,
         productPhoto: args.productPhoto,
         productDescription: args.productDescription,
         updatedAt: Date.now(),
       });
-      return existingQuotation._id;
+      return existing._id;
     } else {
-      // Create new quotation
-      const quotationId = await ctx.db.insert("vendorQuotations", {
-        vendorId: vendor._id,
+      return await ctx.db.insert("vendorQuotations", {
+        vendorId: user._id,
         productId: args.productId,
-        quotationType: "pre-filled",
-        source: "manual",
+        quotationType: "pre-filled" as const,
+        source: "manual" as const,
         price: args.price,
         quantity: args.quantity,
         paymentTerms: args.paymentTerms,
         deliveryTime: args.deliveryTime,
         warrantyPeriod: args.warrantyPeriod,
+        countryOfOrigin: args.countryOfOrigin,
+        productSpecifications: args.productSpecifications,
         productPhoto: args.productPhoto,
         productDescription: args.productDescription,
         active: true,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       });
-      return quotationId;
     }
   },
 });
@@ -119,6 +129,8 @@ export const createQuotation = mutation({
     paymentTerms: v.union(v.literal("cash"), v.literal("credit")),
     deliveryTime: v.string(),
     warrantyPeriod: v.string(),
+    countryOfOrigin: v.string(),
+    productSpecifications: v.string(),
     productPhoto: v.optional(v.string()),
     productDescription: v.optional(v.string()),
   },
@@ -126,56 +138,49 @@ export const createQuotation = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+        code: "UNAUTHENTICATED" as const,
       });
     }
 
-    const vendor = await ctx.db
+    const user = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+      .unique();
 
-    if (!vendor || vendor.role !== "vendor") {
+    if (!user) {
+      throw new ConvexError({
+        message: "User not found",
+        code: "NOT_FOUND" as const,
+      });
+    }
+
+    if (user.role !== "vendor") {
       throw new ConvexError({
         message: "Only vendors can create quotations",
-        code: "FORBIDDEN",
+        code: "FORBIDDEN" as const,
       });
     }
 
-    if (!vendor.verified) {
+    if (!user.verified) {
       throw new ConvexError({
-        message: "Your account must be verified to create quotations",
-        code: "FORBIDDEN",
-      });
-    }
-
-    // Check if quotation already exists
-    const existing = await ctx.db
-      .query("vendorQuotations")
-      .withIndex("by_vendor_and_product", (q) =>
-        q.eq("vendorId", vendor._id).eq("productId", args.productId),
-      )
-      .filter((q) => q.eq(q.field("quotationType"), "pre-filled"))
-      .first();
-
-    if (existing) {
-      throw new ConvexError({
-        message: "Quotation for this product already exists",
-        code: "FORBIDDEN",
+        message: "Vendor must be verified to create quotations",
+        code: "FORBIDDEN" as const,
       });
     }
 
     const quotationId = await ctx.db.insert("vendorQuotations", {
-      vendorId: vendor._id,
+      vendorId: user._id,
       productId: args.productId,
-      quotationType: "pre-filled",
-      source: "manual",
+      quotationType: "pre-filled" as const,
+      source: "manual" as const,
       price: args.price,
       quantity: args.quantity,
       paymentTerms: args.paymentTerms,
       deliveryTime: args.deliveryTime,
       warrantyPeriod: args.warrantyPeriod,
+      countryOfOrigin: args.countryOfOrigin,
+      productSpecifications: args.productSpecifications,
       productPhoto: args.productPhoto,
       productDescription: args.productDescription,
       active: true,
@@ -395,6 +400,8 @@ export const submitOnDemandQuotation = mutation({
     paymentTerms: v.union(v.literal("cash"), v.literal("credit")),
     deliveryTime: v.string(),
     warrantyPeriod: v.string(),
+    countryOfOrigin: v.string(),
+    productSpecifications: v.string(),
     productPhoto: v.optional(v.string()),
     productDescription: v.optional(v.string()),
   },
@@ -402,66 +409,68 @@ export const submitOnDemandQuotation = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
+        message: "Not authenticated",
+        code: "UNAUTHENTICATED" as const,
       });
     }
 
-    const vendor = await ctx.db
+    const user = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+      .unique();
 
-    if (!vendor || vendor.role !== "vendor") {
+    if (!user || user.role !== "vendor") {
       throw new ConvexError({
         message: "Only vendors can submit quotations",
-        code: "FORBIDDEN",
+        code: "FORBIDDEN" as const,
       });
     }
 
-    if (!vendor.verified) {
+    if (!user.verified) {
       throw new ConvexError({
-        message: "Your account must be verified to submit quotations",
-        code: "FORBIDDEN",
+        message: "Vendor must be verified",
+        code: "FORBIDDEN" as const,
       });
     }
 
-    // Check if RFQ exists
     const rfq = await ctx.db.get(args.rfqId);
     if (!rfq) {
       throw new ConvexError({
         message: "RFQ not found",
-        code: "NOT_FOUND",
+        code: "NOT_FOUND" as const,
       });
     }
 
-    // Check if vendor already submitted quotation for this product in this RFQ
-    const existingQuotation = await ctx.db
-      .query("sentQuotations")
-      .withIndex("by_rfq", (q) => q.eq("rfqId", args.rfqId))
-      .filter((q) => q.eq(q.field("vendorId"), vendor._id))
-      .filter((q) => q.eq(q.field("productId"), args.productId))
+    // Check if vendor already submitted quotation for this RFQ+product
+    const existing = await ctx.db
+      .query("vendorQuotations")
+      .withIndex("by_vendor_and_product", (q) =>
+        q.eq("vendorId", user._id).eq("productId", args.productId),
+      )
+      .filter((q) => q.eq(q.field("rfqId"), args.rfqId))
       .first();
 
-    if (existingQuotation) {
+    if (existing) {
       throw new ConvexError({
-        message: "You already submitted a quotation for this product",
-        code: "FORBIDDEN",
+        message: "You already submitted a quotation for this RFQ",
+        code: "FORBIDDEN" as const,
       });
     }
 
-    // Create vendor quotation record
+    // Create on-demand quotation
     const quotationId = await ctx.db.insert("vendorQuotations", {
-      vendorId: vendor._id,
+      vendorId: user._id,
       productId: args.productId,
       rfqId: args.rfqId,
-      quotationType: "on-demand",
-      source: "manual",
+      quotationType: "on-demand" as const,
+      source: "manual" as const,
       price: args.price,
       quantity: args.quantity,
       paymentTerms: args.paymentTerms,
       deliveryTime: args.deliveryTime,
       warrantyPeriod: args.warrantyPeriod,
+      countryOfOrigin: args.countryOfOrigin,
+      productSpecifications: args.productSpecifications,
       productPhoto: args.productPhoto,
       productDescription: args.productDescription,
       active: true,
@@ -473,40 +482,33 @@ export const submitOnDemandQuotation = mutation({
     await ctx.db.insert("sentQuotations", {
       rfqId: args.rfqId,
       buyerId: rfq.buyerId,
-      vendorId: vendor._id,
+      vendorId: user._id,
       productId: args.productId,
       quotationId,
-      quotationType: "on-demand",
+      quotationType: "on-demand" as const,
       price: args.price,
       quantity: args.quantity,
       paymentTerms: args.paymentTerms,
       deliveryTime: args.deliveryTime,
       warrantyPeriod: args.warrantyPeriod,
+      countryOfOrigin: args.countryOfOrigin,
+      productSpecifications: args.productSpecifications,
       productPhoto: args.productPhoto,
       productDescription: args.productDescription,
       opened: false,
+      chosen: false,
       sentAt: Date.now(),
     });
 
     // Notify buyer
-    const product = await ctx.db.get(args.productId);
     await ctx.db.insert("notifications", {
       userId: rfq.buyerId,
-      type: "quotation_sent",
-      title: "New quotation received!",
-      message: `${vendor.companyName || vendor.name} sent you a quotation for ${product?.name}`,
+      type: "quotation_sent" as const,
+      title: "New Quotation Received",
+      message: `You received an on-demand quotation for your RFQ`,
       read: false,
       relatedId: args.rfqId,
       createdAt: Date.now(),
-    });
-
-    // Update RFQ status
-    await ctx.db.patch(args.rfqId, { status: "quoted" });
-
-    // Track analytics
-    await ctx.db.insert("analytics", {
-      type: "quotation_sent",
-      timestamp: Date.now(),
     });
 
     return { success: true, quotationId };

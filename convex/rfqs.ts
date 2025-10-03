@@ -72,8 +72,8 @@ export const submitRFQ = mutation({
       const quotations = await ctx.db
         .query("vendorQuotations")
         .withIndex("by_product", (q) => q.eq("productId", item.productId))
-        .filter((q) => q.eq(q.field("active"), true))
         .filter((q) => q.eq(q.field("quotationType"), "pre-filled"))
+        .filter((q) => q.eq(q.field("active"), true))
         .collect();
 
       const product = await ctx.db.get(item.productId);
@@ -88,15 +88,18 @@ export const submitRFQ = mutation({
             vendorId: vendor._id,
             productId: item.productId,
             quotationId: quotation._id,
-            quotationType: "pre-filled",
+            quotationType: "pre-filled" as const,
             price: quotation.price,
             quantity: quotation.quantity,
             paymentTerms: quotation.paymentTerms,
             deliveryTime: quotation.deliveryTime,
             warrantyPeriod: quotation.warrantyPeriod,
+            countryOfOrigin: quotation.countryOfOrigin,
+            productSpecifications: quotation.productSpecifications,
             productPhoto: quotation.productPhoto,
             productDescription: quotation.productDescription,
             opened: false,
+            chosen: false,
             sentAt: Date.now(),
           });
 
@@ -372,5 +375,142 @@ export const getMyQuotationsSent = query({
         };
       })
     );
+  },
+});
+
+// Get pending RFQs with anonymous buyer info (for vendors)
+export const getPendingRFQs = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return [];
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .unique();
+
+    if (!user || user.role !== "vendor") {
+      return [];
+    }
+
+    // Find notifications for RFQs that need quotations
+    const notifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_user", (q) => q.eq("userId", user._id))
+      .filter((q) => q.eq(q.field("type"), "rfq_needs_quotation"))
+      .collect();
+
+    const pendingRFQs = [];
+    for (const notif of notifications) {
+      if (notif.relatedId) {
+        const rfqId = notif.relatedId as Id<"rfqs">;
+        const rfq = await ctx.db.get(rfqId);
+        if (!rfq) continue;
+
+        const items = await ctx.db
+          .query("rfqItems")
+          .withIndex("by_rfq", (q) => q.eq("rfqId", rfqId))
+          .collect();
+
+        const itemsWithProducts = [];
+        for (const item of items) {
+          const product = await ctx.db.get(item.productId);
+          if (!product) continue;
+
+          // Check if vendor already submitted quotation
+          const existingQuotation = await ctx.db
+            .query("vendorQuotations")
+            .withIndex("by_vendor_and_product", (q) =>
+              q.eq("vendorId", user._id).eq("productId", item.productId),
+            )
+            .filter((q) => q.eq(q.field("rfqId"), rfqId))
+            .first();
+
+          if (!existingQuotation) {
+            itemsWithProducts.push({
+              productId: item.productId,
+              productName: product.name,
+              quantity: item.quantity,
+              specifications: product.specifications,
+            });
+          }
+        }
+
+        if (itemsWithProducts.length > 0) {
+          pendingRFQs.push({
+            rfqId,
+            createdAt: rfq.createdAt,
+            buyerInfo: "Anonymous Buyer", // Hide buyer info until quotation chosen
+            items: itemsWithProducts,
+          });
+        }
+      }
+    }
+
+    return pendingRFQs;
+  },
+});
+
+// Choose quotation
+export const chooseQuotation = mutation({
+  args: {
+    sentQuotationId: v.id("sentQuotations"),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "Not authenticated",
+        code: "UNAUTHENTICATED" as const,
+      });
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .unique();
+
+    if (!user || user.role !== "buyer") {
+      throw new ConvexError({
+        message: "Only buyers can choose quotations",
+        code: "FORBIDDEN" as const,
+      });
+    }
+
+    const sentQuotation = await ctx.db.get(args.sentQuotationId);
+    if (!sentQuotation) {
+      throw new ConvexError({
+        message: "Quotation not found",
+        code: "NOT_FOUND" as const,
+      });
+    }
+
+    if (sentQuotation.buyerId !== user._id) {
+      throw new ConvexError({
+        message: "This quotation doesn't belong to you",
+        code: "FORBIDDEN" as const,
+      });
+    }
+
+    // Mark quotation as chosen
+    await ctx.db.patch(args.sentQuotationId, {
+      chosen: true,
+    });
+
+    // Notify vendor that their quotation was chosen
+    await ctx.db.insert("notifications", {
+      userId: sentQuotation.vendorId,
+      type: "quotation_chosen" as const,
+      title: "Quotation Chosen!",
+      message: `A buyer chose your quotation. You can now see their contact details.`,
+      read: false,
+      relatedId: sentQuotation.rfqId,
+      createdAt: Date.now(),
+    });
+
+    return { success: true };
   },
 });
