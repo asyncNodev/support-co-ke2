@@ -11,7 +11,7 @@ export const submitRFQ = mutation({
         quantity: v.number(),
       }),
     ),
-    expectedDeliveryTime: v.optional(v.string()),
+    expectedDeliveryTime: v.string(),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
