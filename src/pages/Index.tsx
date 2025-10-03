@@ -1,18 +1,47 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { SignInButton } from "@/components/ui/signin.tsx";
 
 export default function Index() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  const products = useQuery(api.products.getProducts, {});
+
+  // Filter products based on search query
+  const suggestions = products?.filter((p) =>
+    p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  ).slice(0, 5) || [];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
+      setShowSuggestions(false);
       navigate(`/product-search?q=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
+
+  const handleSuggestionClick = (productName: string) => {
+    setSearchQuery(productName);
+    setShowSuggestions(false);
+    navigate(`/product-search?q=${encodeURIComponent(productName)}`);
+  };
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -34,18 +63,40 @@ export default function Index() {
             Search and get quotations from verified Kenyan suppliers
           </p>
 
-          <form onSubmit={handleSearch} className="w-full">
-            <div className="relative">
-              <Search className="absolute left-6 top-1/2 -translate-y-1/2 size-6 text-muted-foreground" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search for medical supplies (e.g. Hospital Bed, Wheelchair)..."
-                className="w-full pl-16 pr-6 py-6 text-lg rounded-xl border-2 border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              />
-            </div>
-          </form>
+          <div ref={searchRef} className="relative">
+            <form onSubmit={handleSearch} className="w-full">
+              <div className="relative">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 size-6 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowSuggestions(e.target.value.length > 0);
+                  }}
+                  onFocus={() => searchQuery.length > 0 && setShowSuggestions(true)}
+                  placeholder="Search for medical supplies (e.g. Hospital Bed, Wheelchair)..."
+                  className="w-full pl-16 pr-6 py-6 text-lg rounded-xl border-2 border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                />
+              </div>
+            </form>
+
+            {/* Search Suggestions Dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute z-50 w-full mt-2 bg-background border-2 border-border rounded-xl shadow-lg max-h-96 overflow-y-auto">
+                {suggestions.map((product) => (
+                  <button
+                    key={product._id}
+                    onClick={() => handleSuggestionClick(product.name)}
+                    className="w-full px-6 py-3 text-left hover:bg-muted transition-colors flex items-center gap-3"
+                  >
+                    <Search className="size-4 text-muted-foreground" />
+                    <span>{product.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
