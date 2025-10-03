@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { DefaultProviders } from "./components/providers/default.tsx";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import ProductSearch from "./pages/ProductSearch.tsx";
 import BrowseProducts from "./pages/BrowseProducts.tsx";
 import ProductDetail from "./pages/ProductDetail.tsx";
 import Register from "./pages/Register.tsx";
@@ -19,6 +20,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
+          <Route path="/product-search" element={<ProductSearch />} />
           <Route path="/browse" element={<BrowseProducts />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/register" element={<Register />} />
