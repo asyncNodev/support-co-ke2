@@ -1,110 +1,110 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
-import { Loader2, Database, CheckCircle2 } from "lucide-react";
+import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button.tsx";
 import { Card } from "@/components/ui/card.tsx";
-import { api } from "@/convex/_generated/api";
-import { Link } from "react-router-dom";
+import { Loader2, Database, User } from "lucide-react";
+import { toast } from "sonner";
 
 export default function SeedData() {
   const [isSeeding, setIsSeeding] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
-  const seedData = useMutation(api.seedPublic.runSeed);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+  const runSeed = useMutation(api.seedPublic.runSeed);
+  const createBuyer = useMutation(api.createTestUser.createVerifiedBuyer);
 
   const handleSeed = async () => {
-    setIsSeeding(true);
-    setResult(null);
     try {
-      await seedData();
-      setResult("Demo data created successfully! Refresh the page to see the products.");
+      setIsSeeding(true);
+      const result = await runSeed();
+      toast.success(result.message);
     } catch (error) {
-      setResult("Demo data already exists or error occurred.");
+      toast.error("Failed to seed data");
       console.error(error);
     } finally {
       setIsSeeding(false);
     }
   };
 
+  const handleCreateBuyer = async () => {
+    try {
+      setIsCreatingUser(true);
+      const result = await createBuyer({ 
+        email: "m.ali270884@gmail.com",
+        name: "M. Ali"
+      });
+      toast.success(result.message);
+    } catch (error) {
+      toast.error("Failed to create user");
+      console.error(error);
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="max-w-md w-full p-8 space-y-6">
-        <div className="flex items-center gap-3">
-          <Database className="size-10 text-primary" />
-          <div>
-            <h1 className="text-2xl font-bold">Seed Demo Data</h1>
-            <p className="text-sm text-muted-foreground">
-              Initialize the database with sample data
+    <div className="min-h-screen bg-background p-8">
+      <div className="container mx-auto max-w-2xl">
+        <Card className="p-8">
+          <div className="flex flex-col items-center gap-6">
+            <Database className="size-16 text-primary" />
+            <h1 className="text-3xl font-bold">Database Management</h1>
+            <p className="text-center text-muted-foreground">
+              Load demo data or create test users for the medical supplies platform
             </p>
-          </div>
-        </div>
 
-        <div className="space-y-4">
-          <div className="text-sm space-y-2">
-            <p className="font-medium">This will create:</p>
-            <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-              <li>4 Categories (Electronics, Furniture, Industrial, Supplies)</li>
-              <li>10 Products across categories</li>
-              <li>1 Admin user</li>
-              <li>4 Vendor users (3 verified, 1 unverified)</li>
-              <li>2 Buyer users</li>
-              <li>13 Pre-filled vendor quotations</li>
-              <li>Sample analytics data</li>
-            </ul>
-          </div>
+            <div className="flex flex-col gap-4 w-full">
+              <Button
+                onClick={handleSeed}
+                disabled={isSeeding}
+                size="lg"
+                className="w-full"
+              >
+                {isSeeding ? (
+                  <>
+                    <Loader2 className="mr-2 size-5 animate-spin" />
+                    Seeding Data...
+                  </>
+                ) : (
+                  <>
+                    <Database className="mr-2 size-5" />
+                    Seed Demo Data
+                  </>
+                )}
+              </Button>
 
-          <Button
-            onClick={handleSeed}
-            disabled={isSeeding || result !== null}
-            className="w-full"
-            size="lg"
-          >
-            {isSeeding ? (
-              <>
-                <Loader2 className="size-4 animate-spin mr-2" />
-                Seeding Data...
-              </>
-            ) : result ? (
-              <>
-                <CheckCircle2 className="size-4 mr-2" />
-                Data Seeded
-              </>
-            ) : (
-              "Seed Demo Data"
-            )}
-          </Button>
-
-          {result && (
-            <div className="p-4 bg-muted rounded-lg">
-              <p className="text-sm">{result}</p>
+              <Button
+                onClick={handleCreateBuyer}
+                disabled={isCreatingUser}
+                size="lg"
+                variant="outline"
+                className="w-full"
+              >
+                {isCreatingUser ? (
+                  <>
+                    <Loader2 className="mr-2 size-5 animate-spin" />
+                    Creating User...
+                  </>
+                ) : (
+                  <>
+                    <User className="mr-2 size-5" />
+                    Create Verified Buyer (m.ali270884@gmail.com)
+                  </>
+                )}
+              </Button>
             </div>
-          )}
 
-          <div className="pt-4 border-t space-y-2">
-            <p className="text-sm font-medium">Demo User Credentials:</p>
-            <div className="text-xs space-y-1 text-muted-foreground">
-              <p>🔑 <strong>Admin:</strong> admin@quickquote.com</p>
-              <p>🏢 <strong>Vendor 1:</strong> vendor1@techsupply.com</p>
-              <p>🏢 <strong>Vendor 2:</strong> vendor2@officepro.com</p>
-              <p>🛒 <strong>Buyer 1:</strong> buyer1@construction.com</p>
+            <div className="mt-4 text-sm text-muted-foreground text-center">
+              <p>Seed data includes:</p>
+              <ul className="list-disc list-inside mt-2">
+                <li>40+ Medical products</li>
+                <li>6 Categories</li>
+                <li>3 Verified vendors</li>
+                <li>Pre-filled quotations</li>
+              </ul>
             </div>
-            <p className="text-xs text-muted-foreground italic mt-2">
-              Note: Use Hercules Auth to sign in (auth handled automatically)
-            </p>
           </div>
-
-          <Link to="/">
-            <Button variant="outline" className="w-full">
-              Go to Home
-            </Button>
-          </Link>
-
-          <Link to="/browse">
-            <Button variant="outline" className="w-full">
-              Browse Products
-            </Button>
-          </Link>
-        </div>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

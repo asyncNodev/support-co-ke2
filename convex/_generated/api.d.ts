@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as analytics from "../analytics.js";
 import type * as categories from "../categories.js";
+import type * as createTestUser from "../createTestUser.js";
 import type * as notifications from "../notifications.js";
 import type * as products from "../products.js";
 import type * as ratings from "../ratings.js";
@@ -35,6 +36,7 @@ import type * as vendorQuotations from "../vendorQuotations.js";
 declare const fullApi: ApiFromModules<{
   analytics: typeof analytics;
   categories: typeof categories;
+  createTestUser: typeof createTestUser;
   notifications: typeof notifications;
   products: typeof products;
   ratings: typeof ratings;
