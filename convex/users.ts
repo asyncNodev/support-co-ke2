@@ -240,23 +240,26 @@ export const verifyUser = mutation({
     if (!identity) {
       throw new ConvexError({
         message: "Not authenticated",
-        code: "UNAUTHENTICATED",
+        code: "UNAUTHENTICATED" as const,
       });
     }
 
     const currentUser = await ctx.db
       .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.subject))
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
       .unique();
 
     if (!currentUser || currentUser.role !== "admin") {
       throw new ConvexError({
         message: "Only admins can verify users",
-        code: "FORBIDDEN",
+        code: "FORBIDDEN" as const,
       });
     }
 
-    await ctx.db.patch(args.userId, { verified: true });
+    await ctx.db.patch(args.userId, {
+      verified: true,
+    });
+
     return { success: true };
   },
 });
