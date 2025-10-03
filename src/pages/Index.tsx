@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, ShoppingCart, Users, Zap, Shield, TrendingUp, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button.tsx";
 import { SignInButton } from "@/components/ui/signin.tsx";
@@ -8,23 +8,24 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
 const PRODUCTS = [
-  "Steel Pipes",
-  "Copper Wire",
-  "Industrial Lubricants",
-  "Hydraulic Pumps",
-  "Ball Bearings",
-  "Conveyor Belts",
-  "Electric Motors",
-  "Safety Helmets",
-  "Welding Machines",
-  "Control Valves"
+  "Blood Pressure Monitor",
+  "Pulse Oximeter",
+  "Hospital Bed",
+  "Wheelchair",
+  "Oxygen Concentrator",
+  "Microscope",
+  "Centrifuge",
+  "Examination Gloves",
+  "Surgical Masks",
+  "Medical Examination Table"
 ];
 
 export default function Index() {
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const currentUser = useQuery(api.users.getCurrentUser, isAuthenticated ? {} : "skip");
   const [query, setQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<Array<string>>([]);
   const suggestionsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,6 +52,18 @@ export default function Index() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  const handleSearch = (searchTerm: string) => {
+    navigate(`/browse?search=${encodeURIComponent(searchTerm)}`);
+    setQuery("");
+    setSuggestions([]);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && query.trim()) {
+      handleSearch(query);
+    }
+  };
 
   // Navigation links per role
   const navLinks = [
@@ -106,6 +119,7 @@ export default function Index() {
               placeholder="Search for products..."
               className="w-full rounded border border-border bg-background px-4 py-3 text-lg focus:outline-none focus:ring-2 focus:ring-primary"
               aria-label="Search products"
+              onKeyPress={handleKeyPress}
             />
             {suggestions.length > 0 && (
               <ul className="absolute z-10 w-full bg-background border border-border rounded-b shadow-md mt-1 max-h-60 overflow-auto">
@@ -115,8 +129,7 @@ export default function Index() {
                       to={`/browse?search=${encodeURIComponent(product)}`}
                       className="block px-4 py-2 hover:bg-primary/20"
                       onClick={() => {
-                        setQuery("");
-                        setSuggestions([]);
+                        handleSearch(product);
                       }}
                     >
                       {product}
