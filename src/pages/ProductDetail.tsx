@@ -28,12 +28,22 @@ export default function ProductDetail() {
     api.products.getProduct,
     id ? { productId: id as Id<"products"> } : "skip"
   );
+  
+  const currentUser = useQuery(api.users.getCurrentUser, {});
 
   const submitRFQ = useMutation(api.rfqs.submitRFQ);
 
   const [quantity, setQuantity] = useState("");
   const [expectedDate, setExpectedDate] = useState<Date>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const getDashboardLink = () => {
+    if (!currentUser) return "/";
+    if (currentUser.role === "admin") return "/admin";
+    if (currentUser.role === "vendor") return "/vendor";
+    if (currentUser.role === "buyer") return "/buyer";
+    return "/";
+  };
 
   const handleSubmitRFQ = async () => {
     if (!isAuthenticated) {
@@ -78,23 +88,27 @@ export default function ProductDetail() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b">
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="text-2xl font-bold">
+          <Link to="/" className="text-2xl font-bold hover:text-primary">
             Medical Supplies Kenya
           </Link>
-          <SignInButton />
+          <div className="flex items-center gap-4">
+            {currentUser && (
+              <Button variant="outline" asChild>
+                <Link to={getDashboardLink()}>Dashboard</Link>
+              </Button>
+            )}
+            <SignInButton />
+          </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <Button
-          variant="ghost"
-          className="mb-6"
-          onClick={() => navigate(-1)}
-        >
+      {/* Back button */}
+      <div className="container mx-auto px-4 py-6">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
           <ArrowLeft className="mr-2 size-4" />
-          Back to Search
+          Back to Results
         </Button>
 
         <div className="max-w-4xl mx-auto">

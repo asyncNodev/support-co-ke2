@@ -4,6 +4,8 @@ import { Search } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { SignInButton } from "@/components/ui/signin.tsx";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 export default function Index() {
   const navigate = useNavigate();
@@ -12,6 +14,15 @@ export default function Index() {
   const searchRef = useRef<HTMLDivElement>(null);
 
   const products = useQuery(api.products.getProducts, {});
+  const currentUser = useQuery(api.users.getCurrentUser, {});
+
+  const getDashboardLink = () => {
+    if (!currentUser) return "/";
+    if (currentUser.role === "admin") return "/admin";
+    if (currentUser.role === "vendor") return "/vendor";
+    if (currentUser.role === "buyer") return "/buyer";
+    return "/";
+  };
 
   // Filter products based on search query
   const suggestions = products?.filter((p) =>
@@ -46,10 +57,17 @@ export default function Index() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b">
+      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold">Medical Supplies Kenya</h1>
-          <SignInButton />
+          <div className="flex items-center gap-4">
+            {currentUser && (
+              <Button variant="outline" asChild>
+                <Link to={getDashboardLink()}>Dashboard</Link>
+              </Button>
+            )}
+            <SignInButton />
+          </div>
         </div>
       </header>
 
