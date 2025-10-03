@@ -1,461 +1,256 @@
 import { internalMutation } from "./_generated/server";
+import { v } from "convex/values";
 
 export const runSeed = internalMutation({
   args: {},
   handler: async (ctx) => {
-    // Check if data already exists
-    const existingCategories = await ctx.db.query("categories").collect();
-    if (existingCategories.length > 0) {
-      return { message: "Data already seeded" };
+    // Clear all existing data
+    const existingProducts = await ctx.db.query("products").collect();
+    for (const product of existingProducts) {
+      await ctx.db.delete(product._id);
     }
 
-    // Create Categories
-    const electronicsId = await ctx.db.insert("categories", {
-      name: "Electronics",
-      description: "Computers, laptops, and electronic devices",
+    const existingCategories = await ctx.db.query("categories").collect();
+    for (const category of existingCategories) {
+      await ctx.db.delete(category._id);
+    }
+
+    const existingQuotations = await ctx.db.query("vendorQuotations").collect();
+    for (const quotation of existingQuotations) {
+      await ctx.db.delete(quotation._id);
+    }
+
+    const existingRFQs = await ctx.db.query("rfqs").collect();
+    for (const rfq of existingRFQs) {
+      await ctx.db.delete(rfq._id);
+    }
+
+    const existingSentQuotations = await ctx.db.query("sentQuotations").collect();
+    for (const sent of existingSentQuotations) {
+      await ctx.db.delete(sent._id);
+    }
+
+    // Create Medical Supplies Categories
+    const diagnosticEquipmentCat = await ctx.db.insert("categories", {
+      name: "Diagnostic Equipment",
+      description: "Medical diagnostic devices and equipment",
       createdAt: Date.now(),
     });
 
-    const furnitureId = await ctx.db.insert("categories", {
-      name: "Office Furniture",
-      description: "Desks, chairs, and office furniture",
+    const patientCareCat = await ctx.db.insert("categories", {
+      name: "Patient Care Equipment",
+      description: "Hospital beds, wheelchairs, and patient care items",
       createdAt: Date.now(),
     });
 
-    const equipmentId = await ctx.db.insert("categories", {
-      name: "Industrial Equipment",
-      description: "Heavy machinery and industrial tools",
+    const laboratoryEquipmentCat = await ctx.db.insert("categories", {
+      name: "Laboratory Equipment",
+      description: "Lab testing and analysis equipment",
       createdAt: Date.now(),
     });
 
-    const suppliesId = await ctx.db.insert("categories", {
-      name: "Office Supplies",
-      description: "Paper, pens, and office supplies",
+    const surgicalInstrumentsCat = await ctx.db.insert("categories", {
+      name: "Surgical Instruments",
+      description: "Surgical tools and instruments",
       createdAt: Date.now(),
     });
 
-    // Create Products
-    const laptop1Id = await ctx.db.insert("products", {
-      name: "Business Laptop Pro 15",
-      categoryId: electronicsId,
-      description: "High-performance laptop for business professionals",
-      sku: "LAP-BP15-001",
-      specifications: "Intel i7, 16GB RAM, 512GB SSD, 15.6'' Display",
+    const disposablesCat = await ctx.db.insert("categories", {
+      name: "Medical Disposables",
+      description: "Single-use medical supplies and consumables",
       createdAt: Date.now(),
     });
 
-    const monitor1Id = await ctx.db.insert("products", {
-      name: "Professional Monitor 27''",
-      categoryId: electronicsId,
-      description: "4K Ultra HD monitor with color accuracy",
-      sku: "MON-P27-001",
-      specifications: "27'', 4K UHD, IPS Panel, USB-C",
+    const hospitalFurnitureCat = await ctx.db.insert("categories", {
+      name: "Hospital Furniture",
+      description: "Medical furniture and fixtures",
       createdAt: Date.now(),
     });
 
-    const printer1Id = await ctx.db.insert("products", {
-      name: "Office Laser Printer",
-      categoryId: electronicsId,
-      description: "High-speed laser printer for office use",
-      sku: "PRT-OLP-001",
-      specifications: "40ppm, Duplex, Network, 250-sheet tray",
-      createdAt: Date.now(),
-    });
+    // Create Medical Products with realistic Kenyan prices
+    const products = [
+      // Diagnostic Equipment
+      { name: "Digital Blood Pressure Monitor", categoryId: diagnosticEquipmentCat, price: 4500, description: "Automatic digital BP monitor with LCD display" },
+      { name: "Pulse Oximeter", categoryId: diagnosticEquipmentCat, price: 3200, description: "Fingertip pulse oximeter with OLED display" },
+      { name: "Digital Thermometer", categoryId: diagnosticEquipmentCat, price: 800, description: "Fast-reading digital thermometer" },
+      { name: "Stethoscope Professional", categoryId: diagnosticEquipmentCat, price: 6500, description: "Dual-head stethoscope for adults and pediatrics" },
+      { name: "Glucometer with Strips", categoryId: diagnosticEquipmentCat, price: 2500, description: "Blood glucose monitoring system" },
+      { name: "ECG Machine 3-Channel", categoryId: diagnosticEquipmentCat, price: 95000, description: "Portable electrocardiograph machine" },
+      { name: "Ultrasound Scanner Portable", categoryId: diagnosticEquipmentCat, price: 450000, description: "Portable ultrasound imaging system" },
+      
+      // Patient Care Equipment
+      { name: "Hospital Bed Electric", categoryId: patientCareCat, price: 85000, description: "Three-function electric hospital bed" },
+      { name: "Wheelchair Standard", categoryId: patientCareCat, price: 12000, description: "Foldable wheelchair with footrests" },
+      { name: "Patient Monitor Multi-Parameter", categoryId: patientCareCat, price: 180000, description: "Vital signs monitoring system" },
+      { name: "IV Stand Stainless Steel", categoryId: patientCareCat, price: 4500, description: "Height-adjustable IV drip stand" },
+      { name: "Oxygen Concentrator 5L", categoryId: patientCareCat, price: 75000, description: "Medical oxygen concentrator machine" },
+      { name: "Nebulizer Machine", categoryId: patientCareCat, price: 5500, description: "Compressor nebulizer for respiratory therapy" },
+      { name: "Suction Machine Portable", categoryId: patientCareCat, price: 18000, description: "Electric suction apparatus" },
+      
+      // Laboratory Equipment
+      { name: "Microscope Binocular", categoryId: laboratoryEquipmentCat, price: 45000, description: "Laboratory microscope 40-1000x magnification" },
+      { name: "Centrifuge Machine", categoryId: laboratoryEquipmentCat, price: 65000, description: "Lab centrifuge 4000 RPM" },
+      { name: "Autoclave Sterilizer", categoryId: laboratoryEquipmentCat, price: 95000, description: "Steam sterilizer autoclave 18L" },
+      { name: "Lab Incubator", categoryId: laboratoryEquipmentCat, price: 85000, description: "Digital temperature-controlled incubator" },
+      { name: "Hot Air Oven", categoryId: laboratoryEquipmentCat, price: 55000, description: "Dry heat sterilizer" },
+      { name: "Water Bath Digital", categoryId: laboratoryEquipmentCat, price: 32000, description: "Laboratory water bath with digital control" },
+      
+      // Surgical Instruments
+      { name: "Surgical Scissors Set", categoryId: surgicalInstrumentsCat, price: 8500, description: "Stainless steel surgical scissors set of 5" },
+      { name: "Forceps Set Surgical", categoryId: surgicalInstrumentsCat, price: 12000, description: "Assorted surgical forceps pack" },
+      { name: "Scalpel Handles Set", categoryId: surgicalInstrumentsCat, price: 4500, description: "Surgical scalpel handles with blades" },
+      { name: "Suture Kit Complete", categoryId: surgicalInstrumentsCat, price: 15000, description: "Complete suturing kit with needles" },
+      { name: "Surgical Blade Sterile Box", categoryId: surgicalInstrumentsCat, price: 2500, description: "Box of 100 sterile surgical blades" },
+      
+      // Medical Disposables
+      { name: "Examination Gloves Latex Box", categoryId: disposablesCat, price: 1200, description: "Box of 100 latex examination gloves" },
+      { name: "Surgical Face Masks Box", categoryId: disposablesCat, price: 800, description: "Box of 50 3-ply surgical masks" },
+      { name: "Syringes Disposable 5ml Box", categoryId: disposablesCat, price: 650, description: "Pack of 100 disposable syringes" },
+      { name: "IV Cannula Set", categoryId: disposablesCat, price: 450, description: "Set of 10 IV cannulas with wings" },
+      { name: "Gauze Bandages Roll", categoryId: disposablesCat, price: 180, description: "Medical gauze bandage roll 5cm x 5m" },
+      { name: "Cotton Wool Roll", categoryId: disposablesCat, price: 350, description: "Medical cotton wool 500g roll" },
+      { name: "Surgical Gloves Sterile Box", categoryId: disposablesCat, price: 2800, description: "Box of 50 pairs sterile surgical gloves" },
+      { name: "Alcohol Swabs Box", categoryId: disposablesCat, price: 450, description: "Box of 100 alcohol prep pads" },
+      
+      // Hospital Furniture
+      { name: "Medical Examination Table", categoryId: hospitalFurnitureCat, price: 35000, description: "Adjustable examination couch" },
+      { name: "Medicine Trolley Stainless", categoryId: hospitalFurnitureCat, price: 28000, description: "Three-tier medicine trolley" },
+      { name: "Bedside Locker Cabinet", categoryId: hospitalFurnitureCat, price: 12000, description: "Hospital bedside cabinet" },
+      { name: "Instrument Cabinet Glass", categoryId: hospitalFurnitureCat, price: 45000, description: "Stainless steel instrument storage" },
+      { name: "Over-Bed Table", categoryId: hospitalFurnitureCat, price: 8500, description: "Height-adjustable over-bed table" },
+    ];
 
-    const chair1Id = await ctx.db.insert("products", {
-      name: "Ergonomic Office Chair",
-      categoryId: furnitureId,
-      description: "Premium ergonomic chair with lumbar support",
-      sku: "CHR-ERG-001",
-      specifications: "Adjustable height, lumbar support, breathable mesh",
-      createdAt: Date.now(),
-    });
+    const productIds = [];
+    for (const product of products) {
+      const id = await ctx.db.insert("products", {
+        name: product.name,
+        categoryId: product.categoryId,
+        description: product.description,
+        sku: `MED-${Math.floor(Math.random() * 10000)}`,
+        specifications: product.description,
+        createdAt: Date.now(),
+      });
+      productIds.push({ id, price: product.price, name: product.name });
+    }
 
-    const desk1Id = await ctx.db.insert("products", {
-      name: "Standing Desk Electric",
-      categoryId: furnitureId,
-      description: "Height-adjustable standing desk",
-      sku: "DSK-STD-001",
-      specifications: "Electric motor, memory presets, 120x60cm",
-      createdAt: Date.now(),
-    });
+    // Get or create vendors
+    const vendors = await ctx.db.query("users")
+      .withIndex("by_role", (q) => q.eq("role", "vendor"))
+      .filter((q) => q.eq(q.field("verified"), true))
+      .collect();
 
-    const cabinet1Id = await ctx.db.insert("products", {
-      name: "Filing Cabinet 4-Drawer",
-      categoryId: furnitureId,
-      description: "Secure metal filing cabinet",
-      sku: "CAB-FIL-001",
-      specifications: "4 drawers, locking, letter/legal size",
-      createdAt: Date.now(),
-    });
-
-    const drill1Id = await ctx.db.insert("products", {
-      name: "Industrial Power Drill",
-      categoryId: equipmentId,
-      description: "Heavy-duty cordless drill",
-      sku: "DRL-IND-001",
-      specifications: "18V, 2Ah battery, 13mm chuck, 2-speed",
-      createdAt: Date.now(),
-    });
-
-    const generator1Id = await ctx.db.insert("products", {
-      name: "Portable Generator 5000W",
-      categoryId: equipmentId,
-      description: "Gasoline generator for job sites",
-      sku: "GEN-PRT-001",
-      specifications: "5000W, 4-stroke engine, 4 outlets",
-      createdAt: Date.now(),
-    });
-
-    const paper1Id = await ctx.db.insert("products", {
-      name: "Copy Paper A4 - 5 Reams",
-      categoryId: suppliesId,
-      description: "Premium white copy paper",
-      sku: "PPR-A4-001",
-      specifications: "80gsm, 500 sheets per ream, 5 reams",
-      createdAt: Date.now(),
-    });
-
-    const pens1Id = await ctx.db.insert("products", {
-      name: "Ballpoint Pens Box - 50pcs",
-      categoryId: suppliesId,
-      description: "Professional ballpoint pens",
-      sku: "PEN-BP-001",
-      specifications: "Medium tip, blue ink, box of 50",
-      createdAt: Date.now(),
-    });
-
-    // Create Admin User
-    const adminId = await ctx.db.insert("users", {
-      authId: "admin@quickquote.com",
-      email: "admin@quickquote.com",
-      name: "Admin User",
-      role: "admin",
-      verified: true,
-      companyName: "QuickQuote B2B",
-      registeredAt: Date.now(),
-    });
-
-    // Create Verified Vendors
-    const vendor1Id = await ctx.db.insert("users", {
-      authId: "vendor1@techsupply.com",
-      email: "vendor1@techsupply.com",
-      name: "John Smith",
-      role: "vendor",
-      verified: true,
-      companyName: "Tech Supply Co.",
-      phone: "+1-555-0101",
-      address: "123 Tech Street, San Francisco, CA",
-      registeredAt: Date.now(),
-    });
-
-    const vendor2Id = await ctx.db.insert("users", {
-      authId: "vendor2@officepro.com",
-      email: "vendor2@officepro.com",
-      name: "Sarah Johnson",
-      role: "vendor",
-      verified: true,
-      companyName: "Office Pro Solutions",
-      phone: "+1-555-0102",
-      address: "456 Business Ave, New York, NY",
-      registeredAt: Date.now(),
-    });
-
-    const vendor3Id = await ctx.db.insert("users", {
-      authId: "vendor3@industrial.com",
-      email: "vendor3@industrial.com",
-      name: "Mike Davis",
-      role: "vendor",
-      verified: true,
-      companyName: "Industrial Equipment Inc.",
-      phone: "+1-555-0103",
-      address: "789 Factory Rd, Chicago, IL",
-      registeredAt: Date.now(),
-    });
-
-    // Create Unverified Vendor (pending approval)
-    const vendor4Id = await ctx.db.insert("users", {
-      authId: "vendor4@newvendor.com",
-      email: "vendor4@newvendor.com",
-      name: "Lisa Brown",
-      role: "vendor",
-      verified: false,
-      companyName: "New Vendor Corp",
-      phone: "+1-555-0104",
-      address: "321 Startup Lane, Austin, TX",
-      registeredAt: Date.now(),
-    });
-
-    // Create Buyers
-    const buyer1Id = await ctx.db.insert("users", {
-      authId: "buyer1@company.com",
-      email: "buyer1@company.com",
-      name: "Robert Wilson",
-      role: "buyer",
-      verified: true,
-      companyName: "Wilson Enterprises",
-      phone: "+1-555-0201",
-      address: "100 Corporate Blvd, Boston, MA",
-      registeredAt: Date.now(),
-    });
-
-    const buyer2Id = await ctx.db.insert("users", {
-      authId: "buyer2@business.com",
-      email: "buyer2@business.com",
-      name: "Emily Chen",
-      role: "buyer",
-      verified: true,
-      companyName: "Chen Business Group",
-      phone: "+1-555-0202",
-      address: "200 Trade Center, Seattle, WA",
-      registeredAt: Date.now(),
-    });
-
-    // Create Vendor Quotations - Vendor 1 (Tech Supply Co.)
-    await ctx.db.insert("vendorQuotations", {
-      vendorId: vendor1Id,
-      productId: laptop1Id,
-      quotationType: "pre-filled",
-      source: "manual",
-      price: 899,
-      quantity: 100,
-      paymentTerms: "cash",
-      deliveryTime: "3-5 business days",
-      warrantyPeriod: "2 years",
-      countryOfOrigin: "Taiwan",
-      productSpecifications: "Intel Core i7-1260P, 16GB DDR4 RAM, 512GB NVMe SSD, 15.6'' FHD IPS Display, Windows 11 Pro",
-      productDescription: "Premium business laptop with high performance and reliability.",
-      active: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    await ctx.db.insert("vendorQuotations", {
-      vendorId: vendor1Id,
-      productId: monitor1Id,
-      quotationType: "pre-filled",
-      source: "manual",
-      price: 449,
-      quantity: 75,
-      paymentTerms: "credit",
-      deliveryTime: "5-7 business days",
-      warrantyPeriod: "3 years",
-      countryOfOrigin: "South Korea",
-      productSpecifications: "27'' 4K UHD (3840x2160), IPS Panel, 99% sRGB, USB-C with 65W Power Delivery, HDMI 2.0, DisplayPort 1.4",
-      productDescription: "Professional-grade monitor with excellent color accuracy for design work.",
-      active: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    await ctx.db.insert("vendorQuotations", {
-      vendorId: vendor1Id,
-      productId: printer1Id,
-      quotationType: "pre-filled",
-      source: "manual",
-      price: 599,
-      quantity: 50,
-      paymentTerms: "cash",
-      deliveryTime: "7-10 business days",
-      warrantyPeriod: "1 year",
-      countryOfOrigin: "Japan",
-      productSpecifications: "Monochrome Laser, 40ppm, Automatic Duplex, Network-ready, 250-sheet input tray, 100-sheet output tray",
-      productDescription: "Professional grade printer with high-capacity toner included.",
-      active: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    // Create Vendor Quotations - Vendor 2 (Office Pro Solutions)
-    await ctx.db.insert("vendorQuotations", {
-      vendorId: vendor2Id,
-      productId: laptop1Id,
-      quotationType: "pre-filled",
-      source: "manual",
-      price: 929,
-      quantity: 80,
-      paymentTerms: "credit",
-      deliveryTime: "2-3 business days",
-      warrantyPeriod: "3 years",
-      countryOfOrigin: "Taiwan",
-      productSpecifications: "Intel Core i7-1260P, 16GB DDR5 RAM, 512GB NVMe SSD, 15.6'' FHD IPS Display, Windows 11 Pro, Backlit Keyboard",
-      productDescription: "Enhanced business laptop with extended warranty and faster delivery.",
-      active: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    await ctx.db.insert("vendorQuotations", {
-      vendorId: vendor2Id,
-      productId: chair1Id,
-      quotationType: "pre-filled",
-      source: "auto-scraped",
-      price: 349,
-      quantity: 120,
-      paymentTerms: "cash",
-      deliveryTime: "1-2 weeks",
-      warrantyPeriod: "5 years",
-      countryOfOrigin: "USA",
-      productSpecifications: "Adjustable height (45-55cm), Full lumbar support, Breathable mesh back, 360° swivel, Weight capacity 150kg",
-      productDescription: "Ergonomically designed chair to reduce back pain and improve posture. Scraped from vendor website.",
-      active: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    await ctx.db.insert("vendorQuotations", {
-      vendorId: vendor2Id,
-      productId: desk1Id,
-      quotationType: "pre-filled",
-      source: "manual",
-      price: 599,
-      quantity: 50,
-      paymentTerms: "credit",
-      deliveryTime: "2-3 weeks",
-      warrantyPeriod: "7 years",
-      countryOfOrigin: "Germany",
-      productSpecifications: "Electric height adjustment (70-120cm), 4 memory presets, Desktop size 120x60cm, Load capacity 80kg, Anti-collision",
-      productDescription: "Premium electric standing desk with German engineering quality.",
-      active: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    await ctx.db.insert("vendorQuotations", {
-      vendorId: vendor2Id,
-      productId: paper1Id,
-      quotationType: "pre-filled",
-      source: "auto-scraped",
-      price: 24.99,
-      quantity: 500,
-      paymentTerms: "cash",
-      deliveryTime: "3-5 business days",
-      warrantyPeriod: "No warranty",
-      countryOfOrigin: "Canada",
-      productSpecifications: "A4 size (210x297mm), 80gsm weight, 500 sheets per ream, 5 reams per box, 96% brightness, FSC certified",
-      productDescription: "Premium white copy paper suitable for all printers and copiers.",
-      active: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    // Create Vendor Quotations - Vendor 3 (Industrial Equipment Inc.)
-    await ctx.db.insert("vendorQuotations", {
-      vendorId: vendor3Id,
-      productId: drill1Id,
-      quotationType: "pre-filled",
-      source: "manual",
-      price: 189,
-      quantity: 200,
-      paymentTerms: "cash",
-      deliveryTime: "1 week",
-      warrantyPeriod: "2 years",
-      countryOfOrigin: "USA",
-      productSpecifications: "18V Lithium-ion, 2.0Ah battery, 13mm keyless chuck, 2-speed gearbox (0-450/0-1500 RPM), LED work light",
-      productDescription: "Heavy-duty cordless drill perfect for construction and industrial use.",
-      active: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    await ctx.db.insert("vendorQuotations", {
-      vendorId: vendor3Id,
-      productId: generator1Id,
-      quotationType: "pre-filled",
-      source: "manual",
-      price: 799,
-      quantity: 40,
-      paymentTerms: "credit",
-      deliveryTime: "2-3 weeks",
-      warrantyPeriod: "1 year",
-      countryOfOrigin: "China",
-      productSpecifications: "5000W continuous / 5500W peak, 4-stroke OHV engine, 4 AC outlets (120V), 8-hour runtime at 50% load, Recoil start",
-      productDescription: "Reliable portable generator for job sites and emergency backup power.",
-      active: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    await ctx.db.insert("vendorQuotations", {
-      vendorId: vendor3Id,
-      productId: cabinet1Id,
-      quotationType: "pre-filled",
-      source: "auto-scraped",
-      price: 299,
-      quantity: 60,
-      paymentTerms: "cash",
-      deliveryTime: "1-2 weeks",
-      warrantyPeriod: "10 years",
-      countryOfOrigin: "USA",
-      productSpecifications: "4 drawers, Steel construction, Central locking system, Ball-bearing slides, Letter/Legal size compatible, Dimensions: 52x46x132cm",
-      productDescription: "Durable metal filing cabinet with high security locking system.",
-      active: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    await ctx.db.insert("vendorQuotations", {
-      vendorId: vendor3Id,
-      productId: pens1Id,
-      quotationType: "pre-filled",
-      source: "manual",
-      price: 12.99,
-      quantity: 1000,
-      paymentTerms: "cash",
-      deliveryTime: "5-7 business days",
-      warrantyPeriod: "No warranty",
-      countryOfOrigin: "China",
-      productSpecifications: "Medium tip (1.0mm), Blue oil-based ink, Transparent barrel, Non-slip grip, Box of 50 pens",
-      productDescription: "Reliable ballpoint pens for everyday office use.",
-      active: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    await ctx.db.insert("vendorQuotations", {
-      vendorId: vendor3Id,
-      productId: monitor1Id,
-      quotationType: "pre-filled",
-      source: "auto-scraped",
-      price: 479,
-      quantity: 50,
-      paymentTerms: "credit",
-      deliveryTime: "1 week",
-      warrantyPeriod: "3 years",
-      countryOfOrigin: "South Korea",
-      productSpecifications: "27'' 4K UHD (3840x2160), IPS Panel, 95% DCI-P3, USB-C 90W PD, HDMI 2.1, DisplayPort 1.4, Height adjustable stand",
-      productDescription: "Professional monitor with wide color gamut for creative professionals.",
-      active: true,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
-
-    // Create sample analytics data
-    const now = Date.now();
-    const oneDayMs = 24 * 60 * 60 * 1000;
-
-    for (let i = 0; i < 7; i++) {
-      // Daily visitors
-      await ctx.db.insert("analytics", {
-        type: "visitor",
-        timestamp: now - i * oneDayMs,
+    if (vendors.length === 0) {
+      console.log("No verified vendors found. Creating sample vendors...");
+      
+      // Create sample vendors
+      const vendor1 = await ctx.db.insert("users", {
+        authId: "vendor_alphamed",
+        email: "vendor@alphamed.co.ke",
+        name: "AlphaMed Supplies",
+        role: "vendor",
+        verified: true,
+        companyName: "AlphaMed Kenya Ltd",
+        phone: "+254 700 123456",
+        address: "Nairobi, Kenya",
+        registeredAt: Date.now(),
       });
 
-      // RFQs sent
-      if (i % 2 === 0) {
-        await ctx.db.insert("analytics", {
-          type: "rfq_sent",
-          timestamp: now - i * oneDayMs,
+      const vendor2 = await ctx.db.insert("users", {
+        authId: "vendor_mediplug",
+        email: "vendor@mediplugequipment.co.ke",
+        name: "Mediplug Equipment",
+        role: "vendor",
+        verified: true,
+        companyName: "Mediplug Equipment Ltd",
+        phone: "+254 701 234567",
+        address: "Nairobi, Kenya",
+        registeredAt: Date.now(),
+      });
+
+      const vendor3 = await ctx.db.insert("users", {
+        authId: "vendor_enza",
+        email: "vendor@enzasupplies.co.ke",
+        name: "Enza Medical Supplies",
+        role: "vendor",
+        verified: true,
+        companyName: "Enza Supplies Kenya",
+        phone: "+254 702 345678",
+        address: "Mombasa, Kenya",
+        registeredAt: Date.now(),
+      });
+
+      const v1 = await ctx.db.get(vendor1);
+      const v2 = await ctx.db.get(vendor2);
+      const v3 = await ctx.db.get(vendor3);
+      
+      if (v1) vendors.push(v1);
+      if (v2) vendors.push(v2);
+      if (v3) vendors.push(v3);
+    }
+
+    // Create pre-filled quotations from vendors (scraped data simulation)
+    const paymentTerms = ["cash", "credit"] as const;
+    const countries = ["Kenya", "China", "Germany", "USA", "India"];
+    
+    for (const productInfo of productIds) {
+      // Each product gets 2-3 vendor quotations
+      const numVendors = Math.floor(Math.random() * 2) + 2;
+      const shuffledVendors = [...vendors].sort(() => Math.random() - 0.5);
+      
+      for (let i = 0; i < Math.min(numVendors, shuffledVendors.length); i++) {
+        const vendor = shuffledVendors[i];
+        if (!vendor) continue;
+        
+        const priceVariation = 0.85 + Math.random() * 0.3; // 85% to 115% of base price
+        const price = Math.round(productInfo.price * priceVariation);
+        
+        await ctx.db.insert("vendorQuotations", {
+          vendorId: vendor._id,
+          productId: productInfo.id,
+          quotationType: "pre-filled",
+          source: "auto-scraped",
+          price,
+          quantity: Math.floor(Math.random() * 50) + 10,
+          paymentTerms: paymentTerms[Math.floor(Math.random() * 2)],
+          deliveryTime: `${Math.floor(Math.random() * 7) + 1}-${Math.floor(Math.random() * 7) + 7} days`,
+          warrantyPeriod: `${Math.floor(Math.random() * 12) + 6} months`,
+          countryOfOrigin: countries[Math.floor(Math.random() * countries.length)],
+          productSpecifications: `Medical grade ${productInfo.name}. ISO certified. CE marked.`,
+          productDescription: `High quality ${productInfo.name} from verified supplier. Meets international medical standards.`,
+          active: true,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
         });
       }
+    }
 
-      // Quotations sent
-      await ctx.db.insert("analytics", {
-        type: "quotation_sent",
-        timestamp: now - i * oneDayMs,
+    // Add scraping sources
+    const scrapingSources = [
+      { name: "AlphaMed Kenya", url: "https://alphamed.co.ke/", country: "Kenya" },
+      { name: "Mediplug Equipment", url: "https://mediplugequipment.co.ke/", country: "Kenya" },
+      { name: "Enza Supplies", url: "https://enzasupplies.co.ke/", country: "Kenya" },
+      { name: "Apical Medical", url: "https://www.apicalmed.com/", country: "Kenya" },
+      { name: "Medipal Medical Supplies", url: "https://medipalmedicalsupplies.co.ke/", country: "Kenya" },
+      { name: "Medical Equipment Supplies Kenya", url: "https://www.medicalequipmentsupplieskenya.com/", country: "Kenya" },
+      { name: "Crown Healthcare Kenya", url: "https://www.crownkenya.com/", country: "Kenya" },
+    ];
+
+    for (const source of scrapingSources) {
+      await ctx.db.insert("scrapingSources", {
+        name: source.name,
+        url: source.url,
+        country: source.country,
+        active: true,
+        lastScraped: Date.now(),
+        createdAt: Date.now(),
       });
     }
 
-    return { message: "Demo data seeded successfully!" };
+    return {
+      message: "Medical supplies data seeded successfully!",
+      productsCreated: productIds.length,
+      vendorsCount: vendors.length,
+      scrapingSourcesAdded: scrapingSources.length,
+    };
   },
 });
