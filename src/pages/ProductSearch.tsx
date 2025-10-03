@@ -1,23 +1,23 @@
+import { useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { SignInButton } from "@/components/ui/signin.tsx";
-import { Button } from "@/components/ui/button.tsx";
-import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { SignInButton } from "@/components/ui/signin.tsx";
 
 export default function ProductSearch() {
   const [searchParams] = useSearchParams();
-  const query = searchParams.get("q") || "";
-  
+  const initialQuery = searchParams.get("q") || "";
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
+
   const products = useQuery(api.products.getProducts, {});
 
   // Filter products by search query
   const filteredProducts = products?.filter((product) =>
-    product.name.toLowerCase().includes(query.toLowerCase())
-  );
-
-  const isPending = products === undefined;
+    product.name.toLowerCase().includes(searchQuery.toLowerCase())
+  ) || [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -31,69 +31,66 @@ export default function ProductSearch() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        {/* Search Query Display */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Search Results</h1>
-          <p className="text-muted-foreground">
-            Showing results for: <span className="font-semibold">{query}</span>
-          </p>
-        </div>
-
-        {/* Results */}
-        {isPending ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-80" />
-            ))}
+      {/* Search Bar */}
+      <div className="border-b bg-muted/30">
+        <div className="container mx-auto px-4 py-6">
+          <div className="max-w-2xl mx-auto">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
+              <Input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search medical supplies..."
+                className="pl-12 py-6 text-lg"
+              />
+            </div>
           </div>
-        ) : filteredProducts && filteredProducts.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {filteredProducts.map((product) => (
-              <div
-                key={product._id}
-                className="border rounded-lg overflow-hidden bg-card hover:shadow-lg transition-shadow"
-              >
-                {/* Product Image */}
-                <div className="aspect-square bg-muted flex items-center justify-center">
-                  {product.image ? (
-                    <img
-                      src={product.image}
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-muted-foreground text-6xl">🏥</div>
-                  )}
-                </div>
+        </div>
+      </div>
 
-                {/* Product Info */}
-                <div className="p-6">
-                  <h3 className="text-xl font-bold mb-2">{product.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                    {product.description}
-                  </p>
+      {/* Products Grid */}
+      <div className="container mx-auto px-4 py-8">
+        <h2 className="text-2xl font-bold mb-6">
+          Search Results for "{searchQuery}"
+        </h2>
 
-                  {/* Submit Request Button */}
-                  <Link to={`/product/${product._id}`}>
-                    <Button className="w-full" size="lg">
-                      Submit Your Request for Quotation
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            ))}
+        {filteredProducts.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground text-lg">
+              No products found. Try searching for another term.
+            </p>
           </div>
         ) : (
-          <div className="text-center py-20">
-            <Search className="size-16 mx-auto mb-4 text-muted-foreground" />
-            <h2 className="text-2xl font-bold mb-2">No results found</h2>
-            <p className="text-muted-foreground mb-6">
-              Try searching with different terms
-            </p>
-            <Link to="/">
-              <Button>Go Back Home</Button>
-            </Link>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredProducts.map((product) => (
+              <Link
+                key={product._id}
+                to={`/product/${product._id}`}
+                className="group"
+              >
+                <Card className="overflow-hidden hover:shadow-lg transition-shadow">
+                  <div className="aspect-square bg-muted relative overflow-hidden">
+                    {product.image ? (
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        No Image
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-semibold text-lg group-hover:text-primary transition-colors">
+                      {product.name}
+                    </h3>
+                  </div>
+                </Card>
+              </Link>
+            ))}
           </div>
         )}
       </div>
