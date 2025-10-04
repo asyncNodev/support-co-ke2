@@ -270,34 +270,66 @@ export const makeUserAdmin = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new ConvexError({
-        message: "User not logged in",
+        message: "User not authenticated",
         code: "UNAUTHENTICATED",
       });
     }
 
-    const existingUser = await ctx.db
+    const user = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+      .first();
 
-    if (existingUser) {
-      // User exists, just upgrade to admin
-      await ctx.db.patch(existingUser._id, {
+    if (user) {
+      await ctx.db.patch(user._id, {
         role: "admin",
         verified: true,
       });
-      return { success: true, message: "You are now an admin!" };
+      return { message: "You are now an admin!" };
     } else {
-      // User doesn't exist, create as admin directly
-      await ctx.db.insert("users", {
+      const userId = await ctx.db.insert("users", {
         authId: identity.tokenIdentifier,
-        email: identity.email ?? "admin@example.com",
+        email: identity.email ?? "admin@quickquote.com",
         name: identity.name ?? "Admin User",
         role: "admin",
         verified: true,
         registeredAt: Date.now(),
       });
-      return { success: true, message: "Admin account created!" };
+      return { message: "Admin account created successfully!" };
     }
+  },
+});
+
+export const assignCategoriesToVendor = mutation({
+  args: {
+    vendorId: v.id("users"),
+    categoryIds: v.array(v.id("categories")),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not authenticated",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!admin || admin.role !== "admin") {
+      throw new ConvexError({
+        message: "Only admins can assign categories",
+        code: "FORBIDDEN",
+      });
+    }
+
+    await ctx.db.patch(args.vendorId, {
+      categories: args.categoryIds,
+    });
+
+    return { message: "Categories assigned successfully" };
   },
 });

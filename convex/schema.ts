@@ -16,6 +16,7 @@ export default defineSchema({
     cr12Certificate: v.optional(v.string()),
     latitude: v.optional(v.number()),
     longitude: v.optional(v.number()),
+    categories: v.optional(v.array(v.id("categories"))),
     registeredAt: v.number(),
   })
     .index("by_authId", ["authId"])
