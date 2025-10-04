@@ -11,7 +11,14 @@ import { Input } from "@/components/ui/input.tsx";
 import { Label } from "@/components/ui/label.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog.tsx";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+} from "@/components/ui/dialog.tsx";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { EmptyState, EmptyStateContent, EmptyStateIcon, EmptyStateTitle, EmptyStateDescription } from "@/components/ui/empty-state.tsx";
@@ -46,6 +53,8 @@ export default function VendorDashboard() {
   const [countryOfOrigin, setCountryOfOrigin] = useState("");
   const [productDescription, setProductDescription] = useState("");
   const [productPhoto, setProductPhoto] = useState("");
+  const [selectedRFQ, setSelectedRFQ] = useState("");
+  const [openRFQDialog, setOpenRFQDialog] = useState(false);
 
   const createQuotation = useMutation(api.vendorQuotations.createQuotation);
 
@@ -503,7 +512,13 @@ export default function VendorDashboard() {
                     {notifications.map((notif) => (
                       <Card 
                         key={notif._id}
-                        className={`${!notif.read ? 'bg-blue-50 dark:bg-blue-950 border-blue-200' : ''}`}
+                        className={`${!notif.read ? 'bg-blue-50 dark:bg-blue-950 border-blue-200' : ''} ${notif.type === 'rfq_needs_quotation' ? 'cursor-pointer hover:border-primary transition-colors' : ''}`}
+                        onClick={() => {
+                          if (notif.type === 'rfq_needs_quotation' && notif.relatedId) {
+                            setSelectedRFQ(notif.relatedId);
+                            setOpenRFQDialog(true);
+                          }
+                        }}
                       >
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between">
@@ -512,6 +527,9 @@ export default function VendorDashboard() {
                                 <h4 className="font-semibold">{notif.title}</h4>
                                 {!notif.read && (
                                   <Badge variant="default" className="text-xs">New</Badge>
+                                )}
+                                {notif.type === 'rfq_needs_quotation' && (
+                                  <Badge variant="outline" className="text-xs">Click to respond</Badge>
                                 )}
                               </div>
                               <p className="text-sm text-muted-foreground">{notif.message}</p>
@@ -523,7 +541,8 @@ export default function VendorDashboard() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={async () => {
+                                onClick={async (e) => {
+                                  e.stopPropagation();
                                   await markAsRead({ notificationId: notif._id });
                                   toast.success("Marked as read");
                                 }}
@@ -543,6 +562,51 @@ export default function VendorDashboard() {
 
         </Tabs>
       </div>
+
+      {/* RFQ Response Dialog */}
+      <Dialog open={openRFQDialog} onOpenChange={setOpenRFQDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Respond to RFQ</DialogTitle>
+            <DialogDescription>
+              Submit a quotation or decline if you don't supply this product
+            </DialogDescription>
+          </DialogHeader>
+          {selectedRFQ && (
+            <div className="space-y-4">
+              <div className="flex gap-4">
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    // Switch to pending RFQs tab
+                    setOpenRFQDialog(false);
+                    const tabTriggers = document.querySelectorAll('[role="tab"]');
+                    const pendingRFQTab = Array.from(tabTriggers).find(tab => 
+                      tab.textContent?.includes('Pending RFQs')
+                    );
+                    if (pendingRFQTab instanceof HTMLElement) {
+                      pendingRFQTab.click();
+                    }
+                  }}
+                >
+                  Submit Quotation
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={async () => {
+                    // TODO: Add decline product mutation
+                    setOpenRFQDialog(false);
+                    toast.success("You won't receive notifications for this product again");
+                  }}
+                >
+                  I Don't Supply This Product
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
