@@ -113,10 +113,13 @@ export default function AdminDashboard() {
   };
 
   const handleOpenAssignCategories = (vendorId: Id<"users">) => {
+    console.log("Opening assign categories for vendor:", vendorId);
     const vendor = users?.find((u) => u._id === vendorId);
+    console.log("Found vendor:", vendor);
     setSelectedVendor(vendorId);
     setSelectedCategories(vendor?.categories || []);
     setAssignCategoriesOpen(true);
+    console.log("Dialog should be open now");
   };
 
   const handleToggleCategory = (categoryId: Id<"categories">) => {
