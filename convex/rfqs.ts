@@ -132,7 +132,7 @@ export const submitRFQ = mutation({
         }
       }
 
-      // Find ALL verified vendors (to notify those without quotations)
+      // Find ALL verified vendors assigned to this product's category
       const allVerifiedVendors = await ctx.db
         .query("users")
         .withIndex("by_role", (q) => {
@@ -142,12 +142,16 @@ export const submitRFQ = mutation({
         .filter((q) => q.eq(q.field("verified"), true))
         .collect();
 
-      // Notify vendors who DON'T have a pre-filled quotation for this product
+      // Notify vendors who DON'T have a pre-filled quotation AND are assigned to this category
       for (const vendor of allVerifiedVendors) {
         const hasQuotation = quotations.some(
           (q) => q.vendorId === vendor._id
         );
-        if (!hasQuotation) {
+
+        // Check if vendor is assigned to this product's category
+        const isAssignedToCategory = product?.categoryId && vendor.categories?.includes(product.categoryId);
+
+        if (!hasQuotation && isAssignedToCategory && product) {
           vendorsToNotify.add(vendor._id);
         }
       }

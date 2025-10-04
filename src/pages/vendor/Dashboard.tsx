@@ -30,6 +30,10 @@ export default function VendorDashboard() {
   const availableProducts = useQuery(api.products.getProducts, {});
   const sentQuotations = useQuery(api.rfqs.getMyQuotationsSent, {});
   
+  // Add notifications query
+  const notifications = useQuery(api.notifications.getMyNotifications, {});
+  const markAsRead = useMutation(api.notifications.markAsRead);
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedProductId, setSelectedProductId] = useState("");
@@ -148,12 +152,20 @@ export default function VendorDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="products">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsList className="grid w-full grid-cols-3 max-w-2xl">
             <TabsTrigger value="products">
               My Products ({myQuotations?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="quotations">
               Sent Quotations
+            </TabsTrigger>
+            <TabsTrigger value="notifications">
+              Notifications
+              {notifications && notifications.filter(n => !n.read).length > 0 && (
+                <Badge variant="destructive" className="ml-2">
+                  {notifications.filter(n => !n.read).length}
+                </Badge>
+              )}
             </TabsTrigger>
           </TabsList>
 
@@ -455,6 +467,80 @@ export default function VendorDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Notifications Tab */}
+          <TabsContent value="notifications">
+            <Card>
+              <CardHeader>
+                <CardTitle>Notifications</CardTitle>
+                <CardDescription>
+                  RFQ notifications and quotation updates
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!notifications && (
+                  <div className="space-y-2">
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                    <Skeleton className="h-16 w-full" />
+                  </div>
+                )}
+                {notifications && notifications.length === 0 && (
+                  <EmptyState>
+                    <EmptyStateContent>
+                      <EmptyStateIcon>
+                        <AlertCircle />
+                      </EmptyStateIcon>
+                      <EmptyStateTitle>No notifications</EmptyStateTitle>
+                      <EmptyStateDescription>
+                        You'll receive notifications when buyers submit RFQs in your categories
+                      </EmptyStateDescription>
+                    </EmptyStateContent>
+                  </EmptyState>
+                )}
+                {notifications && notifications.length > 0 && (
+                  <div className="space-y-3">
+                    {notifications.map((notif) => (
+                      <Card 
+                        key={notif._id}
+                        className={`${!notif.read ? 'bg-blue-50 dark:bg-blue-950 border-blue-200' : ''}`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-1 flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-semibold">{notif.title}</h4>
+                                {!notif.read && (
+                                  <Badge variant="default" className="text-xs">New</Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground">{notif.message}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(notif.createdAt).toLocaleString()}
+                              </p>
+                            </div>
+                            {!notif.read && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={async () => {
+                                  await markAsRead({ notificationId: notif._id });
+                                  toast.success("Marked as read");
+                                }}
+                              >
+                                Mark Read
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
         </Tabs>
       </div>
     </div>
