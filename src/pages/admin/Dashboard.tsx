@@ -12,8 +12,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { PhotoUpload } from "@/components/ui/photo-upload";
+import { BulkProductUpload } from "@/pages/admin/_components/BulkProductUpload";
+import { EditProductDialog } from "@/pages/admin/_components/EditProductDialog";
 import { toast } from "sonner";
-import { Plus, Trash2, Users, Package, Tag, Globe, BarChart3, Settings } from "lucide-react";
+import { Plus, Trash2, Users, Package, Tag, Settings, Upload, Edit } from "lucide-react";
 
 export default function AdminDashboard() {
   const products = useQuery(api.products.getProducts, {});
@@ -38,6 +41,9 @@ export default function AdminDashboard() {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [viewDetailsUserId, setViewDetailsUserId] = useState<Id<"users"> | null>(null);
   const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
+  const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
+  const [editProductId, setEditProductId] = useState<Id<"products"> | null>(null);
+  const [editProductOpen, setEditProductOpen] = useState(false);
   
   const userDetails = useQuery(
     api.users.getUserDetails,
@@ -254,67 +260,71 @@ export default function AdminDashboard() {
                     <CardTitle>Products</CardTitle>
                     <CardDescription>Manage medical products</CardDescription>
                   </div>
-                  <Dialog open={addProductOpen} onOpenChange={setAddProductOpen}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="size-4 mr-2" />
-                        Add Product
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add New Product</DialogTitle>
-                        <DialogDescription>Enter product details</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div>
-                          <Label>Name *</Label>
-                          <Input
-                            value={newProduct.name}
-                            onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                            placeholder="Hospital Bed"
-                          />
-                        </div>
-                        <div>
-                          <Label>Category *</Label>
-                          <Select
-                            value={newProduct.categoryId}
-                            onValueChange={(value) => setNewProduct({ ...newProduct, categoryId: value })}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {categories?.map((cat) => (
-                                <SelectItem key={cat._id} value={cat._id}>
-                                  {cat.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Description</Label>
-                          <Textarea
-                            value={newProduct.description}
-                            onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
-                            placeholder="Product description"
-                          />
-                        </div>
-                        <div>
-                          <Label>Photo URL</Label>
-                          <Input
-                            value={newProduct.image}
-                            onChange={(e) => setNewProduct({ ...newProduct, image: e.target.value })}
-                            placeholder="https://example.com/image.jpg"
-                          />
-                        </div>
-                        <Button onClick={handleCreateProduct} className="w-full">
-                          Create Product
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setBulkUploadOpen(true)}>
+                      <Upload className="size-4 mr-2" />
+                      Bulk Upload
+                    </Button>
+                    <Dialog open={addProductOpen} onOpenChange={setAddProductOpen}>
+                      <DialogTrigger asChild>
+                        <Button>
+                          <Plus className="size-4 mr-2" />
+                          Add Product
                         </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>Add New Product</DialogTitle>
+                          <DialogDescription>Enter product details</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div>
+                            <Label>Name *</Label>
+                            <Input
+                              value={newProduct.name}
+                              onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                              placeholder="Hospital Bed"
+                            />
+                          </div>
+                          <div>
+                            <Label>Category *</Label>
+                            <Select
+                              value={newProduct.categoryId}
+                              onValueChange={(value) => setNewProduct({ ...newProduct, categoryId: value })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select category" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {categories?.map((cat) => (
+                                  <SelectItem key={cat._id} value={cat._id}>
+                                    {cat.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label>Description</Label>
+                            <Textarea
+                              value={newProduct.description}
+                              onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                              placeholder="Product description"
+                            />
+                          </div>
+                          <PhotoUpload
+                            value={newProduct.image}
+                            onChange={(url) => setNewProduct({ ...newProduct, image: url })}
+                            label="Product Photo"
+                            uploadUrlMutation={api.products.generateUploadUrl}
+                          />
+                          <Button onClick={handleCreateProduct} className="w-full">
+                            Create Product
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -322,10 +332,28 @@ export default function AdminDashboard() {
                   {products?.map((product) => (
                     <Card key={product._id}>
                       <CardHeader>
+                        {product.image && (
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="w-full h-32 object-cover rounded-md mb-2"
+                          />
+                        )}
                         <CardTitle className="text-base">{product.name}</CardTitle>
                         <CardDescription>{product.categoryName}</CardDescription>
                       </CardHeader>
-                      <CardContent>
+                      <CardContent className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditProductId(product._id);
+                            setEditProductOpen(true);
+                          }}
+                        >
+                          <Edit className="size-4 mr-2" />
+                          Edit
+                        </Button>
                         <Button
                           variant="destructive"
                           size="sm"
@@ -718,6 +746,17 @@ export default function AdminDashboard() {
           )}
         </DialogContent>
       </Dialog>
+
+      <BulkProductUpload
+        open={bulkUploadOpen}
+        onOpenChange={setBulkUploadOpen}
+      />
+
+      <EditProductDialog
+        open={editProductOpen}
+        onOpenChange={setEditProductOpen}
+        productId={editProductId}
+      />
     </div>
   );
 }

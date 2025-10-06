@@ -96,6 +96,60 @@ export const createProduct = mutation({
   },
 });
 
+// Bulk create products from CSV (admin only)
+export const bulkCreateProducts = mutation({
+  args: {
+    products: v.array(
+      v.object({
+        name: v.string(),
+        categoryId: v.id("categories"),
+        description: v.string(),
+        image: v.optional(v.string()),
+        sku: v.optional(v.string()),
+        specifications: v.optional(v.string()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!currentUser || currentUser.role !== "admin") {
+      throw new ConvexError({
+        message: "Only admins can bulk create products",
+        code: "FORBIDDEN",
+      });
+    }
+
+    const productIds: Array<Id<"products">> = [];
+    
+    for (const product of args.products) {
+      const productId = await ctx.db.insert("products", {
+        name: product.name,
+        categoryId: product.categoryId,
+        description: product.description,
+        image: product.image,
+        sku: product.sku,
+        specifications: product.specifications,
+        createdAt: Date.now(),
+      });
+      productIds.push(productId);
+    }
+
+    return { count: productIds.length, productIds };
+  },
+});
+
 // Update product (admin only)
 export const updateProduct = mutation({
   args: {
@@ -170,5 +224,33 @@ export const deleteProduct = mutation({
     await ctx.db.delete(args.productId);
 
     return null;
+  },
+});
+
+// Generate upload URL for product photos
+export const generateUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "vendor")) {
+      throw new ConvexError({
+        message: "Only admins and vendors can upload photos",
+        code: "FORBIDDEN",
+      });
+    }
+
+    return await ctx.storage.generateUploadUrl();
   },
 });

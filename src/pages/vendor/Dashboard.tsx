@@ -11,6 +11,8 @@ import { Input } from "@/components/ui/input.tsx";
 import { Label } from "@/components/ui/label.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
+import { PhotoUpload } from "@/components/ui/photo-upload";
+import { EditQuotationDialog } from "@/pages/vendor/_components/EditQuotationDialog";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +24,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { EmptyState, EmptyStateContent, EmptyStateIcon, EmptyStateTitle, EmptyStateDescription } from "@/components/ui/empty-state.tsx";
-import { Package, AlertCircle, Plus } from "lucide-react";
+import { Package, AlertCircle, Plus, Edit, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-auth.ts";
 
@@ -53,10 +55,26 @@ export default function VendorDashboard() {
   const [countryOfOrigin, setCountryOfOrigin] = useState("");
   const [productDescription, setProductDescription] = useState("");
   const [productPhoto, setProductPhoto] = useState("");
+  const [productSpecifications, setProductSpecifications] = useState("");
   const [selectedRFQ, setSelectedRFQ] = useState("");
   const [openRFQDialog, setOpenRFQDialog] = useState(false);
+  const [editQuotationData, setEditQuotationData] = useState<{
+    _id: Id<"vendorQuotations">;
+    price: number;
+    quantity: number;
+    brand?: string;
+    paymentTerms: "cash" | "credit";
+    deliveryTime: string;
+    warrantyPeriod: string;
+    countryOfOrigin?: string;
+    productDescription?: string;
+    productPhoto?: string;
+    productSpecifications?: string;
+  } | null>(null);
+  const [editQuotationOpen, setEditQuotationOpen] = useState(false);
 
   const createQuotation = useMutation(api.vendorQuotations.createQuotation);
+  const deleteQuotation = useMutation(api.vendorQuotations.deleteQuotation);
 
   // Handle redirects in useEffect
   useEffect(() => {
@@ -120,6 +138,7 @@ export default function VendorDashboard() {
         countryOfOrigin: countryOfOrigin || undefined,
         productDescription: productDescription || undefined,
         productPhoto: productPhoto || undefined,
+        productSpecifications: productSpecifications || undefined,
       });
 
       toast.success("Product quotation added successfully");
@@ -135,8 +154,23 @@ export default function VendorDashboard() {
       setCountryOfOrigin("");
       setProductDescription("");
       setProductPhoto("");
+      setProductSpecifications("");
     } catch (error) {
       toast.error("Failed to add quotation");
+      console.error(error);
+    }
+  };
+
+  const handleDeleteQuotation = async (quotationId: Id<"vendorQuotations">) => {
+    if (!confirm("Are you sure you want to delete this quotation?")) {
+      return;
+    }
+
+    try {
+      await deleteQuotation({ quotationId });
+      toast.success("Quotation deleted successfully");
+    } catch (error) {
+      toast.error("Failed to delete quotation");
       console.error(error);
     }
   };
@@ -312,12 +346,20 @@ export default function VendorDashboard() {
                       />
                     </div>
 
+                    <PhotoUpload
+                      value={productPhoto}
+                      onChange={(url) => setProductPhoto(url)}
+                      label="Product Photo"
+                      uploadUrlMutation={api.vendorQuotations.generateUploadUrl}
+                    />
+
                     <div className="space-y-2">
-                      <Label>Product Photo URL</Label>
-                      <Input
-                        value={productPhoto}
-                        onChange={(e) => setProductPhoto(e.target.value)}
-                        placeholder="https://cdn.hercules.app/file_..."
+                      <Label>Product Specifications</Label>
+                      <Textarea
+                        value={productSpecifications}
+                        onChange={(e) => setProductSpecifications(e.target.value)}
+                        placeholder="Technical specifications"
+                        rows={3}
                       />
                     </div>
 
@@ -344,29 +386,61 @@ export default function VendorDashboard() {
                 {myQuotations.map((quotation) => (
                   <Card key={quotation._id}>
                     <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-semibold">{quotation.product?.name}</h3>
-                          {quotation.brand && (
-                            <p className="text-sm text-muted-foreground">Brand: {quotation.brand}</p>
-                          )}
-                          <p className="text-lg font-bold text-primary mt-2">
-                            KES {quotation.price.toLocaleString()}
-                          </p>
-                          <div className="flex gap-2 mt-2 flex-wrap">
-                            <Badge variant={quotation.paymentTerms === "cash" ? "default" : "secondary"}>
-                              {quotation.paymentTerms}
-                            </Badge>
-                            <Badge variant="outline">{quotation.deliveryTime}</Badge>
-                            <Badge variant="outline">{quotation.warrantyPeriod}</Badge>
-                            {quotation.countryOfOrigin && (
-                              <Badge variant="outline">{quotation.countryOfOrigin}</Badge>
-                            )}
+                      <div className="flex gap-4">
+                        {quotation.productPhoto && (
+                          <img
+                            src={quotation.productPhoto}
+                            alt="Product"
+                            className="size-24 object-cover rounded-md"
+                          />
+                        )}
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h3 className="font-semibold">{quotation.product?.name}</h3>
+                              {quotation.brand && (
+                                <p className="text-sm text-muted-foreground">Brand: {quotation.brand}</p>
+                              )}
+                              <p className="text-lg font-bold text-primary mt-2">
+                                KES {quotation.price.toLocaleString()}
+                              </p>
+                              <div className="flex gap-2 mt-2 flex-wrap">
+                                <Badge variant={quotation.paymentTerms === "cash" ? "default" : "secondary"}>
+                                  {quotation.paymentTerms}
+                                </Badge>
+                                <Badge variant="outline">{quotation.deliveryTime}</Badge>
+                                <Badge variant="outline">{quotation.warrantyPeriod}</Badge>
+                                {quotation.countryOfOrigin && (
+                                  <Badge variant="outline">{quotation.countryOfOrigin}</Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Badge variant={quotation.active ? "default" : "secondary"}>
+                                {quotation.active ? "Active" : "Inactive"}
+                              </Badge>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditQuotationData(quotation);
+                                    setEditQuotationOpen(true);
+                                  }}
+                                >
+                                  <Edit className="size-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleDeleteQuotation(quotation._id)}
+                                >
+                                  <Trash2 className="size-4" />
+                                </Button>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        <Badge variant={quotation.active ? "default" : "secondary"}>
-                          {quotation.active ? "Active" : "Inactive"}
-                        </Badge>
                       </div>
                     </CardContent>
                   </Card>
@@ -607,6 +681,12 @@ export default function VendorDashboard() {
           )}
         </DialogContent>
       </Dialog>
+
+      <EditQuotationDialog
+        quotation={editQuotationData}
+        open={editQuotationOpen}
+        onOpenChange={setEditQuotationOpen}
+      />
     </div>
   );
 }
