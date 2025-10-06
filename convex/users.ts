@@ -264,6 +264,99 @@ export const verifyUser = mutation({
   },
 });
 
+export const toggleUserStatus = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({ message: "Not authenticated", code: "UNAUTHENTICATED" });
+    }
+
+    const adminUser = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!adminUser || adminUser.role !== "admin") {
+      throw new ConvexError({ message: "Only admins can toggle user status", code: "FORBIDDEN" });
+    }
+
+    const user = await ctx.db.get(args.userId);
+    if (!user) {
+      throw new ConvexError({ message: "User not found", code: "NOT_FOUND" });
+    }
+
+    await ctx.db.patch(args.userId, {
+      verified: !user.verified,
+    });
+
+    return { success: true, message: `User ${user.verified ? 'disabled' : 'enabled'}` };
+  },
+});
+
+export const deleteUser = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({ message: "Not authenticated", code: "UNAUTHENTICATED" });
+    }
+
+    const adminUser = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!adminUser || adminUser.role !== "admin") {
+      throw new ConvexError({ message: "Only admins can delete users", code: "FORBIDDEN" });
+    }
+
+    await ctx.db.delete(args.userId);
+
+    return { success: true, message: "User deleted successfully" };
+  },
+});
+
+export const getUserDetails = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) return null;
+
+    // Get RFQs submitted by user (if buyer)
+    const rfqs = await ctx.db
+      .query("rfqs")
+      .withIndex("by_buyer", (q) => q.eq("buyerId", args.userId))
+      .collect();
+
+    // Get quotations sent to user (if buyer)
+    const receivedQuotations = await ctx.db
+      .query("sentQuotations")
+      .withIndex("by_buyer", (q) => q.eq("buyerId", args.userId))
+      .collect();
+
+    // Get quotations sent by user (if vendor)
+    const sentQuotations = await ctx.db
+      .query("sentQuotations")
+      .withIndex("by_vendor", (q) => q.eq("vendorId", args.userId))
+      .collect();
+
+    // Get vendor quotations (if vendor)
+    const vendorQuotations = await ctx.db
+      .query("vendorQuotations")
+      .withIndex("by_vendor", (q) => q.eq("vendorId", args.userId))
+      .collect();
+
+    return {
+      user,
+      rfqsCount: rfqs.length,
+      receivedQuotationsCount: receivedQuotations.length,
+      sentQuotationsCount: sentQuotations.length,
+      activeQuotationsCount: vendorQuotations.filter(q => q.active).length,
+    };
+  },
+});
+
 export const makeUserAdmin = mutation({
   args: {},
   handler: async (ctx) => {

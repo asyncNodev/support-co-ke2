@@ -28,9 +28,22 @@ export default function AdminDashboard() {
   const verifyUser = useMutation(api.users.verifyUser);
   const assignCategoriesToVendor = useMutation(api.users.assignCategoriesToVendor);
 
+  const verifyUserMutation = useMutation(api.users.verifyUser);
+  const assignCategories = useMutation(api.users.assignCategoriesToVendor);
+  const toggleStatus = useMutation(api.users.toggleUserStatus);
+  const deleteUserMutation = useMutation(api.users.deleteUser);
+
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
-  const [assignCategoriesOpen, setAssignCategoriesOpen] = useState(false);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [viewDetailsUserId, setViewDetailsUserId] = useState<Id<"users"> | null>(null);
+  const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
+  
+  const userDetails = useQuery(
+    api.users.getUserDetails,
+    viewDetailsUserId ? { userId: viewDetailsUserId } : "skip"
+  );
+
   const [selectedVendor, setSelectedVendor] = useState<Id<"users"> | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<Id<"categories">[]>([]);
 
@@ -118,7 +131,7 @@ export default function AdminDashboard() {
     console.log("Found vendor:", vendor);
     setSelectedVendor(vendorId);
     setSelectedCategories(vendor?.categories || []);
-    setAssignCategoriesOpen(true);
+    setAssignDialogOpen(true);
     console.log("Dialog should be open now");
   };
 
@@ -133,14 +146,39 @@ export default function AdminDashboard() {
   const handleSaveCategories = async () => {
     if (!selectedVendor) return;
     try {
-      await assignCategoriesToVendor({
+      await assignCategories({
         vendorId: selectedVendor,
         categoryIds: selectedCategories,
       });
       toast.success("Categories assigned successfully");
-      setAssignCategoriesOpen(false);
+      setAssignDialogOpen(false);
     } catch (error) {
       toast.error("Failed to assign categories");
+    }
+  };
+
+  const handleViewDetails = (userId: Id<"users">) => {
+    setViewDetailsUserId(userId);
+    setViewDetailsOpen(true);
+  };
+
+  const handleDeleteUser = async (userId: Id<"users">) => {
+    if (confirm("Are you sure you want to delete this user?")) {
+      try {
+        await deleteUserMutation({ userId });
+        toast.success("User deleted successfully");
+      } catch (error) {
+        toast.error("Failed to delete user");
+      }
+    }
+  };
+
+  const handleToggleStatus = async (userId: Id<"users">) => {
+    try {
+      await toggleStatus({ userId });
+      toast.success("User status updated successfully");
+    } catch (error) {
+      toast.error("Failed to update user status");
     }
   };
 
@@ -392,6 +430,9 @@ export default function AdminDashboard() {
                         {vendor.companyName && (
                           <p className="text-sm text-muted-foreground">{vendor.companyName}</p>
                         )}
+                        {vendor.phone && (
+                          <p className="text-sm text-muted-foreground">Phone: {vendor.phone}</p>
+                        )}
                         <div className="flex gap-2 mt-2">
                           <Badge variant={vendor.verified ? "default" : "destructive"}>
                             {vendor.verified ? "Verified" : "Unverified"}
@@ -404,18 +445,41 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewDetails(vendor._id)}
+                        >
+                          View Details
+                        </Button>
                         {!vendor.verified && (
-                          <Button onClick={() => handleVerifyUser(vendor._id)} size="sm">
-                            Verify Vendor
+                          <Button
+                            size="sm"
+                            onClick={() => handleVerifyUser(vendor._id)}
+                          >
+                            Verify
                           </Button>
                         )}
                         <Button
-                          onClick={() => handleOpenAssignCategories(vendor._id)}
-                          variant="outline"
                           size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenAssignCategories(vendor._id)}
                         >
-                          <Tag className="size-4 mr-2" />
                           Assign Categories
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={vendor.verified ? "outline" : "default"}
+                          onClick={() => handleToggleStatus(vendor._id)}
+                        >
+                          {vendor.verified ? "Disable" : "Enable"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteUser(vendor._id)}
+                        >
+                          Delete
                         </Button>
                       </div>
                     </div>
@@ -433,13 +497,44 @@ export default function AdminDashboard() {
                 <div className="space-y-4">
                   {buyers.map((buyer) => (
                     <div key={buyer._id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
+                      <div className="flex-1">
                         <p className="font-medium">{buyer.name}</p>
                         <p className="text-sm text-muted-foreground">{buyer.email}</p>
+                        {buyer.companyName && (
+                          <p className="text-sm text-muted-foreground">{buyer.companyName}</p>
+                        )}
+                        {buyer.phone && (
+                          <p className="text-sm text-muted-foreground">Phone: {buyer.phone}</p>
+                        )}
+                        <div className="flex gap-2 mt-2">
+                          <Badge variant={buyer.verified ? "default" : "secondary"}>
+                            {buyer.verified ? "Active" : "Inactive"}
+                          </Badge>
+                        </div>
                       </div>
-                      <Badge variant={buyer.verified ? "default" : "secondary"}>
-                        {buyer.verified ? "Verified" : "Active"}
-                      </Badge>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewDetails(buyer._id)}
+                        >
+                          View Details
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={buyer.verified ? "outline" : "default"}
+                          onClick={() => handleToggleStatus(buyer._id)}
+                        >
+                          {buyer.verified ? "Disable" : "Enable"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteUser(buyer._id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -480,7 +575,7 @@ export default function AdminDashboard() {
         </Tabs>
       </main>
 
-      <Dialog open={assignCategoriesOpen} onOpenChange={setAssignCategoriesOpen}>
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Categories to Vendor</DialogTitle>
@@ -508,6 +603,119 @@ export default function AdminDashboard() {
           <Button onClick={handleSaveCategories} className="w-full">
             Save Categories
           </Button>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={viewDetailsOpen} onOpenChange={setViewDetailsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+            <DialogDescription>
+              Complete user information and activity
+            </DialogDescription>
+          </DialogHeader>
+          {userDetails ? (
+            <div className="space-y-6">
+              {/* Basic Information */}
+              <div>
+                <h3 className="font-semibold mb-3">Basic Information</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Name</p>
+                    <p className="font-medium">{userDetails.user.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Email</p>
+                    <p className="font-medium">{userDetails.user.email}</p>
+                  </div>
+                  {userDetails.user.phone && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Phone</p>
+                      <p className="font-medium">{userDetails.user.phone}</p>
+                    </div>
+                  )}
+                  {userDetails.user.companyName && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Company</p>
+                      <p className="font-medium">{userDetails.user.companyName}</p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm text-muted-foreground">Role</p>
+                    <Badge>{userDetails.user.role}</Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Status</p>
+                    <Badge variant={userDetails.user.verified ? "default" : "secondary"}>
+                      {userDetails.user.verified ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* Activity Statistics */}
+              <div>
+                <h3 className="font-semibold mb-3">Activity</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {userDetails.user.role === "buyer" && (
+                    <>
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardDescription>RFQs Submitted</CardDescription>
+                          <CardTitle className="text-3xl">{userDetails.rfqsCount}</CardTitle>
+                        </CardHeader>
+                      </Card>
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardDescription>Quotations Received</CardDescription>
+                          <CardTitle className="text-3xl">{userDetails.receivedQuotationsCount}</CardTitle>
+                        </CardHeader>
+                      </Card>
+                    </>
+                  )}
+                  {userDetails.user.role === "vendor" && (
+                    <>
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardDescription>Active Products</CardDescription>
+                          <CardTitle className="text-3xl">{userDetails.activeQuotationsCount}</CardTitle>
+                        </CardHeader>
+                      </Card>
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardDescription>Quotations Sent</CardDescription>
+                          <CardTitle className="text-3xl">{userDetails.sentQuotationsCount}</CardTitle>
+                        </CardHeader>
+                      </Card>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Vendor Categories */}
+              {userDetails.user.role === "vendor" && userDetails.user.categories && (
+                <div>
+                  <h3 className="font-semibold mb-3">Assigned Categories</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {userDetails.user.categories.length > 0 ? (
+                      userDetails.user.categories.map((catId) => {
+                        const category = categories?.find(c => c._id === catId);
+                        return category ? (
+                          <Badge key={catId} variant="outline">{category.name}</Badge>
+                        ) : null;
+                      })
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No categories assigned</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-8">
+              <p className="text-muted-foreground">Loading user details...</p>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
