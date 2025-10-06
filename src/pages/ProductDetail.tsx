@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
+import { Badge } from "@/components/ui/badge";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon, ArrowLeft } from "lucide-react";
-import { format } from "date-fns";
+import { CalendarIcon, ArrowLeft, Bell } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { SignInButton } from "@/components/ui/signin.tsx";
 import { useUser } from "@/hooks/use-auth.ts";
@@ -23,14 +24,20 @@ export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAuthenticated } = useUser();
+  const currentUser = useQuery(api.users.getCurrentUser, {});
+
+  const notifications = useQuery(
+    api.notifications.getMyNotifications,
+    isAuthenticated ? {} : "skip"
+  );
+
+  const unreadCount = notifications?.filter((n) => !n.read).length || 0;
 
   const product = useQuery(
     api.products.getProduct,
     id ? { productId: id as Id<"products"> } : "skip"
   );
   
-  const currentUser = useQuery(api.users.getCurrentUser, {});
-
   const submitRFQ = useMutation(api.rfqs.submitRFQ);
 
   const [quantity, setQuantity] = useState("");
@@ -90,14 +97,77 @@ export default function ProductDetail() {
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="text-2xl font-bold hover:text-primary">
+          <Link to="/" className="text-2xl font-bold hover:opacity-80 transition-opacity">
             Medical Supplies Kenya
           </Link>
+          
           <div className="flex items-center gap-4">
-            {currentUser && (
-              <Button variant="outline" asChild>
-                <Link to={getDashboardLink()}>Dashboard</Link>
-              </Button>
+            {isAuthenticated && currentUser && (
+              <>
+                {/* Notifications Bell */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" className="relative">
+                      <Bell className="size-5" />
+                      {unreadCount > 0 && (
+                        <Badge 
+                          variant="destructive" 
+                          className="absolute -top-1 -right-1 size-5 flex items-center justify-center p-0 text-xs"
+                        >
+                          {unreadCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0" align="end">
+                    <div className="p-4 border-b">
+                      <h3 className="font-semibold">Notifications</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {unreadCount} unread
+                      </p>
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {!notifications || notifications.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          No notifications yet
+                        </div>
+                      ) : (
+                        notifications.slice(0, 5).map((notification) => (
+                          <div
+                            key={notification._id}
+                            className={`p-4 border-b hover:bg-muted/50 cursor-pointer ${
+                              !notification.read ? "bg-blue-50 dark:bg-blue-950/20" : ""
+                            }`}
+                            onClick={() => navigate(getDashboardLink())}
+                          >
+                            <p className="font-medium text-sm">{notification.title}</p>
+                            <p className="text-sm text-muted-foreground">{notification.message}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {formatDistanceToNow(notification.createdAt, { addSuffix: true })}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                      {notifications && notifications.length > 5 && (
+                        <div className="p-2 text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(getDashboardLink())}
+                          >
+                            View all notifications
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
+                {/* Dashboard Link */}
+                <Button variant="outline" asChild>
+                  <Link to={getDashboardLink()}>Dashboard</Link>
+                </Button>
+              </>
             )}
             <SignInButton />
           </div>
