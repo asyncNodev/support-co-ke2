@@ -79,60 +79,62 @@ export const submitRFQ = mutation({
 
     // Auto-match with pre-filled vendor quotations and notify vendors without quotations
     let matchedCount = 0;
-    const vendorsToNotify = new Set<Id<"users">>();
+    const vendorNotifications = new Map<Id<"users">, Array<{ productId: Id<"products">; productName: string }>>();
 
+    // Process each item in the RFQ
     for (const item of args.items) {
-      // Find all verified vendors with pre-filled quotations for this product
+      const product = await ctx.db.get(item.productId);
+      if (!product) continue;
+
+      // Find pre-filled quotations for this product
       const quotations = await ctx.db
         .query("vendorQuotations")
         .withIndex("by_product", (q) => q.eq("productId", item.productId))
-        .filter((q) => q.eq(q.field("quotationType"), "pre-filled"))
         .filter((q) => q.eq(q.field("active"), true))
         .collect();
 
-      const product = await ctx.db.get(item.productId);
-
-      // Send pre-filled quotations
+      // Send pre-filled quotations to buyer
       for (const quotation of quotations) {
         const vendor = await ctx.db.get(quotation.vendorId);
-        if (vendor && vendor.verified && vendor.role === "vendor") {
-          await ctx.db.insert("sentQuotations", {
-            rfqId,
-            buyerId: user._id,
-            vendorId: vendor._id,
-            productId: item.productId,
-            quotationId: quotation._id,
-            quotationType: "pre-filled" as const,
-            price: quotation.price,
-            quantity: quotation.quantity,
-            paymentTerms: quotation.paymentTerms,
-            deliveryTime: quotation.deliveryTime,
-            warrantyPeriod: quotation.warrantyPeriod,
-            countryOfOrigin: quotation.countryOfOrigin,
-            productSpecifications: quotation.productSpecifications,
-            productPhoto: quotation.productPhoto,
-            productDescription: quotation.productDescription,
-            opened: false,
-            chosen: false,
-            sentAt: Date.now(),
-          });
+        if (!vendor || !vendor.verified) continue;
 
-          // Notify vendor that their quotation was sent
-          await ctx.db.insert("notifications", {
-            userId: vendor._id,
-            type: "quotation_sent",
-            title: "Your quotation was sent!",
-            message: `Your pre-filled quotation for ${product?.name} was sent to a buyer`,
-            read: false,
-            relatedId: rfqId,
-            createdAt: Date.now(),
-          });
+        matchedCount++;
 
-          matchedCount++;
-        }
+        // Create sent quotation
+        await ctx.db.insert("sentQuotations", {
+          rfqId,
+          buyerId: user._id,
+          vendorId: vendor._id,
+          productId: item.productId,
+          quotationId: quotation._id,
+          quotationType: "pre-filled" as const,
+          price: quotation.price,
+          quantity: quotation.quantity,
+          paymentTerms: quotation.paymentTerms,
+          deliveryTime: quotation.deliveryTime,
+          warrantyPeriod: quotation.warrantyPeriod,
+          countryOfOrigin: quotation.countryOfOrigin,
+          productSpecifications: quotation.productSpecifications,
+          productPhoto: quotation.productPhoto,
+          productDescription: quotation.productDescription,
+          opened: false,
+          chosen: false,
+          sentAt: Date.now(),
+        });
+
+        // Notify vendor that their quotation was sent
+        await ctx.db.insert("notifications", {
+          userId: vendor._id,
+          type: "quotation_sent",
+          title: "Your quotation was sent!",
+          message: `Your pre-filled quotation for ${product.name} was sent to a buyer`,
+          read: false,
+          relatedId: rfqId,
+          createdAt: Date.now(),
+        });
       }
 
-      // Find ALL verified vendors assigned to this product's category
+      // Find vendors assigned to this category who don't have quotations
       const allVerifiedVendors = await ctx.db
         .query("users")
         .withIndex("by_role", (q) => {
@@ -142,32 +144,36 @@ export const submitRFQ = mutation({
         .filter((q) => q.eq(q.field("verified"), true))
         .collect();
 
-      // Notify vendors who DON'T have a pre-filled quotation AND are assigned to this category
       for (const vendor of allVerifiedVendors) {
-        const hasQuotation = quotations.some(
-          (q) => q.vendorId === vendor._id
-        );
+        const hasQuotation = quotations.some((q) => q.vendorId === vendor._id);
+        const isAssignedToCategory = product.categoryId && vendor.categories?.includes(product.categoryId);
 
-        // Check if vendor is assigned to this product's category
-        const isAssignedToCategory = product?.categoryId && vendor.categories?.includes(product.categoryId);
-
-        if (!hasQuotation && isAssignedToCategory && product) {
-          vendorsToNotify.add(vendor._id);
+        if (!hasQuotation && isAssignedToCategory) {
+          // Track this product for this vendor
+          if (!vendorNotifications.has(vendor._id)) {
+            vendorNotifications.set(vendor._id, []);
+          }
+          vendorNotifications.get(vendor._id)!.push({
+            productId: item.productId,
+            productName: product.name,
+          });
         }
       }
     }
 
-    // Send notifications to vendors without pre-filled quotations
-    for (const vendorId of vendorsToNotify) {
-      await ctx.db.insert("notifications", {
-        userId: vendorId,
-        type: "rfq_needs_quotation",
-        title: "New RFQ needs your quotation",
-        message: `A buyer has submitted an RFQ. Review and submit your quotation.`,
-        read: false,
-        relatedId: rfqId,
-        createdAt: Date.now(),
-      });
+    // Send notifications to vendors with product names
+    for (const [vendorId, products] of vendorNotifications.entries()) {
+      for (const product of products) {
+        await ctx.db.insert("notifications", {
+          userId: vendorId,
+          type: "rfq_needs_quotation",
+          title: `New RFQ for ${product.productName}`,
+          message: `A buyer has requested quotations for ${product.productName}. Click to respond with your quotation.`,
+          read: false,
+          relatedId: rfqId,
+          createdAt: Date.now(),
+        });
+      }
     }
 
     // Update RFQ status
@@ -185,7 +191,7 @@ export const submitRFQ = mutation({
     return {
       rfqId,
       matchedCount,
-      vendorsNotified: vendorsToNotify.size,
+      vendorsNotified: vendorNotifications.size,
     };
   },
 });
