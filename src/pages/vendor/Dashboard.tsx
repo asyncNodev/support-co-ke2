@@ -526,8 +526,7 @@ export default function VendorDashboard() {
                               className="w-full mt-4" 
                               size="sm"
                               onClick={() => {
-                                // Navigate to RFQ details or show quotations
-                                toast.success("View quotations feature coming soon!");
+                                navigate(`/buyer/rfq/${rfq._id}`);
                               }}
                             >
                               View {rfq.quotationCount} Quotation{rfq.quotationCount > 1 ? "s" : ""}

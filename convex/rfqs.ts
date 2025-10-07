@@ -279,8 +279,8 @@ export const getRFQDetails = query({
       return null;
     }
 
-    // Check access
-    if (user.role === "buyer" && rfq.buyerId !== user._id) {
+    // Check access - allow both buyers and vendors (brokers) to view their RFQs
+    if (rfq.buyerId !== user._id) {
       throw new ConvexError({
         message: "Access denied",
         code: "FORBIDDEN",
@@ -475,6 +475,11 @@ export const getPendingRFQs = query({
         const rfq = await ctx.db.get(rfqId);
         if (!rfq) continue;
 
+        // Skip RFQs submitted by this vendor (don't show their own broker RFQs)
+        if (rfq.buyerId === user._id) {
+          continue;
+        }
+
         const items = await ctx.db
           .query("rfqItems")
           .withIndex("by_rfq", (q) => q.eq("rfqId", rfqId))
@@ -537,9 +542,9 @@ export const chooseQuotation = mutation({
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
       .first();
 
-    if (!user || user.role !== "buyer") {
+    if (!user || (user.role !== "buyer" && user.role !== "vendor")) {
       throw new ConvexError({
-        message: "Only buyers can choose quotations",
+        message: "Only buyers and vendors can choose quotations",
         code: "FORBIDDEN",
       });
     }
@@ -570,7 +575,7 @@ export const chooseQuotation = mutation({
       userId: quotation.vendorId,
       type: "quotation_chosen",
       title: "Your Quotation Was Chosen!",
-      message: `Buyer ${user.name} has selected your quotation. Contact information: ${user.email}${user.phone ? `, ${user.phone}` : ""}`,
+      message: `${user.role === "buyer" ? "Buyer" : "Broker"} ${user.name} has selected your quotation. Contact information: ${user.email}${user.phone ? `, ${user.phone}` : ""}`,
       read: false,
       relatedId: args.sentQuotationId,
       createdAt: Date.now(),
@@ -599,9 +604,9 @@ export const declineQuotation = mutation({
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
       .first();
 
-    if (!user || user.role !== "buyer") {
+    if (!user || (user.role !== "buyer" && user.role !== "vendor")) {
       throw new ConvexError({
-        message: "Only buyers can decline quotations",
+        message: "Only buyers and vendors can decline quotations",
         code: "FORBIDDEN",
       });
     }
@@ -629,7 +634,7 @@ export const declineQuotation = mutation({
       userId: quotation.vendorId,
       type: "quotation_chosen",
       title: "Quotation Declined",
-      message: `Buyer declined your quotation. Reason: ${args.reason}`,
+      message: `${user.role === "buyer" ? "Buyer" : "Broker"} declined your quotation. Reason: ${args.reason}`,
       read: false,
       relatedId: quotation.rfqId,
       createdAt: Date.now(),
