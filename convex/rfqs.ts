@@ -428,9 +428,9 @@ export const getMyQuotationsSent = query({
             ...quotation,
             productName: product?.name || "Unknown Product",
             // Show "Broker" if RFQ is from another vendor, otherwise "Buyer"
-            buyerType: rfq?.isBroker ? "Broker" : "Buyer",
+            buyerType: rfq?.isBroker === true ? "Broker" : "Buyer",
             // Only show buyer info if quotation was chosen (approved)
-            buyerName: quotation.chosen && buyer ? buyer.name : rfq?.isBroker ? "Anonymous Broker" : "Anonymous Buyer",
+            buyerName: quotation.chosen && buyer ? buyer.name : rfq?.isBroker === true ? "Anonymous Broker" : "Anonymous Buyer",
             buyerEmail: quotation.chosen && buyer ? buyer.email : undefined,
             buyerPhone: quotation.chosen && buyer ? buyer.phone : undefined,
             buyerCompany: quotation.chosen && buyer ? buyer.companyName : undefined,
@@ -508,8 +508,8 @@ export const getPendingRFQs = query({
           pendingRFQs.push({
             rfqId,
             createdAt: rfq.createdAt,
-            buyerInfo: rfq.isBroker ? "Anonymous Broker" : "Anonymous Buyer",
-            buyerType: rfq.isBroker ? "Broker" : "Buyer",
+            buyerInfo: rfq.isBroker === true ? "Anonymous Broker" : "Anonymous Buyer",
+            buyerType: rfq.isBroker === true ? "Broker" : "Buyer",
             items: itemsWithProducts,
           });
         }

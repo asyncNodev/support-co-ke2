@@ -76,7 +76,7 @@ export default defineSchema({
       v.literal("quoted"),
       v.literal("completed")
     ),
-    isBroker: v.boolean(),
+    isBroker: v.optional(v.boolean()),
     expectedDeliveryTime: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_buyer", ["buyerId"]),
