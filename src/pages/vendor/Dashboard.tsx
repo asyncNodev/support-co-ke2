@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel.d.ts";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button.tsx";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
@@ -38,6 +38,7 @@ export default function VendorDashboard() {
   const pendingRFQs = useQuery(api.vendorQuotations.getPendingRFQs, {});
   const availableProducts = useQuery(api.products.getProducts, {});
   const sentQuotations = useQuery(api.rfqs.getMyQuotationsSent, {});
+  const myRFQs = useQuery(api.rfqs.getMyRFQs, {});
   
   // Add notifications query
   const notifications = useQuery(api.notifications.getMyNotifications, {});
@@ -186,18 +187,26 @@ export default function VendorDashboard() {
                 {currentUser.companyName || currentUser.name}
               </p>
             </div>
-            <Button variant="outline" onClick={() => navigate("/")}>
-              Home
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" asChild>
+                <Link to="/browse">Browse & Request Products</Link>
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/")}>
+                Home
+              </Button>
+            </div>
           </div>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="products">
-          <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+          <TabsList className="grid w-full grid-cols-4 max-w-3xl">
             <TabsTrigger value="products">
               My Products ({myQuotations?.length || 0})
+            </TabsTrigger>
+            <TabsTrigger value="my-rfqs">
+              My RFQs ({myRFQs?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="quotations">
               Sent Quotations
@@ -449,6 +458,90 @@ export default function VendorDashboard() {
             )}
           </TabsContent>
 
+          <TabsContent value="my-rfqs">
+            <Card>
+              <CardHeader>
+                <CardTitle>My RFQs (as Broker)</CardTitle>
+                <CardDescription>
+                  Track RFQs you've submitted to other vendors
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!myRFQs && (
+                  <div className="space-y-2">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                )}
+                {myRFQs && myRFQs.length === 0 && (
+                  <EmptyState>
+                    <EmptyStateContent>
+                      <EmptyStateIcon>
+                        <Package className="size-8" />
+                      </EmptyStateIcon>
+                      <EmptyStateTitle>No RFQs submitted yet</EmptyStateTitle>
+                      <EmptyStateDescription>
+                        Browse products and submit RFQs to get quotations from other vendors
+                      </EmptyStateDescription>
+                    </EmptyStateContent>
+                  </EmptyState>
+                )}
+                {myRFQs && myRFQs.length > 0 && (
+                  <div className="grid gap-4">
+                    {myRFQs.map((rfq) => (
+                      <Card key={rfq._id}>
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <h3 className="font-semibold">RFQ #{rfq._id.slice(-6)}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                Submitted {new Date(rfq.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Badge variant={
+                              rfq.status === "completed" ? "default" :
+                              rfq.status === "quoted" ? "secondary" : "outline"
+                            }>
+                              {rfq.status === "completed" ? "Completed" :
+                               rfq.status === "quoted" ? `${rfq.quotationCount} Quotes` :
+                               "Pending"}
+                            </Badge>
+                          </div>
+                          <div className="space-y-2">
+                            {rfq.items?.map((item, idx) => (
+                              <div key={idx} className="flex justify-between items-center text-sm border-t pt-2">
+                                <span className="font-medium">{item.product?.name || "Unknown Product"}</span>
+                                <span className="text-muted-foreground">Qty: {item.quantity}</span>
+                              </div>
+                            ))}
+                          </div>
+                          {rfq.expectedDeliveryTime && (
+                            <p className="text-sm text-muted-foreground mt-3">
+                              Expected by: {rfq.expectedDeliveryTime}
+                            </p>
+                          )}
+                          {rfq.quotationCount > 0 && (
+                            <Button 
+                              className="w-full mt-4" 
+                              size="sm"
+                              onClick={() => {
+                                // Navigate to RFQ details or show quotations
+                                toast.success("View quotations feature coming soon!");
+                              }}
+                            >
+                              View {rfq.quotationCount} Quotation{rfq.quotationCount > 1 ? "s" : ""}
+                            </Button>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="quotations">
             <Card>
               <CardHeader>
@@ -484,7 +577,8 @@ export default function VendorDashboard() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Product</TableHead>
-                          <TableHead>Buyer</TableHead>
+                          <TableHead>Client Type</TableHead>
+                          <TableHead>Client Name</TableHead>
                           <TableHead>Price</TableHead>
                           <TableHead>Delivery</TableHead>
                           <TableHead>Sent Date</TableHead>
@@ -495,6 +589,7 @@ export default function VendorDashboard() {
                         {sentQuotations.map((quot: {
                           _id: string;
                           productName?: string;
+                          buyerType?: string;
                           buyerName?: string;
                           buyerEmail?: string;
                           buyerPhone?: string;
@@ -509,7 +604,12 @@ export default function VendorDashboard() {
                               {quot.productName || "Unknown Product"}
                             </TableCell>
                             <TableCell>
-                              {quot.chosen && quot.buyerName !== "Anonymous Buyer" ? (
+                              <Badge variant={quot.buyerType === "Broker" ? "secondary" : "default"}>
+                                {quot.buyerType || "Buyer"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {quot.chosen && quot.buyerName && !quot.buyerName.startsWith("Anonymous") ? (
                                 <div>
                                   <div className="font-medium">{quot.buyerName}</div>
                                   <div className="text-sm text-muted-foreground">
@@ -522,7 +622,7 @@ export default function VendorDashboard() {
                                   )}
                                 </div>
                               ) : (
-                                <span className="text-muted-foreground">Anonymous Buyer</span>
+                                <span className="text-muted-foreground">{quot.buyerName || "Anonymous"}</span>
                               )}
                             </TableCell>
                             <TableCell>KES {quot.price.toLocaleString()}</TableCell>

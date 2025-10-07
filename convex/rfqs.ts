@@ -46,9 +46,10 @@ export const submitRFQ = mutation({
       }
     }
 
-    if (user.role !== "buyer") {
+    // Allow both buyers and vendors (brokers) to submit RFQs
+    if (user.role !== "buyer" && user.role !== "vendor") {
       throw new ConvexError({
-        message: "Only buyers can submit RFQs",
+        message: "Only buyers and vendors can submit RFQs",
         code: "FORBIDDEN",
       });
     }
@@ -60,10 +61,14 @@ export const submitRFQ = mutation({
       });
     }
 
+    // Determine if this is a broker RFQ (from a vendor)
+    const isBroker = user.role === "vendor";
+
     // Create RFQ
     const rfqId = await ctx.db.insert("rfqs", {
       buyerId: user._id,
       status: "pending",
+      isBroker,
       expectedDeliveryTime: args.expectedDeliveryTime,
       createdAt: Date.now(),
     });
@@ -205,18 +210,18 @@ export const getMyRFQs = query({
       return [];
     }
 
-    const buyer = await ctx.db
+    const user = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
       .first();
 
-    if (!buyer || buyer.role !== "buyer") {
+    if (!user || (user.role !== "buyer" && user.role !== "vendor")) {
       return [];
     }
 
     const rfqs = await ctx.db
       .query("rfqs")
-      .withIndex("by_buyer", (q) => q.eq("buyerId", buyer._id))
+      .withIndex("by_buyer", (q) => q.eq("buyerId", user._id))
       .order("desc")
       .collect();
 
@@ -417,12 +422,15 @@ export const getMyQuotationsSent = query({
         sentQuotations.map(async (quotation) => {
           const product = await ctx.db.get(quotation.productId);
           const buyer = await ctx.db.get(quotation.buyerId);
+          const rfq = await ctx.db.get(quotation.rfqId);
 
           return {
             ...quotation,
             productName: product?.name || "Unknown Product",
+            // Show "Broker" if RFQ is from another vendor, otherwise "Buyer"
+            buyerType: rfq?.isBroker ? "Broker" : "Buyer",
             // Only show buyer info if quotation was chosen (approved)
-            buyerName: quotation.chosen && buyer ? buyer.name : "Anonymous Buyer",
+            buyerName: quotation.chosen && buyer ? buyer.name : rfq?.isBroker ? "Anonymous Broker" : "Anonymous Buyer",
             buyerEmail: quotation.chosen && buyer ? buyer.email : undefined,
             buyerPhone: quotation.chosen && buyer ? buyer.phone : undefined,
             buyerCompany: quotation.chosen && buyer ? buyer.companyName : undefined,
@@ -500,7 +508,8 @@ export const getPendingRFQs = query({
           pendingRFQs.push({
             rfqId,
             createdAt: rfq.createdAt,
-            buyerInfo: "Anonymous Buyer", // Hide buyer info until quotation chosen
+            buyerInfo: rfq.isBroker ? "Anonymous Broker" : "Anonymous Buyer",
+            buyerType: rfq.isBroker ? "Broker" : "Buyer",
             items: itemsWithProducts,
           });
         }
