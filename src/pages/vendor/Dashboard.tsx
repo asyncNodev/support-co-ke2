@@ -24,7 +24,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { EmptyState, EmptyStateContent, EmptyStateIcon, EmptyStateTitle, EmptyStateDescription } from "@/components/ui/empty-state.tsx";
-import { Package, AlertCircle, Plus, Edit, Trash2 } from "lucide-react";
+import { Package, AlertCircle, Plus, Edit, Trash2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-auth.ts";
 
@@ -37,7 +37,7 @@ export default function VendorDashboard() {
   const myQuotations = useQuery(api.vendorQuotations.getMyQuotations, {});
   const pendingRFQs = useQuery(api.vendorQuotations.getPendingRFQs, {});
   const availableProducts = useQuery(api.products.getProducts, {});
-  const sentQuotations = useQuery(api.rfqs.getMyQuotationsSent, {});
+  const sentQuotations = useQuery(api.rfqs.getMyVendorQuotationsSent, {});
   const myRFQs = useQuery(api.rfqs.getMyRFQs, {});
   
   // Add notifications query
@@ -615,9 +615,15 @@ export default function VendorDashboard() {
                                     {quot.buyerEmail}
                                   </div>
                                   {quot.buyerPhone && (
-                                    <div className="text-sm text-muted-foreground">
-                                      {quot.buyerPhone}
-                                    </div>
+                                    <a
+                                      href={`https://wa.me/${quot.buyerPhone.replace(/\D/g, '')}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 mt-1"
+                                    >
+                                      <MessageCircle className="size-3" />
+                                      WhatsApp: {quot.buyerPhone}
+                                    </a>
                                   )}
                                 </div>
                               ) : (

@@ -256,37 +256,45 @@ export const getMyRFQs = query({
 
 // Get RFQ details with quotations
 export const getRFQDetails = query({
-  args: {
-    rfqId: v.id("rfqs"),
-  },
+  args: { rfqId: v.id("rfqs") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      return null;
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
     }
 
     const user = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+      .unique();
 
     if (!user) {
-      return null;
+      throw new ConvexError({
+        message: "User not found",
+        code: "NOT_FOUND",
+      });
     }
 
     const rfq = await ctx.db.get(args.rfqId);
     if (!rfq) {
-      return null;
+      throw new ConvexError({
+        message: "RFQ not found",
+        code: "NOT_FOUND",
+      });
     }
 
-    // Check access - allow both buyers and vendors (brokers) to view their RFQs
+    // Check if user is the buyer/broker who created the RFQ
     if (rfq.buyerId !== user._id) {
       throw new ConvexError({
-        message: "Access denied",
+        message: "Unauthorized to view this RFQ",
         code: "FORBIDDEN",
       });
     }
 
+    // Get RFQ items with product details
     const items = await ctx.db
       .query("rfqItems")
       .withIndex("by_rfq", (q) => q.eq("rfqId", args.rfqId))
@@ -299,41 +307,51 @@ export const getRFQDetails = query({
       })
     );
 
+    // Get all quotations for this RFQ
     const quotations = await ctx.db
       .query("sentQuotations")
       .withIndex("by_rfq", (q) => q.eq("rfqId", args.rfqId))
       .collect();
 
-    const quotationsWithVendor = await Promise.all(
-      quotations.map(async (quotation) => {
-        const vendor = await ctx.db.get(quotation.vendorId);
-        const product = await ctx.db.get(quotation.productId);
+    // Add vendor details and rating
+    const quotationsWithDetails = await Promise.all(
+      quotations.map(async (quot) => {
+        const vendor = await ctx.db.get(quot.vendorId);
+        const product = await ctx.db.get(quot.productId);
 
         // Get vendor rating
         const ratings = await ctx.db
           .query("ratings")
-          .withIndex("by_vendor", (q) => q.eq("vendorId", quotation.vendorId))
+          .withIndex("by_vendor", (q) => q.eq("vendorId", quot.vendorId))
           .collect();
 
         const avgRating =
           ratings.length > 0
             ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
-            : 0;
+            : null;
 
         return {
-          ...quotation,
-          vendor,
+          ...quot,
+          vendor: vendor ? {
+            _id: vendor._id,
+            name: vendor.name,
+            companyName: vendor.companyName,
+            email: quot.chosen ? vendor.email : undefined,
+            phone: quot.chosen ? vendor.phone : undefined,
+          } : null,
           product,
           vendorRating: avgRating,
-          vendorReviewCount: ratings.length,
         };
       })
     );
 
     return {
-      ...rfq,
+      _id: rfq._id,
+      status: rfq.status,
+      createdAt: rfq.createdAt,
+      expectedDeliveryTime: rfq.expectedDeliveryTime,
       items: itemsWithProducts,
-      quotations: quotationsWithVendor,
+      quotations: quotationsWithDetails,
     };
   },
 });
@@ -366,80 +384,180 @@ export const markQuotationOpened = mutation({
   },
 });
 
-// Get vendor's sent quotations
-export const getMyQuotationsSent = query({
+// Get buyer's quotations they received
+export const getMyQuotationsReceived = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      return [];
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
     }
 
     const user = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+      .unique();
 
     if (!user) {
-      return [];
+      throw new ConvexError({
+        message: "User not found",
+        code: "NOT_FOUND",
+      });
     }
 
-    // If buyer, get quotations sent to them
-    if (user.role === "buyer") {
-      const sentQuotations = await ctx.db
-        .query("sentQuotations")
-        .withIndex("by_buyer", (q) => q.eq("buyerId", user._id))
-        .order("desc")
-        .collect();
+    // Get all quotations sent to this buyer
+    const sentQuotations = await ctx.db
+      .query("sentQuotations")
+      .withIndex("by_buyer", (q) => q.eq("buyerId", user._id))
+      .order("desc")
+      .collect();
 
-      return await Promise.all(
-        sentQuotations.map(async (quotation) => {
-          const product = await ctx.db.get(quotation.productId);
-          const vendor = await ctx.db.get(quotation.vendorId);
+    // Enrich with product and vendor details
+    const enrichedQuotations = await Promise.all(
+      sentQuotations.map(async (quotation) => {
+        const product = await ctx.db.get(quotation.productId);
+        const vendor = await ctx.db.get(quotation.vendorId);
 
-          return {
-            ...quotation,
-            product,
-            vendor: quotation.chosen
-              ? vendor
-              : vendor
-              ? { _id: vendor._id, name: vendor.name, email: vendor.email, phone: vendor.phone }
-              : null,
-          };
-        })
-      );
+        return {
+          ...quotation,
+          product,
+          vendor: quotation.chosen && vendor
+            ? {
+                _id: vendor._id,
+                name: vendor.name,
+                companyName: vendor.companyName,
+                email: vendor.email,
+                phone: vendor.phone,
+              }
+            : vendor
+            ? { _id: vendor._id, name: vendor.name }
+            : null,
+        };
+      })
+    );
+
+    return enrichedQuotations;
+  },
+});
+
+// Get vendor's sent quotations
+export const getMyQuotationsSent = query({
+  args: {},
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
     }
 
-    // If vendor, get their sent quotations
-    if (user.role === "vendor") {
-      const sentQuotations = await ctx.db
-        .query("sentQuotations")
-        .withIndex("by_vendor", (q) => q.eq("vendorId", user._id))
-        .order("desc")
-        .collect();
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .unique();
 
-      return await Promise.all(
-        sentQuotations.map(async (quotation) => {
-          const product = await ctx.db.get(quotation.productId);
-          const buyer = await ctx.db.get(quotation.buyerId);
-          const rfq = await ctx.db.get(quotation.rfqId);
-
-          return {
-            ...quotation,
-            productName: product?.name || "Unknown Product",
-            // Show "Broker" if RFQ is from another vendor, otherwise "Buyer"
-            buyerType: rfq?.isBroker === true ? "Broker" : "Buyer",
-            // Only show buyer info if quotation was chosen (approved)
-            buyerName: quotation.chosen && buyer ? buyer.name : rfq?.isBroker === true ? "Anonymous Broker" : "Anonymous Buyer",
-            buyerEmail: quotation.chosen && buyer ? buyer.email : undefined,
-            buyerPhone: quotation.chosen && buyer ? buyer.phone : undefined,
-            buyerCompany: quotation.chosen && buyer ? buyer.companyName : undefined,
-          };
-        })
-      );
+    if (!user) {
+      throw new ConvexError({
+        message: "User not found",
+        code: "NOT_FOUND",
+      });
     }
 
-    return [];
+    // This query is used by BUYERS to get quotations they received
+    const sentQuotations = await ctx.db
+      .query("sentQuotations")
+      .withIndex("by_buyer", (q) => q.eq("buyerId", user._id))
+      .order("desc")
+      .collect();
+
+    return await Promise.all(
+      sentQuotations.map(async (quotation) => {
+        const product = await ctx.db.get(quotation.productId);
+        const vendor = await ctx.db.get(quotation.vendorId);
+
+        return {
+          ...quotation,
+          product,
+          vendor: quotation.chosen && vendor
+            ? {
+                _id: vendor._id,
+                name: vendor.name,
+                companyName: vendor.companyName,
+                email: vendor.email,
+                phone: vendor.phone,
+              }
+            : vendor
+            ? { _id: vendor._id, name: vendor.name }
+            : null,
+        };
+      })
+    );
+  },
+});
+
+// New query specifically for vendors to see their sent quotations
+export const getMyVendorQuotationsSent = query({
+  args: {},
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .unique();
+
+    if (!user) {
+      throw new ConvexError({
+        message: "User not found",
+        code: "NOT_FOUND",
+      });
+    }
+
+    // Get all quotations sent by this vendor
+    const sentQuotations = await ctx.db
+      .query("sentQuotations")
+      .withIndex("by_vendor", (q) => q.eq("vendorId", user._id))
+      .order("desc")
+      .collect();
+
+    // Enrich with product and buyer details
+    const enrichedQuotations = await Promise.all(
+      sentQuotations.map(async (quot) => {
+        const product = await ctx.db.get(quot.productId);
+        const buyer = await ctx.db.get(quot.buyerId);
+        const rfq = await ctx.db.get(quot.rfqId);
+
+        // Check if buyer is actually a broker (vendor)
+        const isBroker = rfq?.isBroker === true;
+        const buyerType = isBroker ? "Broker" : "Buyer";
+
+        return {
+          _id: quot._id,
+          productName: product?.name,
+          buyerType,
+          buyerName: quot.chosen && buyer ? buyer.name : (isBroker ? "Anonymous Broker" : "Anonymous Buyer"),
+          buyerEmail: quot.chosen && buyer ? buyer.email : undefined,
+          buyerPhone: quot.chosen && buyer ? buyer.phone : undefined,
+          price: quot.price,
+          deliveryTime: quot.deliveryTime,
+          sentAt: quot.sentAt,
+          chosen: quot.chosen,
+          opened: quot.opened,
+        };
+      })
+    );
+
+    return enrichedQuotations;
   },
 });
 

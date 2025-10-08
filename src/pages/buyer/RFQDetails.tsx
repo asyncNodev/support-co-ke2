@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
-import { ArrowLeft, Check, Star } from "lucide-react";
+import { ArrowLeft, Check, Star, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
   Table,
@@ -144,7 +144,23 @@ export default function RFQDetails() {
                         <TableRow key={quot._id}>
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <span className="font-medium">{quot.vendor?.name}</span>
+                              <div>
+                                <span className="font-medium">{quot.vendor?.name}</span>
+                                {quot.vendor?.companyName && (
+                                  <p className="text-xs text-muted-foreground">{quot.vendor.companyName}</p>
+                                )}
+                                {quot.chosen && quot.vendor?.phone && (
+                                  <a
+                                    href={`https://wa.me/${quot.vendor.phone.replace(/\D/g, '')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 mt-1"
+                                  >
+                                    <MessageCircle className="size-3" />
+                                    WhatsApp: {quot.vendor.phone}
+                                  </a>
+                                )}
+                              </div>
                               {quot.vendorRating && (
                                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                   <Star className="size-3 fill-yellow-400 text-yellow-400" />

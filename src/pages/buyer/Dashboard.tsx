@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
-import { Package, FileText, CheckCircle, XCircle, Clock, ShoppingBag } from "lucide-react";
+import { Package, FileText, CheckCircle, XCircle, Clock, ShoppingBag, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -178,42 +178,35 @@ export default function BuyerDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {myQuotations.map((quot: {
-                          _id: Id<"sentQuotations">;
-                          product?: { name: string } | null;
-                          productName?: string;
-                          vendor?: { name: string; email: string; phone?: string } | null;
-                          price: number;
-                          deliveryTime: string;
-                          warrantyPeriod: string;
-                          paymentTerms: string;
-                          countryOfOrigin?: string;
-                          productSpecifications?: string;
-                          chosen: boolean;
-                        }) => (
+                        {myQuotations.map((quot) => (
                           <TableRow key={quot._id}>
                             <TableCell className="font-medium">
-                              {quot.product?.name || quot.productName || "Unknown Product"}
+                              {quot.product?.name || "Unknown Product"}
                             </TableCell>
                             <TableCell>
-                              {"vendor" in quot && quot.vendor && quot.chosen ? (
+                              {quot.vendor && quot.chosen ? (
                                 <div>
-                                  <p className="font-medium">{quot.vendor.name}</p>
-                                  {"email" in quot.vendor && quot.vendor.email && (
-                                    <p className="text-sm text-muted-foreground">
-                                      {quot.vendor.email}
-                                    </p>
+                                  <div className="font-medium">{quot.vendor.name}</div>
+                                  {quot.vendor.companyName && (
+                                    <div className="text-sm text-muted-foreground">{quot.vendor.companyName}</div>
                                   )}
-                                  {"phone" in quot.vendor && quot.vendor.phone && (
-                                    <p className="text-sm text-muted-foreground">
-                                      {quot.vendor.phone}
-                                    </p>
+                                  {quot.vendor.email && (
+                                    <div className="text-sm text-muted-foreground">{quot.vendor.email}</div>
+                                  )}
+                                  {quot.vendor.phone && (
+                                    <a
+                                      href={`https://wa.me/${quot.vendor.phone.replace(/\D/g, '')}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 mt-1"
+                                    >
+                                      <MessageCircle className="size-3" />
+                                      WhatsApp: {quot.vendor.phone}
+                                    </a>
                                   )}
                                 </div>
-                              ) : "vendor" in quot && quot.vendor && "name" in quot.vendor ? (
-                                quot.vendor.name
                               ) : (
-                                "Unknown Vendor"
+                                <span className="text-muted-foreground">{quot.vendor?.name || "Anonymous"}</span>
                               )}
                             </TableCell>
                             <TableCell className="max-w-xs">
