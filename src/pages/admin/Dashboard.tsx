@@ -770,6 +770,24 @@ export default function AdminDashboard() {
                     Import products from a completed browse.ai task. Your robot should capture a list named "products" 
                     with fields: name, description, image, sku, specifications.
                   </p>
+                  <div className="rounded-lg border p-3 bg-muted/30">
+                    <p className="text-xs font-medium mb-1">Expected Data Structure:</p>
+                    <pre className="text-xs text-muted-foreground overflow-x-auto">
+{`{
+  "capturedLists": {
+    "products": [
+      {
+        "name": "Hospital Bed",
+        "description": "Electric hospital bed",
+        "image": "https://...",
+        "sku": "HB-001",
+        "specifications": "Dimensions: ..."
+      }
+    ]
+  }
+}`}
+                    </pre>
+                  </div>
                   <div className="grid gap-4">
                     <div>
                       <Label>Category</Label>
@@ -807,6 +825,29 @@ export default function AdminDashboard() {
                     "quotations" with fields: price, quantity, paymentTerms, deliveryTime, warrantyPeriod, 
                     countryOfOrigin, specifications, photo, description, brand.
                   </p>
+                  <div className="rounded-lg border p-3 bg-muted/30">
+                    <p className="text-xs font-medium mb-1">Expected Data Structure:</p>
+                    <pre className="text-xs text-muted-foreground overflow-x-auto">
+{`{
+  "capturedLists": {
+    "quotations": [
+      {
+        "price": "25000",
+        "quantity": "1",
+        "paymentTerms": "credit",
+        "deliveryTime": "2 weeks",
+        "warrantyPeriod": "1 year",
+        "countryOfOrigin": "Kenya",
+        "specifications": "Model XYZ",
+        "photo": "https://...",
+        "description": "High quality...",
+        "brand": "MedEquip"
+      }
+    ]
+  }
+}`}
+                    </pre>
+                  </div>
                   <div className="grid gap-4">
                     <div>
                       <Label>Vendor</Label>

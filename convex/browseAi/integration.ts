@@ -20,7 +20,7 @@ interface BrowseAIRobotResult {
 
 interface BrowseAITaskResponse {
   result: {
-    robotTasks: {
+    robotTasks?: {
       items: Array<{
         id: string;
         status: string;
@@ -29,6 +29,12 @@ interface BrowseAITaskResponse {
         capturedTexts?: Record<string, string>;
       }>;
     };
+    // Single task response structure
+    id?: string;
+    status?: string;
+    finishedAt?: string;
+    capturedLists?: Record<string, Array<Record<string, string>>>;
+    capturedTexts?: Record<string, string>;
   };
 }
 
@@ -56,10 +62,24 @@ async function fetchBrowseAITask(
   }
 
   const data = (await response.json()) as BrowseAITaskResponse;
-  const task = data.result.robotTasks.items[0];
+  
+  // Handle both response structures
+  let task;
+  if (data.result.robotTasks?.items) {
+    task = data.result.robotTasks.items[0];
+  } else if (data.result.id) {
+    // Direct task response
+    task = {
+      id: data.result.id,
+      status: data.result.status,
+      finishedAt: data.result.finishedAt,
+      capturedLists: data.result.capturedLists,
+      capturedTexts: data.result.capturedTexts,
+    };
+  }
 
   if (!task) {
-    throw new Error("Task not found");
+    throw new Error("Task not found in response");
   }
 
   if (task.status !== "successful") {
@@ -385,15 +405,21 @@ export const getTaskStatus = action({
       }
 
       const data = (await response.json()) as BrowseAITaskResponse;
-      const task = data.result.robotTasks.items[0];
+      const task = data.result.robotTasks?.items?.[0] || {
+        id: data.result.id,
+        status: data.result.status,
+        finishedAt: data.result.finishedAt,
+        capturedLists: data.result.capturedLists,
+        capturedTexts: data.result.capturedTexts,
+      };
 
-      if (!task) {
-        throw new Error("Task not found");
+      if (!task || !task.id) {
+        throw new Error("Task not found in response");
       }
 
       return {
         taskId: task.id,
-        status: task.status,
+        status: task.status || "unknown",
         finishedAt: task.finishedAt,
       };
     } catch (error) {
