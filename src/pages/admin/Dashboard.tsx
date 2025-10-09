@@ -54,10 +54,10 @@ export default function AdminDashboard() {
   const [browseAiProductId, setBrowseAiProductId] = useState("");
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
 
-  const triggerRobot = useAction(api["browse-ai"].integration.triggerRobot);
-  const getTaskStatus = useAction(api["browse-ai"].integration.getTaskStatus);
-  const syncProducts = useAction(api["browse-ai"].integration.syncProducts);
-  const syncVendorQuotations = useAction(api["browse-ai"].integration.syncVendorQuotations);
+  const triggerRobot = useAction(api.browseAi.integration.triggerRobot);
+  const getTaskStatus = useAction(api.browseAi.integration.getTaskStatus);
+  const syncProducts = useAction(api.browseAi.integration.syncProducts);
+  const syncVendorQuotations = useAction(api.browseAi.integration.syncVendorQuotations);
   
   const userDetails = useQuery(
     api.users.getUserDetails,
