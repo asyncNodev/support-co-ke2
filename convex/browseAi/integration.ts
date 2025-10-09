@@ -100,11 +100,13 @@ export const syncProducts = action({
     robotId: v.string(),
     taskId: v.string(),
     categoryId: v.id("categories"),
+    listName: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{
     success: boolean;
     syncedCount: number;
     productIds: Id<"products">[];
+    availableLists?: string[];
   }> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
@@ -133,9 +135,22 @@ export const syncProducts = action({
     try {
       const result = await fetchBrowseAITask(apiKey, args.robotId, args.taskId);
 
-      // Assume the robot captures a list called "products" with fields:
-      // - name, description, image, sku, specifications
-      const productsList = result.capturedLists?.products || [];
+      // Get the list name (default to "products")
+      const listName = args.listName || "products";
+      const availableLists = result.capturedLists ? Object.keys(result.capturedLists) : [];
+      
+      // Log available lists for debugging
+      console.log("Available captured lists:", availableLists);
+      console.log("Looking for list:", listName);
+
+      const productsList = result.capturedLists?.[listName] || [];
+      
+      if (productsList.length === 0) {
+        throw new ConvexError({
+          message: `No items found in list "${listName}". Available lists: ${availableLists.join(", ") || "none"}`,
+          code: "BAD_REQUEST",
+        });
+      }
 
       const syncedProducts = [];
       for (const item of productsList) {
@@ -154,6 +169,7 @@ export const syncProducts = action({
         success: true,
         syncedCount: syncedProducts.length,
         productIds: syncedProducts,
+        availableLists,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to sync products from browse.ai";
@@ -164,6 +180,10 @@ export const syncProducts = action({
           message: "Browse.ai API authentication failed. Please verify your BROWSE_AI_API_KEY in App Settings → Environment Variables is correct.",
           code: "EXTERNAL_SERVICE_ERROR",
         });
+      }
+      
+      if (error instanceof ConvexError) {
+        throw error;
       }
       
       throw new ConvexError({
@@ -183,11 +203,13 @@ export const syncVendorQuotations = action({
     taskId: v.string(),
     vendorId: v.id("users"),
     productId: v.id("products"),
+    listName: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{
     success: boolean;
     syncedCount: number;
     quotationIds: Id<"vendorQuotations">[];
+    availableLists?: string[];
   }> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
@@ -216,10 +238,22 @@ export const syncVendorQuotations = action({
     try {
       const result = await fetchBrowseAITask(apiKey, args.robotId, args.taskId);
 
-      // Assume the robot captures a list called "quotations" with fields:
-      // - price, quantity, paymentTerms, deliveryTime, warrantyPeriod,
-      //   countryOfOrigin, specifications, photo, description, brand
-      const quotationsList = result.capturedLists?.quotations || [];
+      // Get the list name (default to "quotations")
+      const listName = args.listName || "quotations";
+      const availableLists = result.capturedLists ? Object.keys(result.capturedLists) : [];
+      
+      // Log available lists for debugging
+      console.log("Available captured lists:", availableLists);
+      console.log("Looking for list:", listName);
+
+      const quotationsList = result.capturedLists?.[listName] || [];
+      
+      if (quotationsList.length === 0) {
+        throw new ConvexError({
+          message: `No items found in list "${listName}". Available lists: ${availableLists.join(", ") || "none"}`,
+          code: "BAD_REQUEST",
+        });
+      }
 
       const syncedQuotations = [];
       for (const item of quotationsList) {
@@ -254,6 +288,7 @@ export const syncVendorQuotations = action({
         success: true,
         syncedCount: syncedQuotations.length,
         quotationIds: syncedQuotations,
+        availableLists,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to sync quotations from browse.ai";
@@ -263,6 +298,10 @@ export const syncVendorQuotations = action({
           message: "Browse.ai API authentication failed. Please verify your BROWSE_AI_API_KEY in App Settings → Environment Variables is correct.",
           code: "EXTERNAL_SERVICE_ERROR",
         });
+      }
+      
+      if (error instanceof ConvexError) {
+        throw error;
       }
       
       throw new ConvexError({

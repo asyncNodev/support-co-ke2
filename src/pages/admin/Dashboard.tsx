@@ -52,6 +52,8 @@ export default function AdminDashboard() {
   const [browseAiCategoryId, setBrowseAiCategoryId] = useState("");
   const [browseAiVendorId, setBrowseAiVendorId] = useState("");
   const [browseAiProductId, setBrowseAiProductId] = useState("");
+  const [browseAiProductListName, setBrowseAiProductListName] = useState("products");
+  const [browseAiQuotationListName, setBrowseAiQuotationListName] = useState("quotations");
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
 
   const triggerRobot = useAction(api.browseAi.integration.triggerRobot);
@@ -244,10 +246,12 @@ export default function AdminDashboard() {
         robotId: browseAiRobotId,
         taskId: browseAiTaskId,
         categoryId: browseAiCategoryId as Id<"categories">,
+        listName: browseAiProductListName,
       });
       toast.success(`Synced ${result.syncedCount} products successfully`);
     } catch (error) {
-      toast.error("Failed to sync products");
+      const errorMessage = error instanceof Error ? error.message : "Failed to sync products";
+      toast.error(errorMessage);
     }
   };
 
@@ -262,10 +266,12 @@ export default function AdminDashboard() {
         taskId: browseAiTaskId,
         vendorId: browseAiVendorId as Id<"users">,
         productId: browseAiProductId as Id<"products">,
+        listName: browseAiQuotationListName,
       });
       toast.success(`Synced ${result.syncedCount} quotations successfully`);
     } catch (error) {
-      toast.error("Failed to sync quotations");
+      const errorMessage = error instanceof Error ? error.message : "Failed to sync quotations";
+      toast.error(errorMessage);
     }
   };
 
@@ -767,7 +773,7 @@ export default function AdminDashboard() {
                     <h3 className="font-semibold">Sync Products</h3>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Import products from a completed browse.ai task. Your robot should capture a list named "products" 
+                    Import products from a completed browse.ai task. Your robot should capture a list named "{browseAiProductListName}" 
                     with fields: name, description, image, sku, specifications.
                   </p>
                   <div className="rounded-lg border p-3 bg-muted/30">
@@ -775,7 +781,7 @@ export default function AdminDashboard() {
                     <pre className="text-xs text-muted-foreground overflow-x-auto">
 {`{
   "capturedLists": {
-    "products": [
+    "${browseAiProductListName}": [
       {
         "name": "Hospital Bed",
         "description": "Electric hospital bed",
@@ -789,6 +795,17 @@ export default function AdminDashboard() {
                     </pre>
                   </div>
                   <div className="grid gap-4">
+                    <div>
+                      <Label>List Name</Label>
+                      <Input
+                        value={browseAiProductListName}
+                        onChange={(e) => setBrowseAiProductListName(e.target.value)}
+                        placeholder="products"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        The name of the captured list in your browse.ai robot
+                      </p>
+                    </div>
                     <div>
                       <Label>Category</Label>
                       <Select
@@ -822,7 +839,7 @@ export default function AdminDashboard() {
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Import vendor quotations from a completed browse.ai task. Your robot should capture a list named 
-                    "quotations" with fields: price, quantity, paymentTerms, deliveryTime, warrantyPeriod, 
+                    "{browseAiQuotationListName}" with fields: price, quantity, paymentTerms, deliveryTime, warrantyPeriod, 
                     countryOfOrigin, specifications, photo, description, brand.
                   </p>
                   <div className="rounded-lg border p-3 bg-muted/30">
@@ -830,7 +847,7 @@ export default function AdminDashboard() {
                     <pre className="text-xs text-muted-foreground overflow-x-auto">
 {`{
   "capturedLists": {
-    "quotations": [
+    "${browseAiQuotationListName}": [
       {
         "price": "25000",
         "quantity": "1",
@@ -849,6 +866,17 @@ export default function AdminDashboard() {
                     </pre>
                   </div>
                   <div className="grid gap-4">
+                    <div>
+                      <Label>List Name</Label>
+                      <Input
+                        value={browseAiQuotationListName}
+                        onChange={(e) => setBrowseAiQuotationListName(e.target.value)}
+                        placeholder="quotations"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        The name of the captured list in your browse.ai robot
+                      </p>
+                    </div>
                     <div>
                       <Label>Vendor</Label>
                       <Select
