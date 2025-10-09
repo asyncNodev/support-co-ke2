@@ -105,7 +105,7 @@ export const syncProducts = action({
     const apiKey = process.env.BROWSE_AI_API_KEY;
     if (!apiKey) {
       throw new ConvexError({
-        message: "Browse.ai API key not configured",
+        message: "Browse.ai API key not configured. Please add BROWSE_AI_API_KEY to App Settings → Environment Variables.",
         code: "NOT_IMPLEMENTED",
       });
     }
@@ -136,11 +136,18 @@ export const syncProducts = action({
         productIds: syncedProducts,
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to sync products from browse.ai";
+      
+      // Provide more helpful error messages for common issues
+      if (errorMessage.includes("401")) {
+        throw new ConvexError({
+          message: "Browse.ai API authentication failed. Please verify your BROWSE_AI_API_KEY in App Settings → Environment Variables is correct.",
+          code: "EXTERNAL_SERVICE_ERROR",
+        });
+      }
+      
       throw new ConvexError({
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to sync products from browse.ai",
+        message: errorMessage,
         code: "EXTERNAL_SERVICE_ERROR",
       });
     }
@@ -181,7 +188,7 @@ export const syncVendorQuotations = action({
     const apiKey = process.env.BROWSE_AI_API_KEY;
     if (!apiKey) {
       throw new ConvexError({
-        message: "Browse.ai API key not configured",
+        message: "Browse.ai API key not configured. Please add BROWSE_AI_API_KEY to App Settings → Environment Variables.",
         code: "NOT_IMPLEMENTED",
       });
     }
@@ -229,11 +236,17 @@ export const syncVendorQuotations = action({
         quotationIds: syncedQuotations,
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to sync quotations from browse.ai";
+      
+      if (errorMessage.includes("401")) {
+        throw new ConvexError({
+          message: "Browse.ai API authentication failed. Please verify your BROWSE_AI_API_KEY in App Settings → Environment Variables is correct.",
+          code: "EXTERNAL_SERVICE_ERROR",
+        });
+      }
+      
       throw new ConvexError({
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to sync quotations from browse.ai",
+        message: errorMessage,
         code: "EXTERNAL_SERVICE_ERROR",
       });
     }
@@ -268,7 +281,7 @@ export const triggerRobot = action({
     const apiKey = process.env.BROWSE_AI_API_KEY;
     if (!apiKey) {
       throw new ConvexError({
-        message: "Browse.ai API key not configured",
+        message: "Browse.ai API key not configured. Please add BROWSE_AI_API_KEY to App Settings → Environment Variables.",
         code: "NOT_IMPLEMENTED",
       });
     }
@@ -289,8 +302,15 @@ export const triggerRobot = action({
       );
 
       if (!response.ok) {
+        const statusText = response.statusText;
+        if (response.status === 401) {
+          throw new ConvexError({
+            message: "Browse.ai API authentication failed. Please verify your BROWSE_AI_API_KEY in App Settings → Environment Variables is correct.",
+            code: "EXTERNAL_SERVICE_ERROR",
+          });
+        }
         throw new Error(
-          `Browse.ai API error: ${response.status} ${response.statusText}`
+          `Browse.ai API error: ${response.status} ${statusText}`
         );
       }
 
@@ -302,6 +322,9 @@ export const triggerRobot = action({
         message: "Robot task started successfully",
       };
     } catch (error) {
+      if (error instanceof ConvexError) {
+        throw error;
+      }
       throw new ConvexError({
         message:
           error instanceof Error
@@ -333,7 +356,7 @@ export const getTaskStatus = action({
     const apiKey = process.env.BROWSE_AI_API_KEY;
     if (!apiKey) {
       throw new ConvexError({
-        message: "Browse.ai API key not configured",
+        message: "Browse.ai API key not configured. Please add BROWSE_AI_API_KEY to App Settings → Environment Variables.",
         code: "NOT_IMPLEMENTED",
       });
     }
@@ -349,8 +372,15 @@ export const getTaskStatus = action({
       );
 
       if (!response.ok) {
+        const statusText = response.statusText;
+        if (response.status === 401) {
+          throw new ConvexError({
+            message: "Browse.ai API authentication failed. Please verify your BROWSE_AI_API_KEY in App Settings → Environment Variables is correct.",
+            code: "EXTERNAL_SERVICE_ERROR",
+          });
+        }
         throw new Error(
-          `Browse.ai API error: ${response.status} ${response.statusText}`
+          `Browse.ai API error: ${response.status} ${statusText}`
         );
       }
 
@@ -367,6 +397,9 @@ export const getTaskStatus = action({
         finishedAt: task.finishedAt,
       };
     } catch (error) {
+      if (error instanceof ConvexError) {
+        throw error;
+      }
       throw new ConvexError({
         message:
           error instanceof Error

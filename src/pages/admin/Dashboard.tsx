@@ -701,10 +701,11 @@ export default function AdminDashboard() {
                 <div className="rounded-lg border p-4 bg-muted/50">
                   <p className="text-sm font-medium mb-2">Setup Instructions</p>
                   <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Get your API key from <a href="https://browse.ai/dashboard/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary underline">browse.ai dashboard</a></li>
                     <li>Create a robot on browse.ai to scrape product or quotation data</li>
-                    <li>Add your browse.ai API key to App Settings → Environment Variables as <code className="px-1 py-0.5 bg-background rounded">BROWSE_AI_API_KEY</code></li>
-                    <li>Run your robot or use an existing task ID</li>
-                    <li>Sync the data below</li>
+                    <li>Add your browse.ai API key to <strong>App Settings → Environment Variables</strong> as <code className="px-1 py-0.5 bg-background rounded">BROWSE_AI_API_KEY</code></li>
+                    <li>Refresh this page after adding the environment variable</li>
+                    <li>Run your robot or use an existing task ID below</li>
                   </ol>
                 </div>
 
