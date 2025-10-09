@@ -323,3 +323,48 @@ export const generateUploadUrl = mutation({
     return await ctx.storage.generateUploadUrl();
   },
 });
+
+// Internal mutation for creating quotations (used by browse.ai integration)
+export const createQuotationInternal = mutation({
+  args: {
+    vendorId: v.id("users"),
+    productId: v.id("products"),
+    rfqId: v.optional(v.id("rfqs")),
+    quotationType: v.union(v.literal("pre-filled"), v.literal("on-demand")),
+    source: v.union(v.literal("manual"), v.literal("auto-scraped")),
+    price: v.number(),
+    quantity: v.number(),
+    paymentTerms: v.union(v.literal("cash"), v.literal("credit")),
+    deliveryTime: v.string(),
+    warrantyPeriod: v.string(),
+    countryOfOrigin: v.optional(v.string()),
+    productSpecifications: v.optional(v.string()),
+    productPhoto: v.optional(v.string()),
+    productDescription: v.optional(v.string()),
+    brand: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const quotationId = await ctx.db.insert("vendorQuotations", {
+      vendorId: args.vendorId,
+      productId: args.productId,
+      rfqId: args.rfqId,
+      quotationType: args.quotationType,
+      source: args.source,
+      price: args.price,
+      quantity: args.quantity,
+      paymentTerms: args.paymentTerms,
+      deliveryTime: args.deliveryTime,
+      warrantyPeriod: args.warrantyPeriod,
+      countryOfOrigin: args.countryOfOrigin,
+      productSpecifications: args.productSpecifications,
+      productPhoto: args.productPhoto,
+      productDescription: args.productDescription,
+      brand: args.brand,
+      active: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    return quotationId;
+  },
+});

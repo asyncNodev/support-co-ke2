@@ -16,7 +16,8 @@ import { PhotoUpload } from "@/components/ui/photo-upload";
 import { BulkProductUpload } from "@/pages/admin/_components/BulkProductUpload";
 import { EditProductDialog } from "@/pages/admin/_components/EditProductDialog";
 import { toast } from "sonner";
-import { Plus, Trash2, Users, Package, Tag, Settings, Upload, Edit } from "lucide-react";
+import { Plus, Trash2, Users, Package, Tag, Settings, Upload, Edit, Globe, PlayCircle, CheckCircle } from "lucide-react";
+import { useAction } from "convex/react";
 
 export default function AdminDashboard() {
   const products = useQuery(api.products.getProducts, {});
@@ -44,6 +45,19 @@ export default function AdminDashboard() {
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
   const [editProductId, setEditProductId] = useState<Id<"products"> | null>(null);
   const [editProductOpen, setEditProductOpen] = useState(false);
+  
+  // Browse.ai Integration State
+  const [browseAiRobotId, setBrowseAiRobotId] = useState("");
+  const [browseAiTaskId, setBrowseAiTaskId] = useState("");
+  const [browseAiCategoryId, setBrowseAiCategoryId] = useState("");
+  const [browseAiVendorId, setBrowseAiVendorId] = useState("");
+  const [browseAiProductId, setBrowseAiProductId] = useState("");
+  const [taskStatus, setTaskStatus] = useState<string | null>(null);
+
+  const triggerRobot = useAction(api["browse-ai"].integration.triggerRobot);
+  const getTaskStatus = useAction(api["browse-ai"].integration.getTaskStatus);
+  const syncProducts = useAction(api["browse-ai"].integration.syncProducts);
+  const syncVendorQuotations = useAction(api["browse-ai"].integration.syncVendorQuotations);
   
   const userDetails = useQuery(
     api.users.getUserDetails,
@@ -188,6 +202,73 @@ export default function AdminDashboard() {
     }
   };
 
+  // Browse.ai Integration Handlers
+  const handleTriggerRobot = async () => {
+    if (!browseAiRobotId) {
+      toast.error("Please enter a robot ID");
+      return;
+    }
+    try {
+      const result = await triggerRobot({ robotId: browseAiRobotId });
+      setBrowseAiTaskId(result.taskId);
+      toast.success(`Robot triggered successfully. Task ID: ${result.taskId}`);
+    } catch (error) {
+      toast.error("Failed to trigger robot");
+    }
+  };
+
+  const handleCheckTaskStatus = async () => {
+    if (!browseAiRobotId || !browseAiTaskId) {
+      toast.error("Please enter robot ID and task ID");
+      return;
+    }
+    try {
+      const result = await getTaskStatus({
+        robotId: browseAiRobotId,
+        taskId: browseAiTaskId,
+      });
+      setTaskStatus(result.status);
+      toast.success(`Task status: ${result.status}`);
+    } catch (error) {
+      toast.error("Failed to get task status");
+    }
+  };
+
+  const handleSyncProducts = async () => {
+    if (!browseAiRobotId || !browseAiTaskId || !browseAiCategoryId) {
+      toast.error("Please enter robot ID, task ID, and category");
+      return;
+    }
+    try {
+      const result = await syncProducts({
+        robotId: browseAiRobotId,
+        taskId: browseAiTaskId,
+        categoryId: browseAiCategoryId as Id<"categories">,
+      });
+      toast.success(`Synced ${result.syncedCount} products successfully`);
+    } catch (error) {
+      toast.error("Failed to sync products");
+    }
+  };
+
+  const handleSyncQuotations = async () => {
+    if (!browseAiRobotId || !browseAiTaskId || !browseAiVendorId || !browseAiProductId) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+    try {
+      const result = await syncVendorQuotations({
+        robotId: browseAiRobotId,
+        taskId: browseAiTaskId,
+        vendorId: browseAiVendorId as Id<"users">,
+        productId: browseAiProductId as Id<"products">,
+      });
+      toast.success(`Synced ${result.syncedCount} quotations successfully`);
+    } catch (error) {
+      toast.error("Failed to sync quotations");
+    }
+  };
+
   const vendors = users?.filter((u) => u.role === "vendor") || [];
   const buyers = users?.filter((u) => u.role === "buyer") || [];
 
@@ -250,6 +331,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="categories">Categories</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="browse-ai">Browse.ai</TabsTrigger>
           </TabsList>
 
           <TabsContent value="products" className="space-y-4">
@@ -595,6 +677,176 @@ export default function AdminDashboard() {
                     <p className="text-2xl font-bold">
                       {typeof analytics?.quotations === 'number' ? analytics.quotations : analytics?.quotations?.total || 0}
                     </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="browse-ai" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Globe className="size-6" />
+                  <div>
+                    <CardTitle>Browse.ai Integration</CardTitle>
+                    <CardDescription>
+                      Automatically scrape and import products and quotations using browse.ai robots
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* API Key Status */}
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <p className="text-sm font-medium mb-2">Setup Instructions</p>
+                  <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Create a robot on browse.ai to scrape product or quotation data</li>
+                    <li>Add your browse.ai API key to App Settings → Environment Variables as <code className="px-1 py-0.5 bg-background rounded">BROWSE_AI_API_KEY</code></li>
+                    <li>Run your robot or use an existing task ID</li>
+                    <li>Sync the data below</li>
+                  </ol>
+                </div>
+
+                {/* Trigger Robot */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <PlayCircle className="size-5 text-primary" />
+                    <h3 className="font-semibold">Trigger Robot</h3>
+                  </div>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>Robot ID</Label>
+                      <Input
+                        value={browseAiRobotId}
+                        onChange={(e) => setBrowseAiRobotId(e.target.value)}
+                        placeholder="Enter browse.ai robot ID"
+                      />
+                    </div>
+                    <Button onClick={handleTriggerRobot}>
+                      <PlayCircle className="size-4 mr-2" />
+                      Trigger Robot
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Check Task Status */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="size-5 text-primary" />
+                    <h3 className="font-semibold">Check Task Status</h3>
+                  </div>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>Task ID</Label>
+                      <Input
+                        value={browseAiTaskId}
+                        onChange={(e) => setBrowseAiTaskId(e.target.value)}
+                        placeholder="Enter browse.ai task ID"
+                      />
+                    </div>
+                    <Button onClick={handleCheckTaskStatus} variant="outline">
+                      Check Status
+                    </Button>
+                    {taskStatus && (
+                      <div className="rounded-lg border p-4">
+                        <p className="text-sm font-medium">Task Status</p>
+                        <Badge variant={taskStatus === "successful" ? "default" : "secondary"}>
+                          {taskStatus}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sync Products */}
+                <div className="space-y-4 border-t pt-6">
+                  <div className="flex items-center gap-2">
+                    <Package className="size-5 text-primary" />
+                    <h3 className="font-semibold">Sync Products</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Import products from a completed browse.ai task. Your robot should capture a list named "products" 
+                    with fields: name, description, image, sku, specifications.
+                  </p>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>Category</Label>
+                      <Select
+                        value={browseAiCategoryId}
+                        onValueChange={setBrowseAiCategoryId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category for products" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories?.map((cat) => (
+                            <SelectItem key={cat._id} value={cat._id}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button onClick={handleSyncProducts}>
+                      <Package className="size-4 mr-2" />
+                      Sync Products
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Sync Vendor Quotations */}
+                <div className="space-y-4 border-t pt-6">
+                  <div className="flex items-center gap-2">
+                    <Tag className="size-5 text-primary" />
+                    <h3 className="font-semibold">Sync Vendor Quotations</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Import vendor quotations from a completed browse.ai task. Your robot should capture a list named 
+                    "quotations" with fields: price, quantity, paymentTerms, deliveryTime, warrantyPeriod, 
+                    countryOfOrigin, specifications, photo, description, brand.
+                  </p>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>Vendor</Label>
+                      <Select
+                        value={browseAiVendorId}
+                        onValueChange={setBrowseAiVendorId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select vendor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {vendors.map((vendor) => (
+                            <SelectItem key={vendor._id} value={vendor._id}>
+                              {vendor.name} - {vendor.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Product</Label>
+                      <Select
+                        value={browseAiProductId}
+                        onValueChange={setBrowseAiProductId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select product" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products?.map((product) => (
+                            <SelectItem key={product._id} value={product._id}>
+                              {product.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button onClick={handleSyncQuotations}>
+                      <Tag className="size-4 mr-2" />
+                      Sync Quotations
+                    </Button>
                   </div>
                 </div>
               </CardContent>

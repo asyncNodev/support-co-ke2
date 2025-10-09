@@ -14,6 +14,7 @@ import type {
   FunctionReference,
 } from "convex/server";
 import type * as analytics from "../analytics.js";
+import type * as browse_ai_integration from "../browse-ai/integration.js";
 import type * as categories from "../categories.js";
 import type * as createTestUser from "../createTestUser.js";
 import type * as notifications from "../notifications.js";
@@ -35,6 +36,7 @@ import type * as vendorQuotations from "../vendorQuotations.js";
  */
 declare const fullApi: ApiFromModules<{
   analytics: typeof analytics;
+  "browse-ai/integration": typeof browse_ai_integration;
   categories: typeof categories;
   createTestUser: typeof createTestUser;
   notifications: typeof notifications;
