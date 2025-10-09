@@ -56,6 +56,12 @@ async function fetchBrowseAITask(
   );
 
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Browse.ai API authentication failed. Please verify your API key is correct.");
+    }
+    if (response.status === 403) {
+      throw new Error("Access forbidden. You may not have permission to access this robot or task. Verify the robot ID and task ID are correct and belong to your browse.ai account.");
+    }
     throw new Error(
       `Browse.ai API error: ${response.status} ${response.statusText}`
     );
@@ -368,6 +374,12 @@ export const triggerRobot = action({
             code: "EXTERNAL_SERVICE_ERROR",
           });
         }
+        if (response.status === 403) {
+          throw new ConvexError({
+            message: "Access forbidden. This could mean: 1) You don't own this robot, 2) Your browse.ai plan doesn't allow API access, or 3) You've hit rate limits. Please verify the robot ID and your browse.ai plan.",
+            code: "EXTERNAL_SERVICE_ERROR",
+          });
+        }
         throw new Error(
           `Browse.ai API error: ${response.status} ${statusText}`
         );
@@ -435,6 +447,12 @@ export const getTaskStatus = action({
         if (response.status === 401) {
           throw new ConvexError({
             message: "Browse.ai API authentication failed. Please verify your BROWSE_AI_API_KEY in App Settings → Environment Variables is correct.",
+            code: "EXTERNAL_SERVICE_ERROR",
+          });
+        }
+        if (response.status === 403) {
+          throw new ConvexError({
+            message: "Access forbidden. You may not have permission to access this robot or task. Verify the robot ID and task ID are correct and belong to your browse.ai account.",
             code: "EXTERNAL_SERVICE_ERROR",
           });
         }

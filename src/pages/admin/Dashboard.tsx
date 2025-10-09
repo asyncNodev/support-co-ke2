@@ -711,16 +711,30 @@ export default function AdminDashboard() {
                     <li>Create a robot on browse.ai to scrape product or quotation data</li>
                     <li>Add your browse.ai API key to <strong>App Settings → Environment Variables</strong> as <code className="px-1 py-0.5 bg-background rounded">BROWSE_AI_API_KEY</code></li>
                     <li>Refresh this page after adding the environment variable</li>
-                    <li>Run your robot or use an existing task ID below</li>
+                    <li>Run your robot manually in browse.ai (or use the trigger button below)</li>
+                    <li>Copy the Task ID from browse.ai and use it to sync data</li>
                   </ol>
+                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-800">
+                    <p className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-1">
+                      💡 Tip: Use existing tasks
+                    </p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      You don't need to trigger robots via the API. Just run them in the browse.ai dashboard 
+                      and use the Task ID to sync data. This avoids API permissions issues.
+                    </p>
+                  </div>
                 </div>
 
                 {/* Trigger Robot */}
                 <div className="space-y-4">
                   <div className="flex items-center gap-2">
                     <PlayCircle className="size-5 text-primary" />
-                    <h3 className="font-semibold">Trigger Robot</h3>
+                    <h3 className="font-semibold">Trigger Robot (Optional)</h3>
                   </div>
+                  <p className="text-sm text-muted-foreground">
+                    You can trigger a robot to run, or skip this step and use an existing task ID from a robot 
+                    you've already run in the browse.ai dashboard.
+                  </p>
                   <div className="grid gap-4">
                     <div>
                       <Label>Robot ID</Label>
@@ -729,6 +743,9 @@ export default function AdminDashboard() {
                         onChange={(e) => setBrowseAiRobotId(e.target.value)}
                         placeholder="Enter browse.ai robot ID"
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Find this in your browse.ai dashboard under the robot's settings
+                      </p>
                     </div>
                     <Button onClick={handleTriggerRobot}>
                       <PlayCircle className="size-4 mr-2" />
@@ -743,6 +760,9 @@ export default function AdminDashboard() {
                     <CheckCircle className="size-5 text-primary" />
                     <h3 className="font-semibold">Check Task Status</h3>
                   </div>
+                  <p className="text-sm text-muted-foreground">
+                    Check if a task has completed successfully before syncing data.
+                  </p>
                   <div className="grid gap-4">
                     <div>
                       <Label>Task ID</Label>
@@ -751,6 +771,9 @@ export default function AdminDashboard() {
                         onChange={(e) => setBrowseAiTaskId(e.target.value)}
                         placeholder="Enter browse.ai task ID"
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Find this in your browse.ai dashboard under Monitoring → Tasks, or use the Task ID from triggering a robot above
+                      </p>
                     </div>
                     <Button onClick={handleCheckTaskStatus} variant="outline">
                       Check Status
@@ -761,6 +784,11 @@ export default function AdminDashboard() {
                         <Badge variant={taskStatus === "successful" ? "default" : "secondary"}>
                           {taskStatus}
                         </Badge>
+                        {taskStatus !== "successful" && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Wait for the task to complete before syncing data
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
