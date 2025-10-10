@@ -213,7 +213,7 @@ export default function AdminDashboard() {
     try {
       await assignCategories({
         vendorId: selectedVendor,
-        categoryIds: selectedCategories,
+        categories: selectedCategories,
       });
       toast.success("Categories assigned successfully");
       setAssignDialogOpen(false);
