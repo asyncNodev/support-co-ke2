@@ -44,7 +44,7 @@ export default function AppHeader() {
             <img 
               src={siteSettings?.logoUrl || "https://cdn.hercules.app/file_bqE3zk4Ry0XmWJeiuCRNP3vv"} 
               alt={siteSettings?.siteName || "Medical Supplies Kenya"} 
-              className="h-12 w-auto"
+              className="h-48 w-auto"
             />
             <div>
               <h1 className="text-xl font-bold">{siteSettings?.siteName || "Medical Supplies Kenya"}</h1>
