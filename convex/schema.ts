@@ -167,6 +167,12 @@ export default defineSchema({
     timestamp: v.number(),
   }).index("by_type", ["type"]),
 
+  // Site settings (configurable by admin)
+  siteSettings: defineTable({
+    key: v.string(),
+    value: v.string(),
+  }).index("by_key", ["key"]),
+
   // Web scraping sources (admin configurable)
   scrapingSources: defineTable({
     name: v.string(),

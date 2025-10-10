@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PhotoUpload } from "@/components/ui/photo-upload";
+import { Separator } from "@/components/ui/separator";
 import { BulkProductUpload } from "@/pages/admin/_components/BulkProductUpload";
 import { EditProductDialog } from "@/pages/admin/_components/EditProductDialog";
 import { toast } from "sonner";
@@ -37,6 +38,10 @@ export default function AdminDashboard() {
   const toggleStatus = useMutation(api.users.toggleUserStatus);
   const deleteUserMutation = useMutation(api.users.deleteUser);
 
+  // Site Settings
+  const updateSiteSettings = useMutation(api.siteSettings.updateSiteSettings);
+  const siteSettings = useQuery(api.siteSettings.getSiteSettings, {});
+
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -55,6 +60,44 @@ export default function AdminDashboard() {
   const [browseAiProductListName, setBrowseAiProductListName] = useState("products");
   const [browseAiQuotationListName, setBrowseAiQuotationListName] = useState("quotations");
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
+
+  // Site Settings State
+  const [settingsForm, setSettingsForm] = useState({
+    logoUrl: "",
+    logoSize: "h-28",
+    siteName: "",
+    tagline: "",
+    hospitalStep1: "",
+    hospitalStep2: "",
+    hospitalStep3: "",
+    hospitalStep4: "",
+    vendorStep1: "",
+    vendorStep2: "",
+    vendorStep3: "",
+    vendorStep4: "",
+    workflowTextSize: "text-sm",
+    workflowBgColor: "bg-blue-50",
+  });
+
+  // Initialize settings form when siteSettings loads
+  if (siteSettings && settingsForm.logoUrl === "") {
+    setSettingsForm({
+      logoUrl: siteSettings.logoUrl || "",
+      logoSize: siteSettings.logoSize || "h-28",
+      siteName: siteSettings.siteName || "",
+      tagline: siteSettings.tagline || "",
+      hospitalStep1: siteSettings.hospitalStep1 || "",
+      hospitalStep2: siteSettings.hospitalStep2 || "",
+      hospitalStep3: siteSettings.hospitalStep3 || "",
+      hospitalStep4: siteSettings.hospitalStep4 || "",
+      vendorStep1: siteSettings.vendorStep1 || "",
+      vendorStep2: siteSettings.vendorStep2 || "",
+      vendorStep3: siteSettings.vendorStep3 || "",
+      vendorStep4: siteSettings.vendorStep4 || "",
+      workflowTextSize: siteSettings.workflowTextSize || "text-sm",
+      workflowBgColor: siteSettings.workflowBgColor || "bg-blue-50",
+    });
+  }
 
   const triggerRobot = useAction(api.browseAi.integration.triggerRobot);
   const getTaskStatus = useAction(api.browseAi.integration.getTaskStatus);
@@ -268,10 +311,19 @@ export default function AdminDashboard() {
         productId: browseAiProductId as Id<"products">,
         listName: browseAiQuotationListName,
       });
-      toast.success(`Synced ${result.syncedCount} quotations successfully`);
+      toast.success(`Synced ${result.syncedCount} quotations from Browse.ai`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to sync quotations";
       toast.error(errorMessage);
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      await updateSiteSettings({ settings: settingsForm });
+      toast.success("Site settings saved successfully!");
+    } catch (error) {
+      toast.error("Failed to save settings");
     }
   };
 
@@ -338,6 +390,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="browse-ai">Browse.ai</TabsTrigger>
+            <TabsTrigger value="site-settings">Site Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="products" className="space-y-4">
@@ -947,6 +1000,210 @@ export default function AdminDashboard() {
                     </Button>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Site Settings Tab */}
+          <TabsContent value="site-settings">
+            <Card>
+              <CardHeader>
+                <CardTitle>Site Settings</CardTitle>
+                <CardDescription>
+                  Customize the logo, branding, and workflow text displayed on the site
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Branding Section */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">Branding</h3>
+                  
+                  <div className="grid gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="logoUrl">Logo URL</Label>
+                      <Input
+                        id="logoUrl"
+                        placeholder="https://cdn.hercules.app/file_..."
+                        value={settingsForm.logoUrl}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, logoUrl: e.target.value })}
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        Upload your logo to Files & Media and paste the URL here
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="logoSize">Logo Size</Label>
+                      <Select
+                        value={settingsForm.logoSize}
+                        onValueChange={(value) => setSettingsForm({ ...settingsForm, logoSize: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select logo size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="h-16">Small (h-16)</SelectItem>
+                          <SelectItem value="h-20">Medium Small (h-20)</SelectItem>
+                          <SelectItem value="h-24">Medium (h-24)</SelectItem>
+                          <SelectItem value="h-28">Medium Large (h-28)</SelectItem>
+                          <SelectItem value="h-32">Large (h-32)</SelectItem>
+                          <SelectItem value="h-40">Extra Large (h-40)</SelectItem>
+                          <SelectItem value="h-48">Huge (h-48)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="siteName">Site Name</Label>
+                      <Input
+                        id="siteName"
+                        placeholder="Medical Supplies Kenya"
+                        value={settingsForm.siteName}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, siteName: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="tagline">Tagline</Label>
+                      <Input
+                        id="tagline"
+                        placeholder="Find Medical Equipment & Supplies"
+                        value={settingsForm.tagline}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, tagline: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Hospital Workflow Section */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">Hospital Workflow Steps</h3>
+                  <div className="grid gap-4">
+                    {['hospitalStep1', 'hospitalStep2', 'hospitalStep3', 'hospitalStep4'].map((key, index) => (
+                      <div key={key} className="space-y-2">
+                        <Label htmlFor={key}>Step {index + 1}</Label>
+                        <Input
+                          id={key}
+                          placeholder={`Step ${index + 1}`}
+                          value={settingsForm[key as keyof typeof settingsForm]}
+                          onChange={(e) => setSettingsForm({ ...settingsForm, [key]: e.target.value })}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Vendor Workflow Section */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">Vendor Workflow Steps</h3>
+                  <div className="grid gap-4">
+                    {['vendorStep1', 'vendorStep2', 'vendorStep3', 'vendorStep4'].map((key, index) => (
+                      <div key={key} className="space-y-2">
+                        <Label htmlFor={key}>Step {index + 1}</Label>
+                        <Input
+                          id={key}
+                          placeholder={`Step ${index + 1}`}
+                          value={settingsForm[key as keyof typeof settingsForm]}
+                          onChange={(e) => setSettingsForm({ ...settingsForm, [key]: e.target.value })}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Workflow Styling Section */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">Workflow Banner Styling</h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="workflowTextSize">Text Size</Label>
+                      <Select
+                        value={settingsForm.workflowTextSize}
+                        onValueChange={(value) => setSettingsForm({ ...settingsForm, workflowTextSize: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select text size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="text-xs">Extra Small</SelectItem>
+                          <SelectItem value="text-sm">Small</SelectItem>
+                          <SelectItem value="text-base">Base</SelectItem>
+                          <SelectItem value="text-lg">Large</SelectItem>
+                          <SelectItem value="text-xl">Extra Large</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="workflowBgColor">Background Color</Label>
+                      <Select
+                        value={settingsForm.workflowBgColor}
+                        onValueChange={(value) => setSettingsForm({ ...settingsForm, workflowBgColor: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select background color" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bg-blue-50">Light Blue</SelectItem>
+                          <SelectItem value="bg-green-50">Light Green</SelectItem>
+                          <SelectItem value="bg-orange-50">Light Orange</SelectItem>
+                          <SelectItem value="bg-purple-50">Light Purple</SelectItem>
+                          <SelectItem value="bg-gray-50">Light Gray</SelectItem>
+                          <SelectItem value="bg-muted/30">Muted</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Save Button */}
+                <div className="flex justify-end gap-4">
+                  <Button onClick={handleSaveSettings}>
+                    Save Changes
+                  </Button>
+                </div>
+
+                {/* Live Preview */}
+                {siteSettings && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-lg">Live Preview</h3>
+                    <div className="border rounded-lg p-4 bg-muted/20">
+                      <div className="flex items-center gap-3 mb-4">
+                        <img 
+                          src={settingsForm.logoUrl || siteSettings.logoUrl} 
+                          alt="Logo Preview" 
+                          className={`${settingsForm.logoSize} w-auto`}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                        <div>
+                          <h4 className="font-bold">{settingsForm.siteName || siteSettings.siteName}</h4>
+                          <p className="text-sm text-muted-foreground">{settingsForm.tagline || siteSettings.tagline}</p>
+                        </div>
+                      </div>
+                      <div className={`${settingsForm.workflowBgColor} p-4 rounded-lg ${settingsForm.workflowTextSize}`}>
+                        <p className="font-semibold mb-2">Hospital Workflow:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {[settingsForm.hospitalStep1, settingsForm.hospitalStep2, settingsForm.hospitalStep3, settingsForm.hospitalStep4].map((step, i) => (
+                            <span key={i} className="bg-background px-2 py-1 rounded border">
+                              {step || `Step ${i + 1}`}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

@@ -1,38 +1,37 @@
-import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
+import { Link, useNavigate } from "react-router-dom";
+import { BellIcon, LayoutDashboardIcon, ArrowRightIcon } from "lucide-react";
 import { SignInButton } from "@/components/ui/signin.tsx";
-import { useAuth } from "@/hooks/use-auth.ts";
+import { Button } from "@/components/ui/button.tsx";
+import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
+import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Bell, ArrowRight } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { formatDistanceToNow } from "date-fns";
-import { useNavigate } from "react-router-dom";
+import { api } from "@/convex/_generated/api.js";
 
 export default function AppHeader() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
   const currentUser = useQuery(api.users.getCurrentUser, {});
-  
-  const notifications = useQuery(
-    api.notifications.getMyNotifications,
-    isAuthenticated ? {} : "skip"
-  );
+  const siteSettings = useQuery(api.siteSettings.getSiteSettings, {});
 
-  const getDashboardLink = () => {
-    if (!currentUser) return "/";
-    if (currentUser.role === "admin") return "/admin";
-    if (currentUser.role === "vendor") return "/vendor";
-    if (currentUser.role === "buyer") return "/buyer";
-    return "/";
-  };
+  const logoUrl = siteSettings?.logoUrl || "https://cdn.hercules.app/file_bqE3zk4Ry0XmWJeiuCRNP3vv";
+  const logoSize = siteSettings?.logoSize || "h-28";
+  const siteName = siteSettings?.siteName || "Medical Supplies Kenya";
+  const tagline = siteSettings?.tagline || "Find Medical Equipment & Supplies";
+  const workflowTextSize = siteSettings?.workflowTextSize || "text-sm";
+  const workflowBgColor = siteSettings?.workflowBgColor || "bg-blue-50";
 
-  const unreadCount = notifications?.filter((n) => !n.read).length || 0;
+  const hospitalSteps = [
+    siteSettings?.hospitalStep1 || "Search Products",
+    siteSettings?.hospitalStep2 || "Create RFQ",
+    siteSettings?.hospitalStep3 || "Receive Quotations",
+    siteSettings?.hospitalStep4 || "Choose Best Vendor",
+  ];
+
+  const vendorSteps = [
+    siteSettings?.vendorStep1 || "Upload Products",
+    siteSettings?.vendorStep2 || "Receive RFQ Alerts",
+    siteSettings?.vendorStep3 || "Submit Quotations",
+    siteSettings?.vendorStep4 || "Win Orders",
+  ];
 
   return (
     <div className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -41,82 +40,20 @@ export default function AppHeader() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <img 
-              src="https://cdn.hercules.app/file_bqE3zk4Ry0XmWJeiuCRNP3vv" 
-              alt="Medical Supplies Kenya" 
-              className="h-12 w-auto"
+              src={logoUrl} 
+              alt={siteName} 
+              className={`${logoSize} w-auto`}
             />
             <div>
-              <h1 className="text-xl font-bold">Medical Supplies Kenya</h1>
-              <p className="text-xs text-muted-foreground">Connecting Hospitals with Verified Suppliers</p>
+              <h1 className="text-xl font-bold">{siteName}</h1>
+              <p className="text-xs text-muted-foreground">{tagline}</p>
             </div>
           </Link>
           
           <div className="flex items-center gap-4">
-            {isAuthenticated && currentUser && (
-              <>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative">
-                      <Bell className="size-5" />
-                      {unreadCount > 0 && (
-                        <Badge 
-                          variant="destructive" 
-                          className="absolute -top-1 -right-1 size-5 flex items-center justify-center p-0 text-xs"
-                        >
-                          {unreadCount}
-                        </Badge>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-0" align="end">
-                    <div className="p-4 border-b">
-                      <h3 className="font-semibold">Notifications</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {unreadCount} unread
-                      </p>
-                    </div>
-                    <div className="max-h-96 overflow-y-auto">
-                      {!notifications || notifications.length === 0 ? (
-                        <div className="p-4 text-center text-sm text-muted-foreground">
-                          No notifications yet
-                        </div>
-                      ) : (
-                        notifications.slice(0, 5).map((notification) => (
-                          <div
-                            key={notification._id}
-                            className={`p-4 border-b hover:bg-muted/50 cursor-pointer ${
-                              !notification.read ? "bg-blue-50 dark:bg-blue-950/20" : ""
-                            }`}
-                            onClick={() => navigate(getDashboardLink())}
-                          >
-                            <p className="font-medium text-sm">{notification.title}</p>
-                            <p className="text-sm text-muted-foreground">{notification.message}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {formatDistanceToNow(notification.createdAt, { addSuffix: true })}
-                            </p>
-                          </div>
-                        ))
-                      )}
-                      {notifications && notifications.length > 5 && (
-                        <div className="p-2 text-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(getDashboardLink())}
-                          >
-                            View all notifications
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-
-                <Button variant="outline" asChild>
-                  <Link to={getDashboardLink()}>Dashboard</Link>
-                </Button>
-              </>
-            )}
+            <Button variant="outline" asChild>
+              <Link to="/dashboard">Dashboard</Link>
+            </Button>
             <SignInButton />
           </div>
         </div>
@@ -139,19 +76,19 @@ export default function AppHeader() {
               </h3>
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  Search Products
+                  {hospitalSteps[0]}
                 </span>
-                <ArrowRight className="size-4 text-muted-foreground" />
+                <ArrowRightIcon className="size-4 text-muted-foreground" />
                 <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  Create RFQ
+                  {hospitalSteps[1]}
                 </span>
-                <ArrowRight className="size-4 text-muted-foreground" />
+                <ArrowRightIcon className="size-4 text-muted-foreground" />
                 <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  Receive Quotations
+                  {hospitalSteps[2]}
                 </span>
-                <ArrowRight className="size-4 text-muted-foreground" />
+                <ArrowRightIcon className="size-4 text-muted-foreground" />
                 <span className="bg-primary text-primary-foreground px-3 py-2 rounded-lg font-medium">
-                  Choose Best Vendor
+                  {hospitalSteps[3]}
                 </span>
               </div>
             </div>
@@ -166,19 +103,19 @@ export default function AppHeader() {
               </h3>
               <div className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  Upload Products
+                  {vendorSteps[0]}
                 </span>
-                <ArrowRight className="size-4 text-muted-foreground" />
+                <ArrowRightIcon className="size-4 text-muted-foreground" />
                 <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  Receive RFQ Alerts
+                  {vendorSteps[1]}
                 </span>
-                <ArrowRight className="size-4 text-muted-foreground" />
+                <ArrowRightIcon className="size-4 text-muted-foreground" />
                 <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  Submit Quotations
+                  {vendorSteps[2]}
                 </span>
-                <ArrowRight className="size-4 text-muted-foreground" />
+                <ArrowRightIcon className="size-4 text-muted-foreground" />
                 <span className="bg-primary text-primary-foreground px-3 py-2 rounded-lg font-medium">
-                  Win Orders
+                  {vendorSteps[3]}
                 </span>
               </div>
             </div>
