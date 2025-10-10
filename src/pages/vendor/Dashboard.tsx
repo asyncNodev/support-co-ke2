@@ -43,6 +43,7 @@ export default function VendorDashboard() {
   // Add notifications query
   const notifications = useQuery(api.notifications.getMyNotifications, {});
   const markAsRead = useMutation(api.notifications.markAsRead);
+  const updateQuotationPreference = useMutation(api.users.updateQuotationPreference);
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -201,7 +202,7 @@ export default function VendorDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="products">
-          <TabsList className="grid w-full grid-cols-4 max-w-3xl">
+          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
             <TabsTrigger value="products">
               My Products ({myQuotations?.length || 0})
             </TabsTrigger>
@@ -218,6 +219,9 @@ export default function VendorDashboard() {
                   {notifications.filter(n => !n.read).length}
                 </Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="settings">
+              Settings
             </TabsTrigger>
           </TabsList>
 
@@ -735,6 +739,90 @@ export default function VendorDashboard() {
                     ))}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings">
+            <Card>
+              <CardHeader>
+                <CardTitle>Vendor Settings</CardTitle>
+                <CardDescription>
+                  Manage your quotation preferences and account settings
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">RFQ Acceptance Preference</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Choose which types of buyers you want to send quotations to
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-start space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50"
+                         onClick={() => {
+                           updateQuotationPreference({ preference: "registered_hospitals_only" });
+                           toast.success("Preference updated");
+                         }}
+                    >
+                      <input
+                        type="radio"
+                        checked={currentUser?.quotationPreference === "registered_hospitals_only"}
+                        onChange={() => {}}
+                        className="mt-1"
+                      />
+                      <div>
+                        <p className="font-medium">Registered Hospitals Only</p>
+                        <p className="text-sm text-muted-foreground">
+                          Only send quotations to verified hospitals with registered accounts
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50"
+                         onClick={() => {
+                           updateQuotationPreference({ preference: "registered_all" });
+                           toast.success("Preference updated");
+                         }}
+                    >
+                      <input
+                        type="radio"
+                        checked={currentUser?.quotationPreference === "registered_all"}
+                        onChange={() => {}}
+                        className="mt-1"
+                      />
+                      <div>
+                        <p className="font-medium">All Registered Buyers</p>
+                        <p className="text-sm text-muted-foreground">
+                          Send to both registered hospitals and other verified vendors/brokers
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50"
+                         onClick={() => {
+                           updateQuotationPreference({ preference: "all_including_guests" });
+                           toast.success("Preference updated");
+                         }}
+                    >
+                      <input
+                        type="radio"
+                        checked={(currentUser?.quotationPreference ?? "all_including_guests") === "all_including_guests"}
+                        onChange={() => {}}
+                        className="mt-1"
+                      />
+                      <div>
+                        <p className="font-medium">All Including Guest Submissions</p>
+                        <p className="text-sm text-muted-foreground">
+                          Send to registered buyers AND guest submissions (unregistered users)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

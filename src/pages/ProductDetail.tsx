@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/popover";
 import { format, formatDistanceToNow } from "date-fns";
 import AppHeader from "@/components/AppHeader";
+import GuestRFQDialog from "@/pages/_components/GuestRFQDialog";
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
@@ -44,6 +45,7 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState("");
   const [expectedDate, setExpectedDate] = useState<Date>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showGuestDialog, setShowGuestDialog] = useState(false);
 
   const getDashboardLink = () => {
     if (!currentUser) return "/";
@@ -191,9 +193,36 @@ export default function ProductDetail() {
                   </Button>
 
                   {!isAuthenticated && (
-                    <p className="text-sm text-muted-foreground text-center">
-                      Please sign in to submit RFQ
-                    </p>
+                    <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground text-center">
+                        Please sign in to submit RFQ
+                      </p>
+                      <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                          <span className="w-full border-t" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                          <span className="bg-background px-2 text-muted-foreground">Or</span>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => {
+                          if (!quantity || !expectedDate) {
+                            toast.error("Please fill in quantity and expected delivery date");
+                            return;
+                          }
+                          setShowGuestDialog(true);
+                        }}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        Submit as Guest (Limited Vendors)
+                      </Button>
+                      <p className="text-xs text-muted-foreground text-center">
+                        💡 <strong>Note:</strong> Guest submissions may receive fewer vendor responses. 
+                        <a href="/register" className="underline ml-1">Register</a> to reach more vendors and track quotations.
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -201,6 +230,25 @@ export default function ProductDetail() {
           </Card>
         </div>
       </main>
+      
+      {/* Guest RFQ Dialog */}
+      {product && expectedDate && (
+        <GuestRFQDialog
+          open={showGuestDialog}
+          onOpenChange={setShowGuestDialog}
+          items={[
+            {
+              productId: product._id,
+              quantity: parseInt(quantity) || 1,
+            },
+          ]}
+          expectedDeliveryTime={format(expectedDate, "yyyy-MM-dd")}
+          onSuccess={() => {
+            setQuantity("");
+            setExpectedDate(undefined);
+          }}
+        />
+      )}
     </div>
   );
 }

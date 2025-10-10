@@ -64,6 +64,9 @@ export const getPendingRFQs = query({
       return [];
     }
 
+    // Get vendor's quotation preference
+    const preference = currentUser.quotationPreference ?? "all_including_guests";
+
     const allRFQs = await ctx.db
       .query("rfqs")
       .filter((q) => q.eq(q.field("status"), "pending"))
@@ -71,7 +74,12 @@ export const getPendingRFQs = query({
 
     const rfqsWithDetails: Array<{
       _id: Id<"rfqs">;
-      buyerId: Id<"users">;
+      buyerId?: Id<"users">;
+      isGuest?: boolean;
+      guestName?: string;
+      guestCompanyName?: string;
+      guestPhone?: string;
+      guestEmail?: string;
       status: string;
       expectedDeliveryTime?: string;
       createdAt: number;
@@ -86,6 +94,22 @@ export const getPendingRFQs = query({
     }> = [];
 
     for (const rfq of allRFQs) {
+      // Filter based on vendor preference
+      if (rfq.isGuest && preference === "registered_hospitals_only") {
+        continue; // Skip guest RFQs
+      }
+      if (rfq.isGuest && preference === "registered_all") {
+        continue; // Skip guest RFQs
+      }
+      
+      // If RFQ has a buyerId, check if buyer is hospital or not
+      if (rfq.buyerId && preference === "registered_hospitals_only") {
+        const buyer = await ctx.db.get(rfq.buyerId);
+        if (buyer && buyer.role !== "buyer") {
+          continue; // Skip non-hospital buyers
+        }
+      }
+
       const rfqItems = await ctx.db
         .query("rfqItems")
         .withIndex("by_rfq", (q) => q.eq("rfqId", rfq._id))

@@ -18,6 +18,11 @@ export default defineSchema({
     longitude: v.optional(v.number()),
     categories: v.optional(v.array(v.id("categories"))),
     registeredAt: v.number(),
+    quotationPreference: v.optional(v.union(
+      v.literal("registered_hospitals_only"),
+      v.literal("registered_all"),
+      v.literal("all_including_guests")
+    )),
   })
     .index("by_authId", ["authId"])
     .index("by_email", ["email"])
@@ -70,7 +75,12 @@ export default defineSchema({
 
   // RFQ requests from buyers
   rfqs: defineTable({
-    buyerId: v.id("users"),
+    buyerId: v.optional(v.id("users")),
+    isGuest: v.optional(v.boolean()),
+    guestName: v.optional(v.string()),
+    guestCompanyName: v.optional(v.string()),
+    guestPhone: v.optional(v.string()),
+    guestEmail: v.optional(v.string()),
     status: v.union(
       v.literal("pending"),
       v.literal("quoted"),

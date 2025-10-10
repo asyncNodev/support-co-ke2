@@ -2,6 +2,74 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel.d.ts";
 
+// Submit RFQ as guest (unauthenticated user)
+export const submitGuestRFQ = mutation({
+  args: {
+    items: v.array(
+      v.object({
+        productId: v.id("products"),
+        quantity: v.number(),
+      }),
+    ),
+    expectedDeliveryTime: v.string(),
+    guestName: v.string(),
+    guestCompanyName: v.string(),
+    guestPhone: v.string(),
+    guestEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { items, expectedDeliveryTime, guestName, guestCompanyName, guestPhone, guestEmail } = args;
+
+    // Create the RFQ as a guest submission
+    const rfqId = await ctx.db.insert("rfqs", {
+      isGuest: true,
+      guestName,
+      guestCompanyName,
+      guestPhone,
+      guestEmail,
+      status: "pending",
+      expectedDeliveryTime,
+      createdAt: Date.now(),
+    });
+
+    // Insert RFQ items
+    for (const item of items) {
+      await ctx.db.insert("rfqItems", {
+        rfqId,
+        productId: item.productId,
+        quantity: item.quantity,
+      });
+    }
+
+    // Send notification to vendors based on their preferences
+    const vendors = await ctx.db
+      .query("users")
+      .withIndex("by_role", (q) => q.eq("role", "vendor"))
+      .filter((q) => q.eq(q.field("verified"), true))
+      .collect();
+
+    for (const vendor of vendors) {
+      // Check vendor's quotation preference
+      const preference = vendor.quotationPreference ?? "all_including_guests";
+      
+      // Only notify if vendor accepts guest RFQs
+      if (preference === "all_including_guests") {
+        await ctx.db.insert("notifications", {
+          userId: vendor._id,
+          type: "rfq_needs_quotation",
+          title: "New Guest RFQ",
+          message: `${guestName} from ${guestCompanyName} submitted an RFQ`,
+          read: false,
+          relatedId: rfqId,
+          createdAt: Date.now(),
+        });
+      }
+    }
+
+    return rfqId;
+  },
+});
+
 // Submit RFQ with items from cart
 export const submitRFQ = mutation({
   args: {

@@ -91,6 +91,8 @@ export default function Register() {
 
     try {
       await createUser({
+        name: name || user?.profile.name || "Unknown",
+        email: user?.profile.email || "unknown@example.com",
         role: selectedRole,
         companyName: companyName || undefined,
         phone: phone || undefined,
