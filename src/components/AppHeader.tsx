@@ -51,9 +51,23 @@ export default function AppHeader() {
           </Link>
           
           <div className="flex items-center gap-4">
-            <Button variant="outline" asChild>
-              <Link to="/dashboard">Dashboard</Link>
-            </Button>
+            <Authenticated>
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  if (currentUser?.role === "admin") {
+                    navigate("/admin");
+                  } else if (currentUser?.role === "vendor") {
+                    navigate("/vendor");
+                  } else if (currentUser?.role === "buyer") {
+                    navigate("/buyer");
+                  }
+                }}
+              >
+                <LayoutDashboardIcon className="size-4 mr-2" />
+                Dashboard
+              </Button>
+            </Authenticated>
             <SignInButton />
           </div>
         </div>
