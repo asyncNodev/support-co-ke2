@@ -2,6 +2,182 @@ import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel.d.ts";
 
+// Submit RFQ as guest (no authentication required)
+export const submitGuestRFQ = mutation({
+  args: {
+    items: v.array(
+      v.object({
+        productId: v.id("products"),
+        quantity: v.number(),
+      }),
+    ),
+    expectedDeliveryTime: v.string(),
+    guestName: v.string(),
+    guestEmail: v.string(),
+    guestPhone: v.string(),
+    guestCompanyName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Validate guest information
+    if (!args.guestName || !args.guestEmail || !args.guestPhone || !args.guestCompanyName) {
+      throw new ConvexError({
+        message: "All guest information is required",
+        code: "BAD_REQUEST",
+      });
+    }
+
+    // Create guest RFQ
+    const rfqId = await ctx.db.insert("rfqs", {
+      buyerId: undefined,
+      guestName: args.guestName,
+      guestEmail: args.guestEmail,
+      guestPhone: args.guestPhone,
+      guestCompanyName: args.guestCompanyName,
+      status: "pending",
+      isBroker: false,
+      expectedDeliveryTime: args.expectedDeliveryTime,
+      createdAt: Date.now(),
+    });
+
+    // Add RFQ items
+    for (const item of args.items) {
+      await ctx.db.insert("rfqItems", {
+        rfqId,
+        productId: item.productId,
+        quantity: item.quantity,
+      });
+    }
+
+    // Auto-match with pre-filled vendor quotations and notify vendors
+    let matchedCount = 0;
+    const vendorNotifications = new Map<Id<"users">, Array<{ productId: Id<"products">; productName: string }>>();
+
+    // Process each item in the RFQ
+    for (const item of args.items) {
+      const product = await ctx.db.get(item.productId);
+      if (!product) continue;
+
+      // Find vendors with pre-filled quotations for this product
+      const quotations = await ctx.db
+        .query("vendorQuotations")
+        .withIndex("by_product", (q) => q.eq("productId", item.productId))
+        .filter((q) => q.eq(q.field("active"), true))
+        .collect();
+
+      // Filter based on vendor preferences
+      for (const quotation of quotations) {
+        const vendor = await ctx.db.get(quotation.vendorId);
+        if (!vendor || !vendor.verified) continue;
+
+        // Check vendor's quotation preference
+        const preference = vendor.quotationPreference || "all_registered_and_unregistered";
+        
+        // Guest RFQs are only sent to vendors who accept unregistered buyers
+        if (preference !== "all_registered_and_unregistered") continue;
+
+        matchedCount++;
+
+        // Create sent quotation
+        await ctx.db.insert("sentQuotations", {
+          rfqId,
+          buyerId: vendor._id, // Store vendor ID temporarily for querying
+          vendorId: vendor._id,
+          productId: item.productId,
+          quotationId: quotation._id,
+          quotationType: "pre-filled" as const,
+          price: quotation.price,
+          quantity: quotation.quantity,
+          paymentTerms: quotation.paymentTerms,
+          deliveryTime: quotation.deliveryTime,
+          warrantyPeriod: quotation.warrantyPeriod,
+          countryOfOrigin: quotation.countryOfOrigin,
+          productSpecifications: quotation.productSpecifications,
+          productPhoto: quotation.productPhoto,
+          productDescription: quotation.productDescription,
+          brand: quotation.brand,
+          opened: false,
+          chosen: false,
+          sentAt: Date.now(),
+        });
+
+        // Notify vendor
+        await ctx.db.insert("notifications", {
+          userId: vendor._id,
+          type: "quotation_sent",
+          title: "Your quotation was sent to a guest buyer!",
+          message: `Your pre-filled quotation for ${product.name} was sent to ${args.guestCompanyName}`,
+          read: false,
+          relatedId: rfqId,
+          createdAt: Date.now(),
+        });
+      }
+
+      // Find vendors who might want to quote (based on category and preference)
+      const allVerifiedVendors = await ctx.db
+        .query("users")
+        .withIndex("by_role", (q) => {
+          const role = "vendor" as const;
+          return q.eq("role", role);
+        })
+        .filter((q) => q.eq(q.field("verified"), true))
+        .collect();
+
+      for (const vendor of allVerifiedVendors) {
+        const preference = vendor.quotationPreference || "all_registered_and_unregistered";
+        
+        // Only notify if vendor accepts unregistered buyers
+        if (preference !== "all_registered_and_unregistered") continue;
+
+        const hasQuotation = quotations.some((q) => q.vendorId === vendor._id);
+        const isAssignedToCategory = product.categoryId && vendor.categories?.includes(product.categoryId);
+
+        if (!hasQuotation && isAssignedToCategory) {
+          if (!vendorNotifications.has(vendor._id)) {
+            vendorNotifications.set(vendor._id, []);
+          }
+          vendorNotifications.get(vendor._id)!.push({
+            productId: item.productId,
+            productName: product.name,
+          });
+        }
+      }
+    }
+
+    // Send notifications to vendors
+    for (const [vendorId, products] of vendorNotifications.entries()) {
+      for (const product of products) {
+        await ctx.db.insert("notifications", {
+          userId: vendorId,
+          type: "rfq_needs_quotation",
+          title: `New Guest RFQ for ${product.productName}`,
+          message: `${args.guestCompanyName} has requested quotations for ${product.productName}. Click to respond.`,
+          read: false,
+          relatedId: rfqId,
+          createdAt: Date.now(),
+        });
+      }
+    }
+
+    // Update RFQ status
+    if (matchedCount > 0) {
+      await ctx.db.patch(rfqId, { status: "quoted" });
+    }
+
+    // Track analytics
+    await ctx.db.insert("analytics", {
+      type: "rfq_sent",
+      metadata: JSON.stringify({ rfqId, itemCount: args.items.length, guest: true }),
+      timestamp: Date.now(),
+    });
+
+    return {
+      rfqId,
+      matchedCount,
+      vendorsNotified: vendorNotifications.size,
+    };
+  },
+});
+
 // Submit RFQ with items from cart
 export const submitRFQ = mutation({
   args: {
@@ -561,7 +737,7 @@ export const getMyVendorQuotationsSent = query({
   },
 });
 
-// Get pending RFQs with anonymous buyer info (for vendors)
+// Get pending RFQs with buyer info (for vendors), filtering by vendor's quotation preference
 export const getPendingRFQs = query({
   args: {},
   handler: async (ctx) => {
@@ -617,22 +793,53 @@ export const getPendingRFQs = query({
             .filter((q) => q.eq(q.field("rfqId"), rfqId))
             .first();
 
-          if (!existingQuotation) {
-            itemsWithProducts.push({
-              productId: item.productId,
-              productName: product.name,
-              quantity: item.quantity,
-              specifications: product.specifications,
-            });
+          if (existingQuotation) {
+            continue;
           }
+
+          // Check vendor's quotation preference to decide if this RFQ item should be shown
+          // Vendor quotationPreference can be:
+          // "all_registered_and_unregistered" - accept all RFQs including guest buyers
+          // other values might exclude guest RFQs
+
+          const preference = user.quotationPreference || "all_registered_and_unregistered";
+
+          // If RFQ is from guest and vendor does not accept guest RFQs, skip item
+          if (!rfq.buyerId && preference !== "all_registered_and_unregistered") {
+            continue;
+          }
+
+          itemsWithProducts.push({
+            productId: item.productId,
+            productName: product.name,
+            quantity: item.quantity,
+            specifications: product.specifications,
+          });
         }
 
         if (itemsWithProducts.length > 0) {
+          let buyerInfo = "Anonymous Buyer";
+          let buyerType = "Buyer";
+          if (rfq.isBroker === true) {
+            buyerInfo = "Anonymous Broker";
+            buyerType = "Broker";
+          } else if (rfq.buyerId) {
+            // Try to get buyer info if not a guest RFQ
+            const buyer = await ctx.db.get(rfq.buyerId);
+            if (buyer) {
+              buyerInfo = buyer.companyName || buyer.name || "Buyer";
+            }
+          } else {
+            // For guest buyers, show guest details
+            buyerInfo = `${rfq.guestCompanyName || "Guest Company"} (Guest Buyer)`;
+            buyerType = "Guest Buyer";
+          }
+
           pendingRFQs.push({
             rfqId,
             createdAt: rfq.createdAt,
-            buyerInfo: rfq.isBroker === true ? "Anonymous Broker" : "Anonymous Buyer",
-            buyerType: rfq.isBroker === true ? "Broker" : "Buyer",
+            buyerInfo,
+            buyerType,
             items: itemsWithProducts,
           });
         }

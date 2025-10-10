@@ -1,7 +1,52 @@
 import { ConvexError, v } from "convex/values";
-import { internalMutation, mutation, query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 
-// Get or create user from auth
+// Update vendor quotation preference
+export const updateQuotationPreference = mutation({
+  args: {
+    preference: v.union(
+      v.literal("registered_hospitals_only"),
+      v.literal("registered_hospitals_and_vendors"),
+      v.literal("all_registered_and_unregistered")
+    ),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .unique();
+
+    if (!user) {
+      throw new ConvexError({
+        message: "User not found",
+        code: "NOT_FOUND",
+      });
+    }
+
+    if (user.role !== "vendor") {
+      throw new ConvexError({
+        message: "Only vendors can update quotation preferences",
+        code: "FORBIDDEN",
+      });
+    }
+
+    await ctx.db.patch(user._id, {
+      quotationPreference: args.preference,
+    });
+
+    return { success: true };
+  },
+});
+
+// Get current user profile
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
@@ -13,22 +58,17 @@ export const getCurrentUser = query({
     const user = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+      .unique();
 
     return user;
   },
 });
 
-// Create user profile after registration
-export const createUser = mutation({
+// Update current user profile
+export const updateCurrentUser = mutation({
   args: {
-    role: v.union(v.literal("admin"), v.literal("vendor"), v.literal("buyer")),
-    companyName: v.optional(v.string()),
-    phone: v.optional(v.string()),
-    address: v.optional(v.string()),
-    cr12Certificate: v.optional(v.string()),
-    latitude: v.optional(v.number()),
-    longitude: v.optional(v.number()),
+    name: v.optional(v.string()),
+    email: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -39,390 +79,33 @@ export const createUser = mutation({
       });
     }
 
-    const existingUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
-
-    if (existingUser) {
-      throw new ConvexError({
-        message: "User already exists",
-        code: "FORBIDDEN",
-      });
-    }
-
-    const userId = await ctx.db.insert("users", {
-      authId: identity.tokenIdentifier,
-      email: identity.email ?? "",
-      name: identity.name ?? "User",
-      role: args.role,
-      verified: args.role === "admin", // Auto-verify admins
-      avatar: identity.pictureUrl,
-      companyName: args.companyName,
-      phone: args.phone,
-      address: args.address,
-      cr12Certificate: args.cr12Certificate,
-      latitude: args.latitude,
-      longitude: args.longitude,
-      registeredAt: Date.now(),
-    });
-
-    return userId;
-  },
-});
-
-// Update user verification status (admin only)
-export const updateUserVerification = mutation({
-  args: {
-    userId: v.id("users"),
-    verified: v.boolean(),
-  },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
-
-    if (!currentUser || currentUser.role !== "admin") {
-      throw new ConvexError({
-        message: "Only admins can verify users",
-        code: "FORBIDDEN",
-      });
-    }
-
-    await ctx.db.patch(args.userId, { verified: args.verified });
-
-    // Send notification to user
-    const user = await ctx.db.get(args.userId);
-    if (user) {
-      await ctx.db.insert("notifications", {
-        userId: args.userId,
-        type:
-          user.role === "vendor" ? "vendor_approved" : "buyer_approved",
-        title: args.verified ? "Account Verified" : "Account Unverified",
-        message: args.verified
-          ? "Your account has been verified by admin"
-          : "Your account verification has been revoked",
-        read: false,
-        createdAt: Date.now(),
-      });
-    }
-
-    return null;
-  },
-});
-
-// Get all users (admin only)
-export const getAllUsers = query({
-  args: {
-    role: v.optional(
-      v.union(v.literal("admin"), v.literal("vendor"), v.literal("buyer"))
-    ),
-  },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return [];
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
-
-    if (!currentUser || currentUser.role !== "admin") {
-      throw new ConvexError({
-        message: "Only admins can view all users",
-        code: "FORBIDDEN",
-      });
-    }
-
-    if (args.role !== undefined) {
-      const role = args.role;
-      return await ctx.db
-        .query("users")
-        .withIndex("by_role", (q) => q.eq("role", role))
-        .collect();
-    }
-
-    return await ctx.db.query("users").collect();
-  },
-});
-
-// Get users by role (admin only)
-export const getUsersByRole = query({
-  args: {
-    role: v.optional(v.union(v.literal("admin"), v.literal("vendor"), v.literal("buyer"))),
-  },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (identity === null) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
-
-    if (!currentUser || currentUser.role !== "admin") {
-      throw new ConvexError({
-        message: "Not authorized",
-        code: "FORBIDDEN",
-      });
-    }
-
-    if (args.role !== undefined) {
-      const role = args.role;
-      return await ctx.db
-        .query("users")
-        .withIndex("by_role", (q) => q.eq("role", role))
-        .collect();
-    }
-    
-    return await ctx.db.query("users").collect();
-  },
-});
-
-// Update user profile
-export const updateProfile = mutation({
-  args: {
-    companyName: v.optional(v.string()),
-    phone: v.optional(v.string()),
-    address: v.optional(v.string()),
-  },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
-
-    if (!user) {
-      throw new ConvexError({
-        message: "User not found",
-        code: "NOT_FOUND",
-      });
-    }
-
-    await ctx.db.patch(user._id, {
-      companyName: args.companyName,
-      phone: args.phone,
-      address: args.address,
-    });
-
-    return null;
-  },
-});
-
-export const verifyUser = mutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "Not authenticated",
-        code: "UNAUTHENTICATED" as const,
-      });
-    }
-
-    const currentUser = await ctx.db
+    let user = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
       .unique();
 
-    if (!currentUser || currentUser.role !== "admin") {
-      throw new ConvexError({
-        message: "Only admins can verify users",
-        code: "FORBIDDEN" as const,
-      });
-    }
-
-    await ctx.db.patch(args.userId, {
-      verified: true,
-    });
-
-    return { success: true };
-  },
-});
-
-export const toggleUserStatus = mutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({ message: "Not authenticated", code: "UNAUTHENTICATED" });
-    }
-
-    const adminUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
-
-    if (!adminUser || adminUser.role !== "admin") {
-      throw new ConvexError({ message: "Only admins can toggle user status", code: "FORBIDDEN" });
-    }
-
-    const user = await ctx.db.get(args.userId);
     if (!user) {
-      throw new ConvexError({ message: "User not found", code: "NOT_FOUND" });
-    }
-
-    await ctx.db.patch(args.userId, {
-      verified: !user.verified,
-    });
-
-    return { success: true, message: `User ${user.verified ? 'disabled' : 'enabled'}` };
-  },
-});
-
-export const deleteUser = mutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({ message: "Not authenticated", code: "UNAUTHENTICATED" });
-    }
-
-    const adminUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
-
-    if (!adminUser || adminUser.role !== "admin") {
-      throw new ConvexError({ message: "Only admins can delete users", code: "FORBIDDEN" });
-    }
-
-    await ctx.db.delete(args.userId);
-
-    return { success: true, message: "User deleted successfully" };
-  },
-});
-
-export const getUserDetails = query({
-  args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    const user = await ctx.db.get(args.userId);
-    if (!user) return null;
-
-    // Get RFQs submitted by user (if buyer)
-    const rfqs = await ctx.db
-      .query("rfqs")
-      .withIndex("by_buyer", (q) => q.eq("buyerId", args.userId))
-      .collect();
-
-    // Get quotations sent to user (if buyer)
-    const receivedQuotations = await ctx.db
-      .query("sentQuotations")
-      .withIndex("by_buyer", (q) => q.eq("buyerId", args.userId))
-      .collect();
-
-    // Get quotations sent by user (if vendor)
-    const sentQuotations = await ctx.db
-      .query("sentQuotations")
-      .withIndex("by_vendor", (q) => q.eq("vendorId", args.userId))
-      .collect();
-
-    // Get vendor quotations (if vendor)
-    const vendorQuotations = await ctx.db
-      .query("vendorQuotations")
-      .withIndex("by_vendor", (q) => q.eq("vendorId", args.userId))
-      .collect();
-
-    return {
-      user,
-      rfqsCount: rfqs.length,
-      receivedQuotationsCount: receivedQuotations.length,
-      sentQuotationsCount: sentQuotations.length,
-      activeQuotationsCount: vendorQuotations.filter(q => q.active).length,
-    };
-  },
-});
-
-export const makeUserAdmin = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not authenticated",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
-
-    if (user) {
-      await ctx.db.patch(user._id, {
-        role: "admin",
-        verified: true,
-      });
-      return { message: "You are now an admin!" };
-    } else {
+      // Create user if doesn't exist
       const userId = await ctx.db.insert("users", {
         authId: identity.tokenIdentifier,
-        email: identity.email ?? "admin@quickquote.com",
-        name: identity.name ?? "Admin User",
-        role: "admin",
+        email: args.email || identity.email || "unknown@example.com",
+        name: args.name || identity.name || "Unknown User",
+        role: "buyer",
         verified: true,
         registeredAt: Date.now(),
       });
-      return { message: "Admin account created successfully!" };
-    }
-  },
-});
-
-export const assignCategoriesToVendor = mutation({
-  args: {
-    vendorId: v.id("users"),
-    categoryIds: v.array(v.id("categories")),
-  },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not authenticated",
-        code: "UNAUTHENTICATED",
-      });
+      user = await ctx.db.get(userId);
+    } else {
+      // Update existing user
+      const updates: { name?: string; email?: string } = {};
+      if (args.name) updates.name = args.name;
+      if (args.email) updates.email = args.email;
+      
+      if (Object.keys(updates).length > 0) {
+        await ctx.db.patch(user._id, updates);
+      }
     }
 
-    const admin = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
-
-    if (!admin || admin.role !== "admin") {
-      throw new ConvexError({
-        message: "Only admins can assign categories",
-        code: "FORBIDDEN",
-      });
-    }
-
-    await ctx.db.patch(args.vendorId, {
-      categories: args.categoryIds,
-    });
-
-    return { message: "Categories assigned successfully" };
+    return user;
   },
 });

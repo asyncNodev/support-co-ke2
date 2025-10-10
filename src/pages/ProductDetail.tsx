@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/popover";
 import { format, formatDistanceToNow } from "date-fns";
 import AppHeader from "@/components/AppHeader";
+import GuestRFQDialog from "./_components/GuestRFQDialog.tsx";
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
@@ -44,6 +45,7 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState("");
   const [expectedDate, setExpectedDate] = useState<Date>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showGuestDialog, setShowGuestDialog] = useState(false);
 
   const getDashboardLink = () => {
     if (!currentUser) return "/";
@@ -54,35 +56,39 @@ export default function ProductDetail() {
   };
 
   const handleSubmitRFQ = async () => {
-    if (!isAuthenticated) {
-      toast.error("Please sign in to submit RFQ");
+    if (!quantity) {
+      toast.error("Please enter quantity");
       return;
     }
-
-    if (!quantity || !expectedDate || !product) {
-      toast.error("Please fill in all fields");
+    if (!expectedDate) {
+      toast.error("Please pick an expected delivery date");
       return;
     }
-
     setIsSubmitting(true);
     try {
       await submitRFQ({
-        items: [
-          {
-            productId: product._id,
-            quantity: parseInt(quantity),
-          },
-        ],
+        items: [{ productId: id as Id<"products">, quantity: Number(quantity) }],
         expectedDeliveryTime: format(expectedDate, "yyyy-MM-dd"),
       });
-
-      toast.success("RFQ submitted successfully!");
-      navigate("/buyer");
+      toast.success("RFQ submitted successfully");
+      navigate(getDashboardLink());
     } catch (error) {
-      toast.error("Failed to submit RFQ. Please try again.");
+      toast.error("Failed to submit RFQ");
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleGuestSubmit = async () => {
+    if (!quantity) {
+      toast.error("Please enter quantity");
+      return;
+    }
+    if (!expectedDate) {
+      toast.error("Please pick an expected delivery date");
+      return;
+    }
+    setShowGuestDialog(true);
   };
 
   if (!product) {
@@ -178,22 +184,44 @@ export default function ProductDetail() {
                     </Popover>
                   </div>
 
-                  {/* Submit Button */}
-                  <Button
-                    onClick={handleSubmitRFQ}
-                    disabled={isSubmitting || !isAuthenticated}
-                    className="w-full text-lg py-6"
-                    size="lg"
-                  >
-                    {isSubmitting
-                      ? "Submitting..."
-                      : "Submit Your Request for Quotation"}
-                  </Button>
-
-                  {!isAuthenticated && (
-                    <p className="text-sm text-muted-foreground text-center">
-                      Please sign in to submit RFQ
-                    </p>
+                  {/* Submit Button and Guest Submission */}
+                  {isAuthenticated ? (
+                    <Button
+                      onClick={handleSubmitRFQ}
+                      disabled={isSubmitting}
+                      className="w-full text-lg py-6"
+                      size="lg"
+                    >
+                      {isSubmitting
+                        ? "Submitting..."
+                        : "Submit Your Request for Quotation"}
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        onClick={handleGuestSubmit}
+                        className="w-full text-lg py-6"
+                        size="lg"
+                      >
+                        Submit as Guest
+                      </Button>
+                      <p className="text-sm text-muted-foreground text-center mt-2">
+                        You can submit a request for quotation as a guest without signing in.
+                      </p>
+                      {showGuestDialog && expectedDate && (
+                        <GuestRFQDialog
+                          open={showGuestDialog}
+                          onOpenChange={setShowGuestDialog}
+                          items={[{ productId: product._id, quantity: Number(quantity) }]}
+                          expectedDeliveryTime={expectedDate ? format(expectedDate, "yyyy-MM-dd") : undefined}
+                          onSuccess={() => {
+                            toast.success("RFQ submitted successfully");
+                            setShowGuestDialog(false);
+                            navigate(getDashboardLink());
+                          }}
+                        />
+                      )}
+                    </>
                   )}
                 </div>
               </div>
