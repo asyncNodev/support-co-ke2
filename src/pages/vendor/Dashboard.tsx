@@ -95,6 +95,35 @@ export default function VendorDashboard() {
     return <div className="p-8">Loading...</div>;
   }
 
+  if (currentUser.status !== "approved") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <AlertCircle className="size-5 text-amber-500" />
+              {currentUser.status === "pending" ? "Pending Approval" : "Account Rejected"}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {currentUser.status === "pending" ? (
+              <p className="text-muted-foreground mb-4">
+                Your vendor account is pending admin approval. You'll be able to submit quotations once approved.
+              </p>
+            ) : (
+              <p className="text-muted-foreground mb-4">
+                Your vendor account application was rejected. Please contact support for more information.
+              </p>
+            )}
+            <Button variant="outline" onClick={() => navigate("/")}>
+              Go to Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (!currentUser.verified) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">

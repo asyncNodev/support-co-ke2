@@ -19,11 +19,12 @@ export const createVerifiedBuyer = mutation({
 
     // Create verified buyer
     const userId = await ctx.db.insert("users", {
-      authId: `test_${Date.now()}`, // Temporary auth ID
+      authId: `test_${Date.now()}`,
       email: args.email,
       name: args.name || "Test Buyer",
       role: "buyer",
       verified: true,
+      status: "approved",
       registeredAt: Date.now(),
     });
 

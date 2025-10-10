@@ -91,6 +91,7 @@ export const createUser = mutation({
       name: args.name,
       role: args.role,
       verified: false,
+      status: args.role === "admin" ? "approved" : "pending",
       companyName: args.companyName,
       phone: args.phone,
       address: args.address,
@@ -259,5 +260,89 @@ export const deleteUser = mutation({
 
     await ctx.db.delete(args.userId);
     return { success: true };
+  },
+});
+
+export const approveUser = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!currentUser || currentUser.role !== "admin") {
+      throw new ConvexError({
+        message: "Only admins can approve users",
+        code: "FORBIDDEN",
+      });
+    }
+
+    await ctx.db.patch(args.userId, { status: "approved" });
+    return { success: true };
+  },
+});
+
+export const rejectUser = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!currentUser || currentUser.role !== "admin") {
+      throw new ConvexError({
+        message: "Only admins can reject users",
+        code: "FORBIDDEN",
+      });
+    }
+
+    await ctx.db.patch(args.userId, { status: "rejected" });
+    return { success: true };
+  },
+});
+
+export const getPendingUsers = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!currentUser || currentUser.role !== "admin") {
+      throw new ConvexError({
+        message: "Only admins can view pending users",
+        code: "FORBIDDEN",
+      });
+    }
+
+    const allUsers = await ctx.db.query("users").collect();
+    return allUsers.filter((u) => u.status === "pending");
   },
 });

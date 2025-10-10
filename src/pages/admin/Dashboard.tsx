@@ -42,6 +42,10 @@ export default function AdminDashboard() {
   const updateSiteSettings = useMutation(api.siteSettings.updateSiteSettings);
   const siteSettings = useQuery(api.siteSettings.getSiteSettings, {});
 
+  const approveUser = useMutation(api.users.approveUser);
+  const rejectUser = useMutation(api.users.rejectUser);
+  const pendingUsers = useQuery(api.users.getPendingUsers, {});
+
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -327,6 +331,24 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleApproveUser = async (userId: Id<"users">) => {
+    try {
+      await approveUser({ userId });
+      toast.success("User approved successfully!");
+    } catch (error) {
+      toast.error("Failed to approve user");
+    }
+  };
+
+  const handleRejectUser = async (userId: Id<"users">) => {
+    try {
+      await rejectUser({ userId });
+      toast.success("User rejected");
+    } catch (error) {
+      toast.error("Failed to reject user");
+    }
+  };
+
   const vendors = users?.filter((u) => u.role === "vendor") || [];
   const buyers = users?.filter((u) => u.role === "buyer") || [];
 
@@ -390,6 +412,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="browse-ai">Browse.ai</TabsTrigger>
+            <TabsTrigger value="approvals">Pending Approvals</TabsTrigger>
             <TabsTrigger value="site-settings">Site Settings</TabsTrigger>
           </TabsList>
 
@@ -1000,6 +1023,76 @@ export default function AdminDashboard() {
                     </Button>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Pending Approvals Tab */}
+          <TabsContent value="approvals" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Pending User Approvals</CardTitle>
+                <CardDescription>
+                  Review and approve new user registrations
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {pendingUsers && pendingUsers.length > 0 ? (
+                  <div className="space-y-4">
+                    {pendingUsers.map((user) => (
+                      <Card key={user._id}>
+                        <CardContent className="pt-6">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-2 flex-1">
+                              <div>
+                                <p className="font-semibold">{user.name}</p>
+                                <p className="text-sm text-muted-foreground">{user.email}</p>
+                              </div>
+                              <div className="flex gap-2">
+                                <Badge>{user.role}</Badge>
+                                <Badge variant="outline">Pending</Badge>
+                              </div>
+                              {user.companyName && (
+                                <p className="text-sm">
+                                  <span className="text-muted-foreground">Company:</span> {user.companyName}
+                                </p>
+                              )}
+                              {user.phone && (
+                                <p className="text-sm">
+                                  <span className="text-muted-foreground">Phone:</span> {user.phone}
+                                </p>
+                              )}
+                              {user.address && (
+                                <p className="text-sm">
+                                  <span className="text-muted-foreground">Address:</span> {user.address}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproveUser(user._id)}
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleRejectUser(user._id)}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No pending approvals
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

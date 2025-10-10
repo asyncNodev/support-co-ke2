@@ -103,6 +103,7 @@ export const submitRFQ = mutation({
         name: identity.name ?? "Unknown User",
         role: "buyer",
         verified: true,
+        status: "approved",
         registeredAt: Date.now(),
       });
       user = await ctx.db.get(userId);
