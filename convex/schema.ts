@@ -171,6 +171,7 @@ export default defineSchema({
   siteSettings: defineTable({
     key: v.string(),
     value: v.string(),
+    updatedAt: v.optional(v.number()),
   }).index("by_key", ["key"]),
 
   // Web scraping sources (admin configurable)
