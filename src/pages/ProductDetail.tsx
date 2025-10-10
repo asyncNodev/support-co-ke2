@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel.d.ts";
@@ -9,21 +8,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/use-auth.ts";
+import { ShoppingCart, Bell, CalendarIcon, ArrowLeft } from "lucide-react";
+import { addToRFQCart, getRFQCart } from "@/lib/rfq-cart.ts";
+import { toast } from "sonner";
+import { useState } from "react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { CalendarIcon, ArrowLeft, Bell } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
-import { toast } from "sonner";
-import { SignInButton } from "@/components/ui/signin.tsx";
-import { useUser } from "@/hooks/use-auth.ts";
+import AppHeader from "@/components/AppHeader";
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated } = useAuth();
   const currentUser = useQuery(api.users.getCurrentUser, {});
 
   const notifications = useQuery(
@@ -94,88 +95,10 @@ export default function ProductDetail() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="text-2xl font-bold hover:opacity-80 transition-opacity">
-            Medical Supplies Kenya
-          </Link>
-          
-          <div className="flex items-center gap-4">
-            {isAuthenticated && currentUser && (
-              <>
-                {/* Notifications Bell */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative">
-                      <Bell className="size-5" />
-                      {unreadCount > 0 && (
-                        <Badge 
-                          variant="destructive" 
-                          className="absolute -top-1 -right-1 size-5 flex items-center justify-center p-0 text-xs"
-                        >
-                          {unreadCount}
-                        </Badge>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-0" align="end">
-                    <div className="p-4 border-b">
-                      <h3 className="font-semibold">Notifications</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {unreadCount} unread
-                      </p>
-                    </div>
-                    <div className="max-h-96 overflow-y-auto">
-                      {!notifications || notifications.length === 0 ? (
-                        <div className="p-4 text-center text-sm text-muted-foreground">
-                          No notifications yet
-                        </div>
-                      ) : (
-                        notifications.slice(0, 5).map((notification) => (
-                          <div
-                            key={notification._id}
-                            className={`p-4 border-b hover:bg-muted/50 cursor-pointer ${
-                              !notification.read ? "bg-blue-50 dark:bg-blue-950/20" : ""
-                            }`}
-                            onClick={() => navigate(getDashboardLink())}
-                          >
-                            <p className="font-medium text-sm">{notification.title}</p>
-                            <p className="text-sm text-muted-foreground">{notification.message}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {formatDistanceToNow(notification.createdAt, { addSuffix: true })}
-                            </p>
-                          </div>
-                        ))
-                      )}
-                      {notifications && notifications.length > 5 && (
-                        <div className="p-2 text-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(getDashboardLink())}
-                          >
-                            View all notifications
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
+      <AppHeader />
 
-                {/* Dashboard Link */}
-                <Button variant="outline" asChild>
-                  <Link to={getDashboardLink()}>Dashboard</Link>
-                </Button>
-              </>
-            )}
-            <SignInButton />
-          </div>
-        </div>
-      </header>
-
-      {/* Back button */}
-      <div className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-8">
+        {/* Back button */}
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
           <ArrowLeft className="mr-2 size-4" />
           Back to Results
@@ -277,7 +200,7 @@ export default function ProductDetail() {
             </CardContent>
           </Card>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

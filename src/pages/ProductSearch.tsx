@@ -4,10 +4,10 @@ import { api } from "@/convex/_generated/api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Package, Camera, Search } from "lucide-react";
-import { SignInButton } from "@/components/ui/signin.tsx";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import AppHeader from "@/components/AppHeader";
 
 export default function ProductSearch() {
   const [searchParams] = useSearchParams();
@@ -62,25 +62,9 @@ export default function ProductSearch() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="text-2xl font-bold hover:text-primary">
-            Medical Supplies Kenya
-          </Link>
-          <div className="flex items-center gap-4">
-            {currentUser && (
-              <Button variant="outline" asChild>
-                <Link to={getDashboardLink()}>Dashboard</Link>
-              </Button>
-            )}
-            <SignInButton />
-          </div>
-        </div>
-      </header>
+      <AppHeader />
 
-      {/* Results */}
-      <div className="container mx-auto px-4 py-12">
+      <main className="container mx-auto px-4 py-8">
         {/* Search Bar */}
         <form onSubmit={handleSearch} className="mb-8">
           <div className="relative max-w-3xl mx-auto">
@@ -170,7 +154,7 @@ export default function ProductSearch() {
             ))}
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }
