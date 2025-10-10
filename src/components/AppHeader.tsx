@@ -18,6 +18,7 @@ export default function AppHeader() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const currentUser = useQuery(api.users.getCurrentUser, {});
+  const siteSettings = useQuery(api.siteSettings.getSiteSettings, {});
   
   const notifications = useQuery(
     api.notifications.getMyNotifications,
@@ -41,13 +42,13 @@ export default function AppHeader() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <img 
-              src="https://cdn.hercules.app/file_bqE3zk4Ry0XmWJeiuCRNP3vv" 
-              alt="Medical Supplies Kenya" 
+              src={siteSettings?.logoUrl || "https://cdn.hercules.app/file_bqE3zk4Ry0XmWJeiuCRNP3vv"} 
+              alt={siteSettings?.siteName || "Medical Supplies Kenya"} 
               className="h-12 w-auto"
             />
             <div>
-              <h1 className="text-xl font-bold">Medical Supplies Kenya</h1>
-              <p className="text-xs text-muted-foreground">Connecting Hospitals with Verified Suppliers</p>
+              <h1 className="text-xl font-bold">{siteSettings?.siteName || "Medical Supplies Kenya"}</h1>
+              <p className="text-xs text-muted-foreground">{siteSettings?.tagline || "Connecting Hospitals with Verified Suppliers"}</p>
             </div>
           </Link>
           
@@ -123,7 +124,7 @@ export default function AppHeader() {
       </div>
 
       {/* How It Works */}
-      <div className="bg-muted/30">
+      <div className={siteSettings?.workflowBgColor || "bg-muted/30"}>
         <div className="container mx-auto px-4 py-6">
           <h2 className="text-center font-semibold mb-4 text-sm uppercase tracking-wide text-muted-foreground">
             How It Works
@@ -137,21 +138,21 @@ export default function AppHeader() {
                 </span>
                 For Hospitals
               </h3>
-              <div className="flex flex-wrap items-center gap-2 text-sm">
+              <div className={`flex flex-wrap items-center gap-2 text-${siteSettings?.workflowTextSize || "sm"}`}>
                 <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  Search Products
+                  {siteSettings?.hospitalStep1 || "Search Products"}
                 </span>
                 <ArrowRight className="size-4 text-muted-foreground" />
                 <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  Create RFQ
+                  {siteSettings?.hospitalStep2 || "Create RFQ"}
                 </span>
                 <ArrowRight className="size-4 text-muted-foreground" />
                 <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  Receive Quotations
+                  {siteSettings?.hospitalStep3 || "Receive Quotations"}
                 </span>
                 <ArrowRight className="size-4 text-muted-foreground" />
                 <span className="bg-primary text-primary-foreground px-3 py-2 rounded-lg font-medium">
-                  Choose Best Vendor
+                  {siteSettings?.hospitalStep4 || "Choose Best Vendor"}
                 </span>
               </div>
             </div>
@@ -164,21 +165,21 @@ export default function AppHeader() {
                 </span>
                 For Vendors
               </h3>
-              <div className="flex flex-wrap items-center gap-2 text-sm">
+              <div className={`flex flex-wrap items-center gap-2 text-${siteSettings?.workflowTextSize || "sm"}`}>
                 <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  Upload Products
+                  {siteSettings?.vendorStep1 || "Upload Products"}
                 </span>
                 <ArrowRight className="size-4 text-muted-foreground" />
                 <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  Receive RFQ Alerts
+                  {siteSettings?.vendorStep2 || "Receive RFQ Alerts"}
                 </span>
                 <ArrowRight className="size-4 text-muted-foreground" />
                 <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  Submit Quotations
+                  {siteSettings?.vendorStep3 || "Submit Quotations"}
                 </span>
                 <ArrowRight className="size-4 text-muted-foreground" />
                 <span className="bg-primary text-primary-foreground px-3 py-2 rounded-lg font-medium">
-                  Win Orders
+                  {siteSettings?.vendorStep4 || "Win Orders"}
                 </span>
               </div>
             </div>

@@ -23,6 +23,7 @@ import type * as ratings from "../ratings.js";
 import type * as rfqs from "../rfqs.js";
 import type * as seed from "../seed.js";
 import type * as seedPublic from "../seedPublic.js";
+import type * as siteSettings from "../siteSettings.js";
 import type * as users from "../users.js";
 import type * as vendorQuotations from "../vendorQuotations.js";
 
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   rfqs: typeof rfqs;
   seed: typeof seed;
   seedPublic: typeof seedPublic;
+  siteSettings: typeof siteSettings;
   users: typeof users;
   vendorQuotations: typeof vendorQuotations;
 }>;

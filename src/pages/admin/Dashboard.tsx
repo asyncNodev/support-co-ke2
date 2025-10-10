@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const categories = useQuery(api.categories.getCategories, {});
   const users = useQuery(api.users.getAllUsers, {});
   const analytics = useQuery(api.analytics.getAnalytics, {});
+  const siteSettings = useQuery(api.siteSettings.getSiteSettings, {});
 
   const createProduct = useMutation(api.products.createProduct);
   const deleteProduct = useMutation(api.products.deleteProduct);
@@ -31,6 +32,8 @@ export default function AdminDashboard() {
   const deleteCategory = useMutation(api.categories.deleteCategory);
   const verifyUser = useMutation(api.users.verifyUser);
   const assignCategoriesToVendor = useMutation(api.users.assignCategoriesToVendor);
+  const updateSiteSettings = useMutation(api.siteSettings.updateSiteSettings);
+  const resetSiteSettings = useMutation(api.siteSettings.resetSiteSettings);
 
   const verifyUserMutation = useMutation(api.users.verifyUser);
   const assignCategories = useMutation(api.users.assignCategoriesToVendor);
@@ -55,6 +58,44 @@ export default function AdminDashboard() {
   const [browseAiProductListName, setBrowseAiProductListName] = useState("products");
   const [browseAiQuotationListName, setBrowseAiQuotationListName] = useState("quotations");
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
+
+  // Site Settings State
+  const [settingsForm, setSettingsForm] = useState({
+    logoUrl: "",
+    siteName: "",
+    tagline: "",
+    hospitalStep1: "",
+    hospitalStep2: "",
+    hospitalStep3: "",
+    hospitalStep4: "",
+    vendorStep1: "",
+    vendorStep2: "",
+    vendorStep3: "",
+    vendorStep4: "",
+    workflowTextSize: "sm",
+    workflowBgColor: "bg-muted/30",
+  });
+
+  // Initialize settings form when site settings load
+  useEffect(() => {
+    if (siteSettings) {
+      setSettingsForm({
+        logoUrl: siteSettings.logoUrl || "",
+        siteName: siteSettings.siteName || "",
+        tagline: siteSettings.tagline || "",
+        hospitalStep1: siteSettings.hospitalStep1 || "",
+        hospitalStep2: siteSettings.hospitalStep2 || "",
+        hospitalStep3: siteSettings.hospitalStep3 || "",
+        hospitalStep4: siteSettings.hospitalStep4 || "",
+        vendorStep1: siteSettings.vendorStep1 || "",
+        vendorStep2: siteSettings.vendorStep2 || "",
+        vendorStep3: siteSettings.vendorStep3 || "",
+        vendorStep4: siteSettings.vendorStep4 || "",
+        workflowTextSize: siteSettings.workflowTextSize || "sm",
+        workflowBgColor: siteSettings.workflowBgColor || "bg-muted/30",
+      });
+    }
+  }, [siteSettings]);
 
   const triggerRobot = useAction(api.browseAi.integration.triggerRobot);
   const getTaskStatus = useAction(api.browseAi.integration.getTaskStatus);
@@ -275,6 +316,27 @@ export default function AdminDashboard() {
     }
   };
 
+  // Site Settings Handlers
+  const handleSaveSiteSettings = async () => {
+    try {
+      await updateSiteSettings({ settings: settingsForm });
+      toast.success("Site settings updated successfully");
+    } catch (error) {
+      toast.error("Failed to update site settings");
+    }
+  };
+
+  const handleResetSiteSettings = async () => {
+    if (confirm("Are you sure you want to reset all site settings to defaults? This cannot be undone.")) {
+      try {
+        await resetSiteSettings();
+        toast.success("Site settings reset to defaults");
+      } catch (error) {
+        toast.error("Failed to reset site settings");
+      }
+    }
+  };
+
   const vendors = users?.filter((u) => u.role === "vendor") || [];
   const buyers = users?.filter((u) => u.role === "buyer") || [];
 
@@ -338,6 +400,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="browse-ai">Browse.ai</TabsTrigger>
+            <TabsTrigger value="site-settings">Site Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="products" className="space-y-4">
@@ -945,6 +1008,260 @@ export default function AdminDashboard() {
                       <Tag className="size-4 mr-2" />
                       Sync Quotations
                     </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="site-settings" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Site Settings</CardTitle>
+                    <CardDescription>
+                      Customize your site logo, name, and workflow display
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleResetSiteSettings}>
+                      Reset to Defaults
+                    </Button>
+                    <Button onClick={handleSaveSiteSettings}>
+                      Save Changes
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-8">
+                {/* Branding Section */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg border-b pb-2">Branding</h3>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>Logo URL</Label>
+                      <Input
+                        value={settingsForm.logoUrl}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, logoUrl: e.target.value })}
+                        placeholder="https://cdn.hercules.app/file_..."
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Upload logo to Files & Media tab and paste the URL here
+                      </p>
+                      {settingsForm.logoUrl && (
+                        <div className="mt-2">
+                          <img 
+                            src={settingsForm.logoUrl} 
+                            alt="Logo preview" 
+                            className="h-12 w-auto border rounded p-2"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <Label>Site Name</Label>
+                      <Input
+                        value={settingsForm.siteName}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, siteName: e.target.value })}
+                        placeholder="Medical Supplies Kenya"
+                      />
+                    </div>
+                    <div>
+                      <Label>Tagline</Label>
+                      <Input
+                        value={settingsForm.tagline}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, tagline: e.target.value })}
+                        placeholder="Connecting Hospitals with Verified Suppliers"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Hospital Workflow Section */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg border-b pb-2">Hospital Workflow Steps</h3>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>Step 1</Label>
+                      <Input
+                        value={settingsForm.hospitalStep1}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, hospitalStep1: e.target.value })}
+                        placeholder="Search Products"
+                      />
+                    </div>
+                    <div>
+                      <Label>Step 2</Label>
+                      <Input
+                        value={settingsForm.hospitalStep2}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, hospitalStep2: e.target.value })}
+                        placeholder="Create RFQ"
+                      />
+                    </div>
+                    <div>
+                      <Label>Step 3</Label>
+                      <Input
+                        value={settingsForm.hospitalStep3}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, hospitalStep3: e.target.value })}
+                        placeholder="Receive Quotations"
+                      />
+                    </div>
+                    <div>
+                      <Label>Step 4 (Final)</Label>
+                      <Input
+                        value={settingsForm.hospitalStep4}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, hospitalStep4: e.target.value })}
+                        placeholder="Choose Best Vendor"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vendor Workflow Section */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg border-b pb-2">Vendor Workflow Steps</h3>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>Step 1</Label>
+                      <Input
+                        value={settingsForm.vendorStep1}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, vendorStep1: e.target.value })}
+                        placeholder="Upload Products"
+                      />
+                    </div>
+                    <div>
+                      <Label>Step 2</Label>
+                      <Input
+                        value={settingsForm.vendorStep2}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, vendorStep2: e.target.value })}
+                        placeholder="Receive RFQ Alerts"
+                      />
+                    </div>
+                    <div>
+                      <Label>Step 3</Label>
+                      <Input
+                        value={settingsForm.vendorStep3}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, vendorStep3: e.target.value })}
+                        placeholder="Submit Quotations"
+                      />
+                    </div>
+                    <div>
+                      <Label>Step 4 (Final)</Label>
+                      <Input
+                        value={settingsForm.vendorStep4}
+                        onChange={(e) => setSettingsForm({ ...settingsForm, vendorStep4: e.target.value })}
+                        placeholder="Win Orders"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Workflow Styling Section */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg border-b pb-2">Workflow Styling</h3>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>Text Size</Label>
+                      <Select
+                        value={settingsForm.workflowTextSize}
+                        onValueChange={(value) => setSettingsForm({ ...settingsForm, workflowTextSize: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="xs">Extra Small</SelectItem>
+                          <SelectItem value="sm">Small</SelectItem>
+                          <SelectItem value="base">Medium</SelectItem>
+                          <SelectItem value="lg">Large</SelectItem>
+                          <SelectItem value="xl">Extra Large</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Background Color</Label>
+                      <Select
+                        value={settingsForm.workflowBgColor}
+                        onValueChange={(value) => setSettingsForm({ ...settingsForm, workflowBgColor: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bg-muted/30">Light Gray</SelectItem>
+                          <SelectItem value="bg-blue-50 dark:bg-blue-950/20">Light Blue</SelectItem>
+                          <SelectItem value="bg-green-50 dark:bg-green-950/20">Light Green</SelectItem>
+                          <SelectItem value="bg-orange-50 dark:bg-orange-950/20">Light Orange</SelectItem>
+                          <SelectItem value="bg-purple-50 dark:bg-purple-950/20">Light Purple</SelectItem>
+                          <SelectItem value="bg-transparent">Transparent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Preview Section */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg border-b pb-2">Preview</h3>
+                  <div className="border rounded-lg p-4 bg-background">
+                    <div className="flex items-center gap-3 mb-4">
+                      {settingsForm.logoUrl && (
+                        <img 
+                          src={settingsForm.logoUrl} 
+                          alt="Logo preview" 
+                          className="h-12 w-auto"
+                        />
+                      )}
+                      <div>
+                        <h1 className="text-xl font-bold">{settingsForm.siteName || "Site Name"}</h1>
+                        <p className="text-xs text-muted-foreground">{settingsForm.tagline || "Tagline"}</p>
+                      </div>
+                    </div>
+                    <div className={`${settingsForm.workflowBgColor} rounded-lg p-4`}>
+                      <h2 className="text-center font-semibold mb-3 text-sm">How It Works Preview</h2>
+                      <div className="grid md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="font-semibold text-sm mb-2">For Hospitals</p>
+                          <div className={`flex flex-wrap items-center gap-1 text-${settingsForm.workflowTextSize}`}>
+                            <span className="bg-background px-2 py-1 rounded border text-xs">
+                              {settingsForm.hospitalStep1 || "Step 1"}
+                            </span>
+                            <span className="text-xs">→</span>
+                            <span className="bg-background px-2 py-1 rounded border text-xs">
+                              {settingsForm.hospitalStep2 || "Step 2"}
+                            </span>
+                            <span className="text-xs">→</span>
+                            <span className="bg-background px-2 py-1 rounded border text-xs">
+                              {settingsForm.hospitalStep3 || "Step 3"}
+                            </span>
+                            <span className="text-xs">→</span>
+                            <span className="bg-primary text-primary-foreground px-2 py-1 rounded text-xs">
+                              {settingsForm.hospitalStep4 || "Step 4"}
+                            </span>
+                          </div>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm mb-2">For Vendors</p>
+                          <div className={`flex flex-wrap items-center gap-1 text-${settingsForm.workflowTextSize}`}>
+                            <span className="bg-background px-2 py-1 rounded border text-xs">
+                              {settingsForm.vendorStep1 || "Step 1"}
+                            </span>
+                            <span className="text-xs">→</span>
+                            <span className="bg-background px-2 py-1 rounded border text-xs">
+                              {settingsForm.vendorStep2 || "Step 2"}
+                            </span>
+                            <span className="text-xs">→</span>
+                            <span className="bg-background px-2 py-1 rounded border text-xs">
+                              {settingsForm.vendorStep3 || "Step 3"}
+                            </span>
+                            <span className="text-xs">→</span>
+                            <span className="bg-primary text-primary-foreground px-2 py-1 rounded text-xs">
+                              {settingsForm.vendorStep4 || "Step 4"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </CardContent>

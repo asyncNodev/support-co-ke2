@@ -166,4 +166,11 @@ export default defineSchema({
     lastScraped: v.optional(v.number()),
     createdAt: v.number(),
   }).index("by_active", ["active"]),
+
+  // Site settings (admin configurable)
+  siteSettings: defineTable({
+    key: v.string(),
+    value: v.string(),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 });
