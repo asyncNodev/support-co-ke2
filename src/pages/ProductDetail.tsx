@@ -23,11 +23,7 @@ import AppHeader from "@/components/AppHeader";
 import GuestRFQDialog from "@/pages/_components/GuestRFQDialog";
 
 export default function ProductDetail() {
-  const { id, categorySlug, productSlug } = useParams<{ 
-    id?: string;
-    categorySlug?: string;
-    productSlug?: string;
-  }>();
+  const { categorySlug, productSlug, id } = useParams();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const currentUser = useQuery(api.users.getCurrentUser, {});
@@ -39,22 +35,22 @@ export default function ProductDetail() {
 
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
 
-  // Support both slug-based and ID-based URLs
-  const product = useQuery(
-    api.products.getProduct,
-    id && !categorySlug && !productSlug
-      ? { productId: id as Id<"products"> }
-      : "skip"
-  );
-
+  // Try to get product by slug first, then by ID
   const productBySlug = useQuery(
     api.products.getProductBySlug,
-    categorySlug && productSlug
-      ? { categorySlug, productSlug }
+    productSlug && !productSlug.startsWith("jd") && !productSlug.startsWith("k9")
+      ? { slug: productSlug }
       : "skip"
   );
 
-  const displayProduct = productBySlug || product;
+  const productById = useQuery(
+    api.products.getProduct,
+    id || (productSlug && (productSlug.startsWith("jd") || productSlug.startsWith("k9"))) 
+      ? { productId: (id || productSlug) as Id<"products"> }
+      : "skip"
+  );
+
+  const displayProduct = productBySlug || productById;
   
   const submitRFQ = useMutation(api.rfqs.submitRFQ);
 

@@ -1,4 +1,4 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import type { Id } from "./_generated/dataModel.d.ts";
 import { ConvexError, v } from "convex/values";
 
@@ -63,30 +63,23 @@ export const getProduct = query({
 
 // Get product by slug with category info
 export const getProductBySlug = query({
-  args: { categorySlug: v.string(), productSlug: v.string() },
+  args: { slug: v.string() },
   handler: async (ctx, args) => {
-    const category = await ctx.db
-      .query("categories")
-      .withIndex("by_slug", (q) => q.eq("slug", args.categorySlug))
-      .first();
-    
-    if (!category) {
-      return null;
-    }
-
     const product = await ctx.db
       .query("products")
-      .withIndex("by_slug", (q) => q.eq("slug", args.productSlug))
-      .filter((q) => q.eq(q.field("categoryId"), category._id))
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
       .first();
-    
+
     if (!product) {
       return null;
     }
 
+    const category = await ctx.db.get(product.categoryId);
+
     return {
       ...product,
-      category,
+      categoryName: category?.name || "Unknown",
+      categorySlug: category?.slug || "unknown",
     };
   },
 });
@@ -466,6 +459,62 @@ export const removeDuplicateProducts = mutation({
     return {
       removedCount,
       removedProducts,
+    };
+  },
+});
+
+export const generateAllSlugs = mutation({
+  args: {},
+  handler: async (ctx) => {
+    // Only allow admins
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "Not authenticated",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .unique();
+
+    if (!user || user.role !== "admin") {
+      throw new ConvexError({
+        message: "Only admins can generate slugs",
+        code: "FORBIDDEN",
+      });
+    }
+
+    // Generate slugs for all categories
+    const categories = await ctx.db.query("categories").collect();
+    let categoriesUpdated = 0;
+    
+    for (const category of categories) {
+      if (!category.slug) {
+        const slug = generateSlug(category.name);
+        await ctx.db.patch(category._id, { slug });
+        categoriesUpdated++;
+      }
+    }
+
+    // Generate slugs for all products
+    const products = await ctx.db.query("products").collect();
+    let productsUpdated = 0;
+    
+    for (const product of products) {
+      if (!product.slug) {
+        const slug = generateSlug(product.name);
+        await ctx.db.patch(product._id, { slug });
+        productsUpdated++;
+      }
+    }
+
+    return {
+      categoriesUpdated,
+      productsUpdated,
+      message: `Updated ${categoriesUpdated} categories and ${productsUpdated} products with slugs`,
     };
   },
 });

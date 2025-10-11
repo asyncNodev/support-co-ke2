@@ -1,4 +1,4 @@
-import { useSearchParams, Link, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card } from "@/components/ui/card";
@@ -122,10 +122,14 @@ export default function ProductSearch() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.map((product) => (
-              <Link
+              <div
                 key={product._id}
-                to={`/product/${product.categorySlug}/${product.slug}`}
-                className="group"
+                className="group cursor-pointer"
+                onClick={() => {
+                  const categorySlug = product.categorySlug || "unknown";
+                  const productSlug = product.slug || product._id;
+                  navigate(`/product/${categorySlug}/${productSlug}`);
+                }}
               >
                 <Card className="overflow-hidden hover:shadow-lg transition-shadow">
                   <div className="aspect-square bg-muted relative overflow-hidden">
@@ -150,7 +154,7 @@ export default function ProductSearch() {
                     </p>
                   </div>
                 </Card>
-              </Link>
+              </div>
             ))}
           </div>
         )}

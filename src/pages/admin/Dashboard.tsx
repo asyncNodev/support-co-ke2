@@ -33,6 +33,7 @@ export default function AdminDashboard() {
   const verifyUser = useMutation(api.users.verifyUser);
   const findDuplicates = useQuery(api.products.findDuplicateProducts);
   const removeDuplicates = useMutation(api.products.removeDuplicateProducts);
+  const generateSlugs = useMutation(api.products.generateAllSlugs);
   const assignCategoriesToVendor = useMutation(api.users.assignCategoriesToVendor);
 
   const verifyUserMutation = useMutation(api.users.verifyUser);
@@ -353,10 +354,19 @@ export default function AdminDashboard() {
 
   const handleRemoveDuplicates = async () => {
     try {
-      const result = await removeDuplicates();
+      const result = await removeDuplicates({});
       toast.success(`Removed ${result.removedCount} duplicate products`);
     } catch (error) {
       toast.error("Failed to remove duplicates");
+    }
+  };
+
+  const handleGenerateSlugs = async () => {
+    try {
+      const result = await generateSlugs({});
+      toast.success(result.message);
+    } catch (error) {
+      toast.error("Failed to generate slugs");
     }
   };
 
@@ -567,6 +577,16 @@ export default function AdminDashboard() {
                     </div>
                   </>
                 )}
+                
+                <div className="mt-4 p-4 bg-muted rounded-lg">
+                  <h3 className="text-sm font-semibold mb-2">Generate SEO Slugs</h3>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Generate URL-friendly slugs for all products and categories that don't have them yet.
+                  </p>
+                  <Button onClick={handleGenerateSlugs} size="sm">
+                    Generate Slugs
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
