@@ -529,7 +529,9 @@ export default function AdminDashboard() {
                           />
                         )}
                         <CardTitle className="text-base">{product.name}</CardTitle>
-                        <CardDescription>{product.categoryName}</CardDescription>
+                        <CardDescription>
+                          {categories?.find((c) => c._id === product.categoryId)?.name || "Uncategorized"}
+                        </CardDescription>
                       </CardHeader>
                       <CardContent className="flex gap-2">
                         <Button
@@ -855,13 +857,13 @@ export default function AdminDashboard() {
                               <p className="text-xs font-medium text-muted-foreground mb-1">Submitted By</p>
                               {rfq.isGuest ? (
                                 <div>
-                                  <p className="text-sm font-medium">{rfq.guestName}</p>
-                                  <p className="text-xs text-muted-foreground">{rfq.guestCompanyName}</p>
+                                  <p className="text-sm font-medium">{rfq.guestName || "Unknown"}</p>
+                                  <p className="text-xs text-muted-foreground">{rfq.guestCompanyName || "N/A"}</p>
                                 </div>
                               ) : rfq.buyer ? (
                                 <div>
-                                  <p className="text-sm font-medium">{rfq.buyer.name}</p>
-                                  <p className="text-xs text-muted-foreground">{rfq.buyer.companyName}</p>
+                                  <p className="text-sm font-medium">{rfq.buyer.name || "Unknown"}</p>
+                                  <p className="text-xs text-muted-foreground">{rfq.buyer.companyName || "N/A"}</p>
                                 </div>
                               ) : (
                                 <p className="text-sm text-muted-foreground">Unknown</p>
@@ -871,12 +873,12 @@ export default function AdminDashboard() {
                               <p className="text-xs font-medium text-muted-foreground mb-1">Contact</p>
                               {rfq.isGuest ? (
                                 <div>
-                                  <p className="text-sm">{rfq.guestEmail}</p>
-                                  <p className="text-xs text-muted-foreground">{rfq.guestPhone}</p>
+                                  <p className="text-sm">{rfq.guestEmail || "N/A"}</p>
+                                  <p className="text-xs text-muted-foreground">{rfq.guestPhone || "N/A"}</p>
                                 </div>
                               ) : rfq.buyer ? (
                                 <div>
-                                  <p className="text-sm">{rfq.buyer.email}</p>
+                                  <p className="text-sm">{rfq.buyer.email || "N/A"}</p>
                                   <p className="text-xs text-muted-foreground">{rfq.buyer.phone || "N/A"}</p>
                                 </div>
                               ) : (
@@ -889,12 +891,12 @@ export default function AdminDashboard() {
                           <div>
                             <p className="text-xs font-medium text-muted-foreground mb-2">Products Requested</p>
                             <div className="space-y-2">
-                              {rfq.items.map((item) => (
+                              {rfq.items?.map((item) => (
                                 <div key={item._id} className="flex items-center gap-3 p-2 bg-muted/50 rounded-md">
                                   {item.product?.image && (
                                     <img
                                       src={item.product.image}
-                                      alt={item.product.name}
+                                      alt={item.product.name || "Product"}
                                       className="w-12 h-12 object-cover rounded"
                                     />
                                   )}
@@ -914,13 +916,13 @@ export default function AdminDashboard() {
                                 Quotations Received ({rfq.sentQuotations.length})
                               </p>
                               <div className="space-y-3">
-                                {rfq.sentQuotations.map((quote: any) => (
+                                {rfq.sentQuotations.map((quote) => (
                                   <Card key={quote._id} className="bg-muted/30">
                                     <CardContent className="p-3 space-y-2">
                                       <div className="flex items-start justify-between">
                                         <div className="flex-1">
                                           <p className="text-sm font-medium">{quote.vendor?.name || "Unknown Vendor"}</p>
-                                          <p className="text-xs text-muted-foreground">{quote.vendor?.companyName}</p>
+                                          <p className="text-xs text-muted-foreground">{quote.vendor?.companyName || "N/A"}</p>
                                           {quote.vendor && quote.vendor.totalRatings > 0 && (
                                             <div className="flex items-center gap-1 mt-1">
                                               <span className="text-xs">⭐ {quote.vendor.averageRating.toFixed(1)}</span>
@@ -944,23 +946,23 @@ export default function AdminDashboard() {
                                       <div className="grid grid-cols-2 gap-2 text-xs">
                                         <div>
                                           <span className="text-muted-foreground">Price:</span>{" "}
-                                          <span className="font-medium">KSh {quote.price.toLocaleString()}</span>
+                                          <span className="font-medium">KSh {quote.price?.toLocaleString() || "N/A"}</span>
                                         </div>
                                         <div>
                                           <span className="text-muted-foreground">Quantity:</span>{" "}
-                                          <span className="font-medium">{quote.quantity}</span>
+                                          <span className="font-medium">{quote.quantity || "N/A"}</span>
                                         </div>
                                         <div>
                                           <span className="text-muted-foreground">Payment:</span>{" "}
-                                          <span className="font-medium capitalize">{quote.paymentTerms}</span>
+                                          <span className="font-medium capitalize">{quote.paymentTerms || "N/A"}</span>
                                         </div>
                                         <div>
                                           <span className="text-muted-foreground">Delivery:</span>{" "}
-                                          <span className="font-medium">{quote.deliveryTime}</span>
+                                          <span className="font-medium">{quote.deliveryTime || "N/A"}</span>
                                         </div>
                                         <div>
                                           <span className="text-muted-foreground">Warranty:</span>{" "}
-                                          <span className="font-medium">{quote.warrantyPeriod}</span>
+                                          <span className="font-medium">{quote.warrantyPeriod || "N/A"}</span>
                                         </div>
                                         {quote.brand && (
                                           <div>
@@ -970,7 +972,7 @@ export default function AdminDashboard() {
                                         )}
                                       </div>
                                       <p className="text-xs text-muted-foreground">
-                                        Contact: {quote.vendor?.email}
+                                        Contact: {quote.vendor?.email || "N/A"}
                                       </p>
                                     </CardContent>
                                   </Card>
@@ -1777,32 +1779,32 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Name</p>
-                    <p className="font-medium">{userDetails.user.name}</p>
+                    <p className="font-medium">{userDetails.name}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-medium">{userDetails.user.email}</p>
+                    <p className="font-medium">{userDetails.email}</p>
                   </div>
-                  {userDetails.user.phone && (
+                  {userDetails.phone && (
                     <div>
                       <p className="text-sm text-muted-foreground">Phone</p>
-                      <p className="font-medium">{userDetails.user.phone}</p>
+                      <p className="font-medium">{userDetails.phone}</p>
                     </div>
                   )}
-                  {userDetails.user.companyName && (
+                  {userDetails.companyName && (
                     <div>
                       <p className="text-sm text-muted-foreground">Company</p>
-                      <p className="font-medium">{userDetails.user.companyName}</p>
+                      <p className="font-medium">{userDetails.companyName}</p>
                     </div>
                   )}
                   <div>
                     <p className="text-sm text-muted-foreground">Role</p>
-                    <Badge>{userDetails.user.role}</Badge>
+                    <Badge>{userDetails.role}</Badge>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Status</p>
-                    <Badge variant={userDetails.user.verified ? "default" : "secondary"}>
-                      {userDetails.user.verified ? "Active" : "Inactive"}
+                    <Badge variant={userDetails.verified ? "default" : "secondary"}>
+                      {userDetails.verified ? "Active" : "Inactive"}
                     </Badge>
                   </div>
                 </div>
@@ -1812,34 +1814,44 @@ export default function AdminDashboard() {
               <div>
                 <h3 className="font-semibold mb-3">Activity</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  {userDetails.user.role === "buyer" && (
+                  {userDetails.role === "buyer" && (
                     <>
                       <Card>
                         <CardHeader className="pb-3">
                           <CardDescription>RFQs Submitted</CardDescription>
-                          <CardTitle className="text-3xl">{userDetails.rfqsCount}</CardTitle>
+                          <CardTitle className="text-3xl">
+                            {allRfqs?.filter((r) => r.buyerId === userDetails._id).length || 0}
+                          </CardTitle>
                         </CardHeader>
                       </Card>
                       <Card>
                         <CardHeader className="pb-3">
                           <CardDescription>Quotations Received</CardDescription>
-                          <CardTitle className="text-3xl">{userDetails.receivedQuotationsCount}</CardTitle>
+                          <CardTitle className="text-3xl">
+                            {allQuotations?.filter((q) => 
+                              allRfqs?.find((r) => r._id === q.rfqId && r.buyerId === userDetails._id)
+                            ).length || 0}
+                          </CardTitle>
                         </CardHeader>
                       </Card>
                     </>
                   )}
-                  {userDetails.user.role === "vendor" && (
+                  {userDetails.role === "vendor" && (
                     <>
                       <Card>
                         <CardHeader className="pb-3">
                           <CardDescription>Active Products</CardDescription>
-                          <CardTitle className="text-3xl">{userDetails.activeQuotationsCount}</CardTitle>
+                          <CardTitle className="text-3xl">
+                            {allQuotations?.filter((q) => q.vendorId === userDetails._id && q.active).length || 0}
+                          </CardTitle>
                         </CardHeader>
                       </Card>
                       <Card>
                         <CardHeader className="pb-3">
                           <CardDescription>Quotations Sent</CardDescription>
-                          <CardTitle className="text-3xl">{userDetails.sentQuotationsCount}</CardTitle>
+                          <CardTitle className="text-3xl">
+                            {allQuotations?.filter((q) => q.vendorId === userDetails._id).length || 0}
+                          </CardTitle>
                         </CardHeader>
                       </Card>
                     </>
@@ -1848,12 +1860,12 @@ export default function AdminDashboard() {
               </div>
 
               {/* Vendor Categories */}
-              {userDetails.user.role === "vendor" && userDetails.user.categories && (
+              {userDetails.role === "vendor" && userDetails.categories && (
                 <div>
                   <h3 className="font-semibold mb-3">Assigned Categories</h3>
                   <div className="flex flex-wrap gap-2">
-                    {userDetails.user.categories.length > 0 ? (
-                      userDetails.user.categories.map((catId) => {
+                    {userDetails.categories.length > 0 ? (
+                      userDetails.categories.map((catId: Id<"categories">) => {
                         const category = categories?.find(c => c._id === catId);
                         return category ? (
                           <Badge key={catId} variant="outline">{category.name}</Badge>
