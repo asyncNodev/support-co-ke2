@@ -24,7 +24,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { EmptyState, EmptyStateContent, EmptyStateIcon, EmptyStateTitle, EmptyStateDescription } from "@/components/ui/empty-state.tsx";
-import { Package, AlertCircle, Plus, Edit, Trash2, MessageCircle } from "lucide-react";
+import { Package, AlertCircle, Plus, Edit, Trash2, MessageCircle, XCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-auth.ts";
 
@@ -95,35 +95,48 @@ export default function VendorDashboard() {
     return <div className="p-8">Loading...</div>;
   }
 
-  if (currentUser.status !== "approved") {
+  // Check approval status
+  if (currentUser.status === "rejected") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-md">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="size-5 text-amber-500" />
-              {currentUser.status === "pending" ? "Pending Approval" : "Account Rejected"}
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <XCircle className="h-5 w-5" />
+              Account Rejected
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {currentUser.status === "pending" ? (
-              <p className="text-muted-foreground mb-4">
-                Your vendor account is pending admin approval. You'll be able to submit quotations once approved.
-              </p>
-            ) : (
-              <p className="text-muted-foreground mb-4">
-                Your vendor account application was rejected. Please contact support for more information.
-              </p>
-            )}
-            <Button variant="outline" onClick={() => navigate("/")}>
-              Go to Home
-            </Button>
+            <p className="text-muted-foreground mb-4">
+              Your account application has been rejected. Please contact support for more information.
+            </p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
+  if (currentUser.status === "pending") {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Pending Approval
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              Your account is pending admin approval. You will be notified once your account is approved.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Check vendor verification
   if (!currentUser.verified) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">

@@ -48,6 +48,50 @@ export default function BuyerDashboard() {
 
   const isPending = currentUser === undefined || myRFQs === undefined || myQuotations === undefined;
 
+  // Check approval status
+  if (currentUser?.status === "rejected") {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <XCircle className="h-5 w-5" />
+              Account Rejected
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              Your account application has been rejected. Please contact support for more information.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (currentUser?.status === "pending") {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Pending Approval
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground mb-4">
+              Your account is pending admin approval. You will be notified once your account is approved.
+            </p>
+            <Button variant="outline" onClick={() => navigate("/")}>
+              Browse as Guest
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   const handleApprove = async (quotationId: Id<"sentQuotations">) => {
     try {
       await approveQuotation({ sentQuotationId: quotationId });
@@ -98,35 +142,6 @@ export default function BuyerDashboard() {
         <div className="container mx-auto px-4 py-8">
           <Skeleton className="h-96 w-full" />
         </div>
-      </div>
-    );
-  }
-
-  if (currentUser && currentUser.status !== "approved") {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <XCircle className="size-5 text-amber-500" />
-              {currentUser.status === "pending" ? "Pending Approval" : "Account Rejected"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {currentUser.status === "pending" ? (
-              <p className="text-muted-foreground mb-4">
-                Your hospital/buyer account is pending admin approval. You'll be able to submit RFQs and receive quotations once approved.
-              </p>
-            ) : (
-              <p className="text-muted-foreground mb-4">
-                Your account application was rejected. Please contact support for more information.
-              </p>
-            )}
-            <Button variant="outline" onClick={() => navigate("/")}>
-              Go to Home
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     );
   }

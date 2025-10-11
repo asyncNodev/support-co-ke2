@@ -269,17 +269,17 @@ export const approveUser = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new ConvexError({
-        message: "User not logged in",
+        message: "Not authenticated",
         code: "UNAUTHENTICATED",
       });
     }
 
-    const currentUser = await ctx.db
+    const admin = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+      .unique();
 
-    if (!currentUser || currentUser.role !== "admin") {
+    if (!admin || admin.role !== "admin") {
       throw new ConvexError({
         message: "Only admins can approve users",
         code: "FORBIDDEN",
@@ -287,7 +287,6 @@ export const approveUser = mutation({
     }
 
     await ctx.db.patch(args.userId, { status: "approved" });
-    return { success: true };
   },
 });
 
@@ -325,17 +324,17 @@ export const getPendingUsers = query({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new ConvexError({
-        message: "User not logged in",
+        message: "Not authenticated",
         code: "UNAUTHENTICATED",
       });
     }
 
-    const currentUser = await ctx.db
+    const admin = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+      .unique();
 
-    if (!currentUser || currentUser.role !== "admin") {
+    if (!admin || admin.role !== "admin") {
       throw new ConvexError({
         message: "Only admins can view pending users",
         code: "FORBIDDEN",
@@ -343,6 +342,7 @@ export const getPendingUsers = query({
     }
 
     const allUsers = await ctx.db.query("users").collect();
-    return allUsers.filter((u) => u.status === "pending");
+    // Filter for users with status === "pending"
+    return allUsers.filter(user => user.status === "pending");
   },
 });

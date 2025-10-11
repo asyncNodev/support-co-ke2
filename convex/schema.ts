@@ -9,7 +9,7 @@ export default defineSchema({
     name: v.string(),
     role: v.union(v.literal("admin"), v.literal("vendor"), v.literal("buyer")),
     verified: v.boolean(),
-    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
+    status: v.optional(v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"))),
     avatar: v.optional(v.string()),
     companyName: v.optional(v.string()),
     phone: v.optional(v.string()),
