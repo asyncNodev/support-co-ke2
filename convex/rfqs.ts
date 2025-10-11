@@ -830,3 +830,84 @@ export const declineQuotation = mutation({
     return { success: true };
   },
 });
+
+// Get all RFQs for admin (with full details)
+export const getAllRFQsForAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!user || user.role !== "admin") {
+      throw new ConvexError({
+        message: "Unauthorized. Admin access required.",
+        code: "FORBIDDEN",
+      });
+    }
+
+    // Get all RFQs
+    const rfqs = await ctx.db.query("rfqs").order("desc").collect();
+
+    // Expand each RFQ with full details
+    const expandedRfqs = await Promise.all(
+      rfqs.map(async (rfq) => {
+        // Get buyer info if not guest
+        let buyerInfo = null;
+        if (rfq.buyerId) {
+          const buyer = await ctx.db.get(rfq.buyerId);
+          if (buyer) {
+            buyerInfo = {
+              name: buyer.name,
+              email: buyer.email,
+              companyName: buyer.companyName,
+              phone: buyer.phone,
+            };
+          }
+        }
+
+        // Get RFQ items
+        const items = await ctx.db
+          .query("rfqItems")
+          .withIndex("by_rfq", (q) => q.eq("rfqId", rfq._id))
+          .collect();
+
+        // Get product details for each item
+        const itemsWithProducts = await Promise.all(
+          items.map(async (item) => {
+            const product = await ctx.db.get(item.productId);
+            return {
+              ...item,
+              productName: product?.name || "Unknown Product",
+              productImage: product?.image,
+            };
+          })
+        );
+
+        // Count quotations received
+        const quotationsCount = await ctx.db
+          .query("sentQuotations")
+          .withIndex("by_rfq", (q) => q.eq("rfqId", rfq._id))
+          .collect();
+
+        return {
+          ...rfq,
+          buyerInfo,
+          items: itemsWithProducts,
+          quotationsCount: quotationsCount.length,
+        };
+      })
+    );
+
+    return expandedRfqs;
+  },
+});

@@ -25,6 +25,7 @@ export default function AdminDashboard() {
   const categories = useQuery(api.categories.getCategories, {});
   const users = useQuery(api.users.getAllUsers, {});
   const analytics = useQuery(api.analytics.getAnalytics, {});
+  const allRfqs = useQuery(api.rfqs.getAllRFQsForAdmin, {});
 
   const createProduct = useMutation(api.products.createProduct);
   const deleteProduct = useMutation(api.products.deleteProduct);
@@ -431,6 +432,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="categories">Categories</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="rfqs">RFQs</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="browse-ai">Browse.ai</TabsTrigger>
             <TabsTrigger value="approvals">Pending Approvals</TabsTrigger>
@@ -787,6 +789,138 @@ export default function AdminDashboard() {
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="rfqs" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>All RFQs</CardTitle>
+                <CardDescription>View all Request for Quotations submitted by buyers and guests</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!allRfqs ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="h-20 bg-muted animate-pulse rounded-md" />
+                    ))}
+                  </div>
+                ) : allRfqs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">No RFQs found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {allRfqs.map((rfq) => (
+                      <Card key={rfq._id} className="overflow-hidden">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="text-base">
+                                RFQ #{rfq._id.slice(-8)}
+                              </CardTitle>
+                              <CardDescription className="text-xs mt-1">
+                                {new Date(rfq.createdAt).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                rfq.status === "pending" ? "bg-yellow-100 text-yellow-800" :
+                                rfq.status === "quoted" ? "bg-blue-100 text-blue-800" :
+                                "bg-green-100 text-green-800"
+                              }`}>
+                                {rfq.status}
+                              </span>
+                              {rfq.isGuest && (
+                                <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                                  Guest
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-0 space-y-4">
+                          {/* Buyer Information */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b">
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Submitted By</p>
+                              {rfq.isGuest ? (
+                                <div>
+                                  <p className="text-sm font-medium">{rfq.guestName}</p>
+                                  <p className="text-xs text-muted-foreground">{rfq.guestCompanyName}</p>
+                                </div>
+                              ) : rfq.buyerInfo ? (
+                                <div>
+                                  <p className="text-sm font-medium">{rfq.buyerInfo.name}</p>
+                                  <p className="text-xs text-muted-foreground">{rfq.buyerInfo.companyName}</p>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">Unknown</p>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Contact</p>
+                              {rfq.isGuest ? (
+                                <div>
+                                  <p className="text-sm">{rfq.guestEmail}</p>
+                                  <p className="text-xs text-muted-foreground">{rfq.guestPhone}</p>
+                                </div>
+                              ) : rfq.buyerInfo ? (
+                                <div>
+                                  <p className="text-sm">{rfq.buyerInfo.email}</p>
+                                  <p className="text-xs text-muted-foreground">{rfq.buyerInfo.phone || "N/A"}</p>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">N/A</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Products Requested */}
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-2">Products Requested</p>
+                            <div className="space-y-2">
+                              {rfq.items.map((item) => (
+                                <div key={item._id} className="flex items-center gap-3 p-2 bg-muted/50 rounded-md">
+                                  {item.productImage && (
+                                    <img
+                                      src={item.productImage}
+                                      alt={item.productName}
+                                      className="w-10 h-10 object-cover rounded"
+                                    />
+                                  )}
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium">{item.productName}</p>
+                                    <p className="text-xs text-muted-foreground">Quantity: {item.quantity}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Delivery & Status */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Expected Delivery</p>
+                              <p className="text-sm">{rfq.expectedDeliveryTime}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Quotations Received</p>
+                              <p className="text-sm font-medium">{rfq.quotationsCount}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
