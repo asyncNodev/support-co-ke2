@@ -32,21 +32,23 @@ export default defineSchema({
   // Categories (admin only)
   categories: defineTable({
     name: v.string(),
+    slug: v.optional(v.string()),
     description: v.optional(v.string()),
     icon: v.optional(v.string()),
     createdAt: v.number(),
-  }),
+  }).index("by_slug", ["slug"]),
 
   // Products (admin only)
   products: defineTable({
     name: v.string(),
+    slug: v.optional(v.string()),
     categoryId: v.id("categories"),
     description: v.string(),
     image: v.optional(v.string()),
     sku: v.optional(v.string()),
     specifications: v.optional(v.string()),
     createdAt: v.number(),
-  }).index("by_category", ["categoryId"]).index("by_name", ["name"]),
+  }).index("by_category", ["categoryId"]).index("by_name", ["name"]).index("by_slug", ["slug"]),
 
   // Vendor quotations
   vendorQuotations: defineTable({

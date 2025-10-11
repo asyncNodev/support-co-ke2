@@ -1,7 +1,16 @@
 import { query, mutation } from "./_generated/server";
 import type { Id } from "./_generated/dataModel.d.ts";
-import { v } from "convex/values";
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+
+// Helper function to generate URL-friendly slugs
+function generateSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove non-word chars except spaces and hyphens
+    .replace(/[\s_-]+/g, '-') // Replace spaces, underscores, hyphens with single hyphen
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+}
 
 export const getProducts = query({
   args: {
@@ -27,6 +36,7 @@ export const getProducts = query({
         return {
           ...product,
           categoryName: category?.name ?? "Unknown",
+          categorySlug: category?.slug ?? "unknown",
         };
       })
     );
@@ -48,6 +58,36 @@ export const getProduct = query({
 
     const category = await ctx.db.get(product.categoryId);
     return { ...product, category };
+  },
+});
+
+// Get product by slug with category info
+export const getProductBySlug = query({
+  args: { categorySlug: v.string(), productSlug: v.string() },
+  handler: async (ctx, args) => {
+    const category = await ctx.db
+      .query("categories")
+      .withIndex("by_slug", (q) => q.eq("slug", args.categorySlug))
+      .first();
+    
+    if (!category) {
+      return null;
+    }
+
+    const product = await ctx.db
+      .query("products")
+      .withIndex("by_slug", (q) => q.eq("slug", args.productSlug))
+      .filter((q) => q.eq(q.field("categoryId"), category._id))
+      .first();
+    
+    if (!product) {
+      return null;
+    }
+
+    return {
+      ...product,
+      category,
+    };
   },
 });
 
@@ -96,8 +136,12 @@ export const createProduct = mutation({
       });
     }
 
+    // Generate slug from name
+    const slug = generateSlug(args.name);
+
     const productId = await ctx.db.insert("products", {
       name: args.name,
+      slug,
       categoryId: args.categoryId,
       description: args.description,
       image: args.image,
@@ -166,8 +210,12 @@ export const bulkCreateProducts = mutation({
       
       duplicatesInBatch.add(normalizedName);
       
+      // Generate slug from name
+      const slug = generateSlug(product.name);
+      
       const productId = await ctx.db.insert("products", {
         name: product.name,
+        slug,
         categoryId: product.categoryId,
         description: product.description,
         image: product.image,
@@ -219,8 +267,12 @@ export const updateProduct = mutation({
       });
     }
 
+    // Generate new slug from updated name
+    const slug = generateSlug(args.name);
+
     await ctx.db.patch(args.productId, {
       name: args.name,
+      slug,
       categoryId: args.categoryId,
       description: args.description,
       image: args.image,

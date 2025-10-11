@@ -124,7 +124,7 @@ export default function ProductSearch() {
             {products.map((product) => (
               <Link
                 key={product._id}
-                to={`/product/${product._id}`}
+                to={`/product/${product.categorySlug}/${product.slug}`}
                 className="group"
               >
                 <Card className="overflow-hidden hover:shadow-lg transition-shadow">

@@ -20,6 +20,7 @@ export default function App() {
           <Route path="/" element={<Index />} />
           <Route path="/product-search" element={<ProductSearch />} />
           <Route path="/browse" element={<BrowseProducts />} />
+          <Route path="/product/:categorySlug/:productSlug" element={<ProductDetail />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/register" element={<Register />} />
           <Route path="/admin" element={<AdminDashboard />} />

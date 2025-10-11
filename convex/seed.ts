@@ -1,4 +1,15 @@
 import { internalMutation } from "./_generated/server";
+import type { Id } from "./_generated/dataModel.d.ts";
+
+// Helper function to generate URL-friendly slugs
+function generateSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove non-word chars except spaces and hyphens
+    .replace(/[\s_-]+/g, '-') // Replace spaces, underscores, hyphens with single hyphen
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+}
 
 export const runSeed = internalMutation({
   args: {},
@@ -70,36 +81,42 @@ export const runSeed = internalMutation({
     // STEP 2: CREATE MEDICAL CATEGORIES
     const diagnosticEquipment = await ctx.db.insert("categories", {
       name: "Diagnostic Equipment",
+      slug: generateSlug("Diagnostic Equipment"),
       description: "Medical diagnostic devices and equipment",
       createdAt: Date.now(),
     });
 
     const patientCare = await ctx.db.insert("categories", {
       name: "Patient Care Equipment",
+      slug: generateSlug("Patient Care Equipment"),
       description: "Equipment for patient care and mobility",
       createdAt: Date.now(),
     });
 
     const laboratoryEquipment = await ctx.db.insert("categories", {
       name: "Laboratory Equipment",
+      slug: generateSlug("Laboratory Equipment"),
       description: "Laboratory testing and analysis equipment",
       createdAt: Date.now(),
     });
 
     const surgicalInstruments = await ctx.db.insert("categories", {
       name: "Surgical Instruments",
+      slug: generateSlug("Surgical Instruments"),
       description: "Surgical tools and instruments",
       createdAt: Date.now(),
     });
 
     const medicalDisposables = await ctx.db.insert("categories", {
       name: "Medical Disposables",
+      slug: generateSlug("Medical Disposables"),
       description: "Single-use medical supplies",
       createdAt: Date.now(),
     });
 
     const hospitalFurniture = await ctx.db.insert("categories", {
       name: "Hospital Furniture",
+      slug: generateSlug("Hospital Furniture"),
       description: "Hospital beds, tables, and furniture",
       createdAt: Date.now(),
     });
@@ -163,6 +180,7 @@ export const runSeed = internalMutation({
     for (const product of products) {
       const id = await ctx.db.insert("products", {
         ...product,
+        slug: generateSlug(product.name),
         createdAt: Date.now(),
       });
       productIds.push(id);

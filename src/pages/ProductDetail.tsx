@@ -12,7 +12,7 @@ import { useAuth } from "@/hooks/use-auth.ts";
 import { ShoppingCart, Bell, CalendarIcon, ArrowLeft } from "lucide-react";
 import { addToRFQCart, getRFQCart } from "@/lib/rfq-cart.ts";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Popover,
   PopoverContent,
@@ -23,7 +23,11 @@ import AppHeader from "@/components/AppHeader";
 import GuestRFQDialog from "@/pages/_components/GuestRFQDialog";
 
 export default function ProductDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id, categorySlug, productSlug } = useParams<{ 
+    id?: string;
+    categorySlug?: string;
+    productSlug?: string;
+  }>();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const currentUser = useQuery(api.users.getCurrentUser, {});
@@ -35,10 +39,22 @@ export default function ProductDetail() {
 
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
 
+  // Support both slug-based and ID-based URLs
   const product = useQuery(
     api.products.getProduct,
-    id ? { productId: id as Id<"products"> } : "skip"
+    id && !categorySlug && !productSlug
+      ? { productId: id as Id<"products"> }
+      : "skip"
   );
+
+  const productBySlug = useQuery(
+    api.products.getProductBySlug,
+    categorySlug && productSlug
+      ? { categorySlug, productSlug }
+      : "skip"
+  );
+
+  const displayProduct = productBySlug || product;
   
   const submitRFQ = useMutation(api.rfqs.submitRFQ);
 
@@ -46,6 +62,90 @@ export default function ProductDetail() {
   const [expectedDate, setExpectedDate] = useState<Date>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showGuestDialog, setShowGuestDialog] = useState(false);
+
+  // SEO: Update page title and meta tags
+  useEffect(() => {
+    if (displayProduct) {
+      const title = `${displayProduct.name} - supply.co.ke`;
+      const description = displayProduct.description.substring(0, 160);
+      
+      document.title = title;
+      
+      // Update meta description
+      let metaDescription = document.querySelector('meta[name="description"]');
+      if (!metaDescription) {
+        metaDescription = document.createElement('meta');
+        metaDescription.setAttribute('name', 'description');
+        document.head.appendChild(metaDescription);
+      }
+      metaDescription.setAttribute('content', description);
+      
+      // Update Open Graph tags
+      let ogTitle = document.querySelector('meta[property="og:title"]');
+      if (!ogTitle) {
+        ogTitle = document.createElement('meta');
+        ogTitle.setAttribute('property', 'og:title');
+        document.head.appendChild(ogTitle);
+      }
+      ogTitle.setAttribute('content', title);
+      
+      let ogDescription = document.querySelector('meta[property="og:description"]');
+      if (!ogDescription) {
+        ogDescription = document.createElement('meta');
+        ogDescription.setAttribute('property', 'og:description');
+        document.head.appendChild(ogDescription);
+      }
+      ogDescription.setAttribute('content', description);
+      
+      if (displayProduct.image) {
+        let ogImage = document.querySelector('meta[property="og:image"]');
+        if (!ogImage) {
+          ogImage = document.createElement('meta');
+          ogImage.setAttribute('property', 'og:image');
+          document.head.appendChild(ogImage);
+        }
+        ogImage.setAttribute('content', displayProduct.image);
+      }
+      
+      // Add structured data (JSON-LD) for product
+      let structuredDataScript = document.querySelector('script[type="application/ld+json"]#product-structured-data');
+      if (!structuredDataScript) {
+        structuredDataScript = document.createElement('script');
+        structuredDataScript.setAttribute('type', 'application/ld+json');
+        structuredDataScript.setAttribute('id', 'product-structured-data');
+        document.head.appendChild(structuredDataScript);
+      }
+      
+      const structuredData = {
+        "@context": "https://schema.org/",
+        "@type": "Product",
+        "name": displayProduct.name,
+        "description": displayProduct.description,
+        "image": displayProduct.image || "https://supply.co.ke/logo.png",
+        "sku": displayProduct.sku || displayProduct._id,
+        "offers": {
+          "@type": "AggregateOffer",
+          "priceCurrency": "KES",
+          "availability": "https://schema.org/InStock",
+          "seller": {
+            "@type": "Organization",
+            "name": "supply.co.ke"
+          }
+        }
+      };
+      
+      structuredDataScript.textContent = JSON.stringify(structuredData);
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.title = "supply.co.ke - New Era in Medical Equipment Procurement";
+      const structuredDataScript = document.querySelector('script[type="application/ld+json"]#product-structured-data');
+      if (structuredDataScript) {
+        structuredDataScript.remove();
+      }
+    };
+  }, [displayProduct]);
 
   const getDashboardLink = () => {
     if (!currentUser) return "/";
@@ -61,7 +161,7 @@ export default function ProductDetail() {
       return;
     }
 
-    if (!quantity || !expectedDate || !product) {
+    if (!quantity || !expectedDate || !displayProduct) {
       toast.error("Please fill in all fields");
       return;
     }
@@ -71,7 +171,7 @@ export default function ProductDetail() {
       await submitRFQ({
         items: [
           {
-            productId: product._id,
+            productId: displayProduct._id,
             quantity: parseInt(quantity),
           },
         ],
@@ -87,7 +187,7 @@ export default function ProductDetail() {
     }
   };
 
-  if (!product) {
+  if (!displayProduct) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground">Loading...</p>
@@ -117,10 +217,10 @@ export default function ProductDetail() {
                 {/* Product Image */}
                 <div className="md:w-1/2">
                   <div className="aspect-square bg-muted rounded-lg overflow-hidden">
-                    {product.image ? (
+                    {displayProduct.image ? (
                       <img
-                        src={product.image}
-                        alt={product.name}
+                        src={displayProduct.image}
+                        alt={displayProduct.name}
                         className="w-full h-full object-cover"
                       />
                     ) : (
@@ -134,7 +234,7 @@ export default function ProductDetail() {
                 {/* RFQ Form */}
                 <div className="md:w-1/2 space-y-6">
                   <div>
-                    <h2 className="text-2xl font-bold mb-2">{product.name}</h2>
+                    <h2 className="text-2xl font-bold mb-2">{displayProduct.name}</h2>
                   </div>
 
                   {/* Quantity Input */}
@@ -232,13 +332,13 @@ export default function ProductDetail() {
       </main>
       
       {/* Guest RFQ Dialog */}
-      {product && expectedDate && (
+      {displayProduct && expectedDate && (
         <GuestRFQDialog
           open={showGuestDialog}
           onOpenChange={setShowGuestDialog}
           items={[
             {
-              productId: product._id,
+              productId: displayProduct._id,
               quantity: parseInt(quantity) || 1,
             },
           ]}

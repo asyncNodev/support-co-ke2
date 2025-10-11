@@ -181,7 +181,7 @@ export default function BrowseProducts() {
                       <Button
                         variant="outline"
                         className="flex-1"
-                        onClick={() => navigate(`/product/${product._id}`)}
+                        onClick={() => navigate(`/product/${product.categorySlug}/${product.slug}`)}
                       >
                         View Details
                       </Button>
