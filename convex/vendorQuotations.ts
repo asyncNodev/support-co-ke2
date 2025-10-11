@@ -392,3 +392,72 @@ export const createQuotationInternal = mutation({
     return quotationId;
   },
 });
+
+// Get all quotations for admin
+export const getAllQuotationsForAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!currentUser || currentUser.role !== "admin") {
+      throw new ConvexError({
+        message: "Only admins can view all quotations",
+        code: "FORBIDDEN",
+      });
+    }
+
+    // Get all vendor quotations
+    const allQuotations = await ctx.db
+      .query("vendorQuotations")
+      .order("desc")
+      .collect();
+
+    // Enrich with vendor, product, and RFQ details
+    const quotationsWithDetails = await Promise.all(
+      allQuotations.map(async (quotation) => {
+        const vendor = await ctx.db.get(quotation.vendorId);
+        const product = await ctx.db.get(quotation.productId);
+        
+        let rfq = null;
+        let rfqDetails = null;
+        if (quotation.rfqId) {
+          rfq = await ctx.db.get(quotation.rfqId);
+          if (rfq) {
+            let buyer = null;
+            if (rfq.buyerId) {
+              buyer = await ctx.db.get(rfq.buyerId);
+            }
+            rfqDetails = {
+              ...rfq,
+              buyerName: rfq.isGuest ? rfq.guestName : buyer?.name,
+              buyerCompany: rfq.isGuest ? rfq.guestCompanyName : buyer?.companyName,
+            };
+          }
+        }
+
+        return {
+          ...quotation,
+          vendorName: vendor?.name,
+          vendorCompany: vendor?.companyName,
+          vendorEmail: vendor?.email,
+          productName: product?.name,
+          productImage: product?.image,
+          rfqDetails,
+        };
+      })
+    );
+
+    return quotationsWithDetails;
+  },
+});

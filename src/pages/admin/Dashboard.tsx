@@ -26,6 +26,7 @@ export default function AdminDashboard() {
   const users = useQuery(api.users.getAllUsers, {});
   const analytics = useQuery(api.analytics.getAnalytics, {});
   const allRfqs = useQuery(api.rfqs.getAllRFQsForAdmin, {});
+  const allQuotations = useQuery(api.vendorQuotations.getAllQuotationsForAdmin, {});
 
   const createProduct = useMutation(api.products.createProduct);
   const deleteProduct = useMutation(api.products.deleteProduct);
@@ -433,6 +434,7 @@ export default function AdminDashboard() {
             <TabsTrigger value="categories">Categories</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="rfqs">RFQs</TabsTrigger>
+            <TabsTrigger value="quotations">Quotations</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="browse-ai">Browse.ai</TabsTrigger>
             <TabsTrigger value="approvals">Pending Approvals</TabsTrigger>
@@ -916,6 +918,162 @@ export default function AdminDashboard() {
                               <p className="text-sm font-medium">{rfq.quotationsCount}</p>
                             </div>
                           </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="quotations" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Quotations</CardTitle>
+                <CardDescription>View all quotations submitted by vendors (pre-filled and on-demand)</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!allQuotations ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="h-20 bg-muted animate-pulse rounded-md" />
+                    ))}
+                  </div>
+                ) : allQuotations.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">No quotations found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {allQuotations.map((quotation) => (
+                      <Card key={quotation._id} className="overflow-hidden">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="text-base">
+                                {quotation.productName}
+                              </CardTitle>
+                              <CardDescription className="text-xs mt-1">
+                                {new Date(quotation.createdAt).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                quotation.quotationType === "pre-filled" 
+                                  ? "bg-purple-100 text-purple-800" 
+                                  : "bg-blue-100 text-blue-800"
+                              }`}>
+                                {quotation.quotationType === "pre-filled" ? "Pre-filled" : "On-Demand"}
+                              </span>
+                              {quotation.source === "auto-scraped" && (
+                                <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                                  Auto-scraped
+                                </span>
+                              )}
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                quotation.active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
+                              }`}>
+                                {quotation.active ? "Active" : "Inactive"}
+                              </span>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-0 space-y-4">
+                          {/* Vendor Information */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b">
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Vendor</p>
+                              <div>
+                                <p className="text-sm font-medium">{quotation.vendorName}</p>
+                                <p className="text-xs text-muted-foreground">{quotation.vendorCompany || "N/A"}</p>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Contact</p>
+                              <p className="text-sm">{quotation.vendorEmail}</p>
+                            </div>
+                          </div>
+
+                          {/* Product Information */}
+                          <div className="flex items-center gap-3 p-2 bg-muted/50 rounded-md">
+                            {quotation.productImage && (
+                              <img
+                                src={quotation.productImage}
+                                alt={quotation.productName || "Product"}
+                                className="w-16 h-16 object-cover rounded"
+                              />
+                            )}
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">{quotation.productName}</p>
+                              {quotation.brand && (
+                                <p className="text-xs text-muted-foreground">Brand: {quotation.brand}</p>
+                              )}
+                              {quotation.productDescription && (
+                                <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                                  {quotation.productDescription}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Quotation Details */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Price</p>
+                              <p className="text-sm font-medium">KSh {quotation.price.toLocaleString()}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Quantity</p>
+                              <p className="text-sm">{quotation.quantity}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Delivery Time</p>
+                              <p className="text-sm">{quotation.deliveryTime}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Warranty</p>
+                              <p className="text-sm">{quotation.warrantyPeriod}</p>
+                            </div>
+                          </div>
+
+                          {/* Additional Details */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Payment Terms</p>
+                              <p className="text-sm capitalize">{quotation.paymentTerms}</p>
+                            </div>
+                            {quotation.countryOfOrigin && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-1">Country of Origin</p>
+                                <p className="text-sm">{quotation.countryOfOrigin}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* RFQ Details (if on-demand) */}
+                          {quotation.rfqDetails && (
+                            <div className="pt-4 border-t">
+                              <p className="text-xs font-medium text-muted-foreground mb-2">In Response To RFQ</p>
+                              <div className="p-3 bg-blue-50 rounded-md">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="text-sm font-medium">{quotation.rfqDetails.buyerName}</p>
+                                    <p className="text-xs text-muted-foreground">{quotation.rfqDetails.buyerCompany}</p>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    RFQ #{quotation.rfqId?.slice(-8)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     ))}
