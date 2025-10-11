@@ -6,21 +6,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/use-auth.ts";
-import { ShoppingCart, Bell, CalendarIcon, ArrowLeft } from "lucide-react";
+import { ShoppingCart, Bell, ArrowLeft } from "lucide-react";
 import { addToRFQCart, getRFQCart } from "@/lib/rfq-cart.ts";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { format, formatDistanceToNow } from "date-fns";
 import AppHeader from "@/components/AppHeader";
 import GuestRFQDialog from "@/pages/_components/GuestRFQDialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select.tsx";
+import { Separator } from "@/components/ui/separator.tsx";
 
 export default function ProductDetail() {
   const { categorySlug, productSlug, id } = useParams();
@@ -57,7 +58,7 @@ export default function ProductDetail() {
   const submitRFQ = useMutation(api.rfqs.submitRFQ);
 
   const [quantity, setQuantity] = useState("");
-  const [expectedDate, setExpectedDate] = useState<Date>();
+  const [expectedDelivery, setExpectedDelivery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showGuestDialog, setShowGuestDialog] = useState(false);
 
@@ -159,7 +160,7 @@ export default function ProductDetail() {
       return;
     }
 
-    if (!quantity || !expectedDate || !displayProduct) {
+    if (!quantity || !expectedDelivery || !displayProduct) {
       toast.error("Please fill in all fields");
       return;
     }
@@ -173,7 +174,7 @@ export default function ProductDetail() {
             quantity: parseInt(quantity),
           },
         ],
-        expectedDeliveryTime: format(expectedDate, "yyyy-MM-dd"),
+        expectedDeliveryTime: expectedDelivery,
       });
 
       toast.success("RFQ submitted successfully!");
@@ -249,33 +250,24 @@ export default function ProductDetail() {
                     />
                   </div>
 
-                  {/* Expected Delivery Date */}
+                  {/* Expected Delivery Time */}
                   <div className="space-y-2">
-                    <Label>Expected Delivery Date *</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 size-4" />
-                          {expectedDate ? (
-                            format(expectedDate, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={expectedDate}
-                          onSelect={setExpectedDate}
-                          disabled={(date) => date < new Date()}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <Label>Expected Delivery Time *</Label>
+                    <Select value={expectedDelivery} onValueChange={setExpectedDelivery}>
+                      <SelectTrigger className="w-full text-lg">
+                        <SelectValue placeholder="Select delivery time" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1-2 weeks">1-2 weeks</SelectItem>
+                        <SelectItem value="2-4 weeks">2-4 weeks</SelectItem>
+                        <SelectItem value="1-2 months">1-2 months</SelectItem>
+                        <SelectItem value="2-3 months">2-3 months</SelectItem>
+                        <SelectItem value="3-6 months">3-6 months</SelectItem>
+                        <SelectItem value="6+ months">6+ months</SelectItem>
+                        <SelectItem value="urgent">Urgent (ASAP)</SelectItem>
+                        <SelectItem value="flexible">Flexible</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Submit Button */}
@@ -305,7 +297,7 @@ export default function ProductDetail() {
                       </div>
                       <Button
                         onClick={() => {
-                          if (!quantity || !expectedDate) {
+                          if (!quantity || !expectedDelivery) {
                             toast.error("Please fill in quantity and expected delivery date");
                             return;
                           }
@@ -330,7 +322,7 @@ export default function ProductDetail() {
       </main>
       
       {/* Guest RFQ Dialog */}
-      {displayProduct && expectedDate && (
+      {displayProduct && expectedDelivery && (
         <GuestRFQDialog
           open={showGuestDialog}
           onOpenChange={setShowGuestDialog}
@@ -340,10 +332,10 @@ export default function ProductDetail() {
               quantity: parseInt(quantity) || 1,
             },
           ]}
-          expectedDeliveryTime={format(expectedDate, "yyyy-MM-dd")}
+          expectedDeliveryTime={expectedDelivery}
           onSuccess={() => {
             setQuantity("");
-            setExpectedDate(undefined);
+            setExpectedDelivery("");
           }}
         />
       )}
