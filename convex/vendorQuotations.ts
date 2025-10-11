@@ -405,59 +405,79 @@ export const getAllQuotationsForAdmin = query({
       });
     }
 
-    const currentUser = await ctx.db
+    const admin = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
       .first();
 
-    if (!currentUser || currentUser.role !== "admin") {
+    if (!admin || admin.role !== "admin") {
       throw new ConvexError({
-        message: "Only admins can view all quotations",
+        message: "Admin access required",
         code: "FORBIDDEN",
       });
     }
 
-    // Get all vendor quotations
-    const allQuotations = await ctx.db
+    const quotations = await ctx.db
       .query("vendorQuotations")
       .order("desc")
       .collect();
 
-    // Enrich with vendor, product, and RFQ details
-    const quotationsWithDetails = await Promise.all(
-      allQuotations.map(async (quotation) => {
+    return await Promise.all(
+      quotations.map(async (quotation) => {
         const vendor = await ctx.db.get(quotation.vendorId);
         const product = await ctx.db.get(quotation.productId);
+
+        // Get vendor rating
+        const vendorRatings = await ctx.db
+          .query("ratings")
+          .withIndex("by_vendor", (q) => q.eq("vendorId", quotation.vendorId))
+          .collect();
         
-        let rfq = null;
-        let rfqDetails = null;
+        const avgRating = vendorRatings.length > 0
+          ? vendorRatings.reduce((sum, r) => sum + r.rating, 0) / vendorRatings.length
+          : 0;
+
+        let rfqInfo = null;
         if (quotation.rfqId) {
-          rfq = await ctx.db.get(quotation.rfqId);
+          const rfq = await ctx.db.get(quotation.rfqId);
           if (rfq) {
-            let buyer = null;
+            let buyerInfo = null;
             if (rfq.buyerId) {
-              buyer = await ctx.db.get(rfq.buyerId);
+              const buyer = await ctx.db.get(rfq.buyerId);
+              buyerInfo = buyer ? {
+                name: buyer.name,
+                companyName: buyer.companyName,
+              } : null;
+            } else if (rfq.isGuest) {
+              buyerInfo = {
+                name: rfq.guestName || "Guest",
+                companyName: rfq.guestCompanyName || "N/A",
+              };
             }
-            rfqDetails = {
-              ...rfq,
-              buyerName: rfq.isGuest ? rfq.guestName : buyer?.name,
-              buyerCompany: rfq.isGuest ? rfq.guestCompanyName : buyer?.companyName,
+            rfqInfo = {
+              _id: rfq._id,
+              buyer: buyerInfo,
             };
           }
         }
 
         return {
           ...quotation,
-          vendorName: vendor?.name,
-          vendorCompany: vendor?.companyName,
-          vendorEmail: vendor?.email,
-          productName: product?.name,
-          productImage: product?.image,
-          rfqDetails,
+          vendor: vendor ? {
+            name: vendor.name,
+            email: vendor.email,
+            companyName: vendor.companyName || "N/A",
+            averageRating: avgRating,
+            totalRatings: vendorRatings.length,
+          } : null,
+          product: product ? {
+            name: product.name,
+            image: product.image,
+            description: product.description,
+          } : null,
+          rfq: rfqInfo,
         };
       })
     );
-
-    return quotationsWithDetails;
   },
 });

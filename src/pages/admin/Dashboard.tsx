@@ -858,10 +858,10 @@ export default function AdminDashboard() {
                                   <p className="text-sm font-medium">{rfq.guestName}</p>
                                   <p className="text-xs text-muted-foreground">{rfq.guestCompanyName}</p>
                                 </div>
-                              ) : rfq.buyerInfo ? (
+                              ) : rfq.buyer ? (
                                 <div>
-                                  <p className="text-sm font-medium">{rfq.buyerInfo.name}</p>
-                                  <p className="text-xs text-muted-foreground">{rfq.buyerInfo.companyName}</p>
+                                  <p className="text-sm font-medium">{rfq.buyer.name}</p>
+                                  <p className="text-xs text-muted-foreground">{rfq.buyer.companyName}</p>
                                 </div>
                               ) : (
                                 <p className="text-sm text-muted-foreground">Unknown</p>
@@ -874,10 +874,10 @@ export default function AdminDashboard() {
                                   <p className="text-sm">{rfq.guestEmail}</p>
                                   <p className="text-xs text-muted-foreground">{rfq.guestPhone}</p>
                                 </div>
-                              ) : rfq.buyerInfo ? (
+                              ) : rfq.buyer ? (
                                 <div>
-                                  <p className="text-sm">{rfq.buyerInfo.email}</p>
-                                  <p className="text-xs text-muted-foreground">{rfq.buyerInfo.phone || "N/A"}</p>
+                                  <p className="text-sm">{rfq.buyer.email}</p>
+                                  <p className="text-xs text-muted-foreground">{rfq.buyer.phone || "N/A"}</p>
                                 </div>
                               ) : (
                                 <p className="text-sm text-muted-foreground">N/A</p>
@@ -891,15 +891,15 @@ export default function AdminDashboard() {
                             <div className="space-y-2">
                               {rfq.items.map((item) => (
                                 <div key={item._id} className="flex items-center gap-3 p-2 bg-muted/50 rounded-md">
-                                  {item.productImage && (
+                                  {item.product?.image && (
                                     <img
-                                      src={item.productImage}
-                                      alt={item.productName}
-                                      className="w-10 h-10 object-cover rounded"
+                                      src={item.product.image}
+                                      alt={item.product.name}
+                                      className="w-12 h-12 object-cover rounded"
                                     />
                                   )}
                                   <div className="flex-1">
-                                    <p className="text-sm font-medium">{item.productName}</p>
+                                    <p className="text-sm font-medium">{item.product?.name || "Unknown Product"}</p>
                                     <p className="text-xs text-muted-foreground">Quantity: {item.quantity}</p>
                                   </div>
                                 </div>
@@ -907,15 +907,87 @@ export default function AdminDashboard() {
                             </div>
                           </div>
 
+                          {/* Sent Quotations */}
+                          {rfq.sentQuotations && rfq.sentQuotations.length > 0 && (
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-2">
+                                Quotations Received ({rfq.sentQuotations.length})
+                              </p>
+                              <div className="space-y-3">
+                                {rfq.sentQuotations.map((quote: any) => (
+                                  <Card key={quote._id} className="bg-muted/30">
+                                    <CardContent className="p-3 space-y-2">
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                          <p className="text-sm font-medium">{quote.vendor?.name || "Unknown Vendor"}</p>
+                                          <p className="text-xs text-muted-foreground">{quote.vendor?.companyName}</p>
+                                          {quote.vendor && quote.vendor.totalRatings > 0 && (
+                                            <div className="flex items-center gap-1 mt-1">
+                                              <span className="text-xs">⭐ {quote.vendor.averageRating.toFixed(1)}</span>
+                                              <span className="text-xs text-muted-foreground">({quote.vendor.totalRatings} ratings)</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1">
+                                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                            quote.quotationType === "pre-filled" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800"
+                                          }`}>
+                                            {quote.quotationType}
+                                          </span>
+                                          {quote.chosen && (
+                                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                                              Chosen
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2 text-xs">
+                                        <div>
+                                          <span className="text-muted-foreground">Price:</span>{" "}
+                                          <span className="font-medium">KSh {quote.price.toLocaleString()}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Quantity:</span>{" "}
+                                          <span className="font-medium">{quote.quantity}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Payment:</span>{" "}
+                                          <span className="font-medium capitalize">{quote.paymentTerms}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Delivery:</span>{" "}
+                                          <span className="font-medium">{quote.deliveryTime}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Warranty:</span>{" "}
+                                          <span className="font-medium">{quote.warrantyPeriod}</span>
+                                        </div>
+                                        {quote.brand && (
+                                          <div>
+                                            <span className="text-muted-foreground">Brand:</span>{" "}
+                                            <span className="font-medium">{quote.brand}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-muted-foreground">
+                                        Contact: {quote.vendor?.email}
+                                      </p>
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
                           {/* Delivery & Status */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                          <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                             <div>
                               <p className="text-xs font-medium text-muted-foreground mb-1">Expected Delivery</p>
-                              <p className="text-sm">{rfq.expectedDeliveryTime}</p>
+                              <p className="text-sm">{rfq.expectedDeliveryTime || "Not specified"}</p>
                             </div>
                             <div>
-                              <p className="text-xs font-medium text-muted-foreground mb-1">Quotations Received</p>
-                              <p className="text-sm font-medium">{rfq.quotationsCount}</p>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Quotations</p>
+                              <p className="text-sm font-medium">{rfq.quotationCount || 0} received</p>
                             </div>
                           </div>
                         </CardContent>
@@ -952,7 +1024,7 @@ export default function AdminDashboard() {
                           <div className="flex items-start justify-between">
                             <div>
                               <CardTitle className="text-base">
-                                {quotation.productName}
+                                {quotation.product?.name || "Unknown Product"}
                               </CardTitle>
                               <CardDescription className="text-xs mt-1">
                                 {new Date(quotation.createdAt).toLocaleDateString("en-US", {
@@ -991,33 +1063,39 @@ export default function AdminDashboard() {
                             <div>
                               <p className="text-xs font-medium text-muted-foreground mb-1">Vendor</p>
                               <div>
-                                <p className="text-sm font-medium">{quotation.vendorName}</p>
-                                <p className="text-xs text-muted-foreground">{quotation.vendorCompany || "N/A"}</p>
+                                <p className="text-sm font-medium">{quotation.vendor?.name || "Unknown"}</p>
+                                <p className="text-xs text-muted-foreground">{quotation.vendor?.companyName || "N/A"}</p>
+                                {quotation.vendor && quotation.vendor.totalRatings > 0 && (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <span className="text-xs">⭐ {quotation.vendor.averageRating.toFixed(1)}</span>
+                                    <span className="text-xs text-muted-foreground">({quotation.vendor.totalRatings} ratings)</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div>
                               <p className="text-xs font-medium text-muted-foreground mb-1">Contact</p>
-                              <p className="text-sm">{quotation.vendorEmail}</p>
+                              <p className="text-sm">{quotation.vendor?.email || "N/A"}</p>
                             </div>
                           </div>
 
                           {/* Product Information */}
                           <div className="flex items-center gap-3 p-2 bg-muted/50 rounded-md">
-                            {quotation.productImage && (
+                            {quotation.product?.image && (
                               <img
-                                src={quotation.productImage}
-                                alt={quotation.productName || "Product"}
+                                src={quotation.product.image}
+                                alt={quotation.product?.name || "Product"}
                                 className="w-16 h-16 object-cover rounded"
                               />
                             )}
                             <div className="flex-1">
-                              <p className="text-sm font-medium">{quotation.productName}</p>
+                              <p className="text-sm font-medium">{quotation.product?.name || "Unknown Product"}</p>
                               {quotation.brand && (
                                 <p className="text-xs text-muted-foreground">Brand: {quotation.brand}</p>
                               )}
-                              {quotation.productDescription && (
+                              {quotation.product?.description && (
                                 <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                                  {quotation.productDescription}
+                                  {quotation.product.description}
                                 </p>
                               )}
                             </div>
@@ -1058,17 +1136,17 @@ export default function AdminDashboard() {
                           </div>
 
                           {/* RFQ Details (if on-demand) */}
-                          {quotation.rfqDetails && (
+                          {quotation.rfq && (
                             <div className="pt-4 border-t">
                               <p className="text-xs font-medium text-muted-foreground mb-2">In Response To RFQ</p>
                               <div className="p-3 bg-blue-50 rounded-md">
                                 <div className="flex items-center justify-between">
                                   <div>
-                                    <p className="text-sm font-medium">{quotation.rfqDetails.buyerName}</p>
-                                    <p className="text-xs text-muted-foreground">{quotation.rfqDetails.buyerCompany}</p>
+                                    <p className="text-sm font-medium">{quotation.rfq.buyer?.name || "Unknown Buyer"}</p>
+                                    <p className="text-xs text-muted-foreground">{quotation.rfq.buyer?.companyName || "N/A"}</p>
                                   </div>
                                   <p className="text-xs text-muted-foreground">
-                                    RFQ #{quotation.rfqId?.slice(-8)}
+                                    RFQ #{quotation.rfq._id?.slice(-8)}
                                   </p>
                                 </div>
                               </div>

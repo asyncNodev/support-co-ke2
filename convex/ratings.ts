@@ -1,5 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel.d.ts";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 
 // Submit vendor rating
 export const submitRating = mutation({
@@ -132,3 +134,35 @@ export const getMyRatings = query({
     );
   },
 });
+
+// Get vendor average rating (helper function)
+async function getVendorAverageRating(ctx: QueryCtx | MutationCtx, vendorId: Id<"users">) {
+  const ratings = await ctx.db
+    .query("ratings")
+    .withIndex("by_vendor", (q) => q.eq("vendorId", vendorId))
+    .collect();
+
+  if (ratings.length === 0) {
+    return { average: 0, count: 0 };
+  }
+
+  const average = ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length;
+  return { average, count: ratings.length };
+}
+
+// Get buyer average rating (helper function - for future use)
+async function getBuyerAverageRating(ctx: QueryCtx | MutationCtx, buyerId: Id<"users">) {
+  const ratings = await ctx.db
+    .query("ratings")
+    .withIndex("by_buyer", (q) => q.eq("buyerId", buyerId))
+    .collect();
+
+  if (ratings.length === 0) {
+    return { average: 0, count: 0 };
+  }
+
+  const average = ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length;
+  return { average, count: ratings.length };
+}
+
+export { getVendorAverageRating, getBuyerAverageRating };

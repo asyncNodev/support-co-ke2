@@ -843,71 +843,105 @@ export const getAllRFQsForAdmin = query({
       });
     }
 
-    const user = await ctx.db
+    const admin = await ctx.db
       .query("users")
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
       .first();
 
-    if (!user || user.role !== "admin") {
+    if (!admin || admin.role !== "admin") {
       throw new ConvexError({
-        message: "Unauthorized. Admin access required.",
+        message: "Admin access required",
         code: "FORBIDDEN",
       });
     }
 
-    // Get all RFQs
     const rfqs = await ctx.db.query("rfqs").order("desc").collect();
 
-    // Expand each RFQ with full details
-    const expandedRfqs = await Promise.all(
+    return await Promise.all(
       rfqs.map(async (rfq) => {
-        // Get buyer info if not guest
+        let buyer = null;
         let buyerInfo = null;
+
         if (rfq.buyerId) {
-          const buyer = await ctx.db.get(rfq.buyerId);
-          if (buyer) {
-            buyerInfo = {
-              name: buyer.name,
-              email: buyer.email,
-              companyName: buyer.companyName,
-              phone: buyer.phone,
-            };
-          }
+          buyer = await ctx.db.get(rfq.buyerId);
+          buyerInfo = {
+            name: buyer?.name || "Unknown",
+            email: buyer?.email || "Unknown",
+            companyName: buyer?.companyName || "N/A",
+            phone: buyer?.phone || "N/A",
+          };
+        } else if (rfq.isGuest) {
+          buyerInfo = {
+            name: rfq.guestName || "Guest",
+            email: rfq.guestEmail || "N/A",
+            companyName: rfq.guestCompanyName || "N/A",
+            phone: rfq.guestPhone || "N/A",
+          };
         }
 
-        // Get RFQ items
         const items = await ctx.db
           .query("rfqItems")
           .withIndex("by_rfq", (q) => q.eq("rfqId", rfq._id))
           .collect();
 
-        // Get product details for each item
-        const itemsWithProducts = await Promise.all(
+        const itemsWithProduct = await Promise.all(
           items.map(async (item) => {
             const product = await ctx.db.get(item.productId);
             return {
               ...item,
-              productName: product?.name || "Unknown Product",
-              productImage: product?.image,
+              product: product || null,
             };
           })
         );
 
-        // Count quotations received
-        const quotationsCount = await ctx.db
+        // Get sent quotations for this RFQ
+        const sentQuotations = await ctx.db
           .query("sentQuotations")
           .withIndex("by_rfq", (q) => q.eq("rfqId", rfq._id))
           .collect();
 
+        // Enrich sent quotations with vendor and product info
+        const quotationsWithDetails = await Promise.all(
+          sentQuotations.map(async (quote) => {
+            const vendor = await ctx.db.get(quote.vendorId);
+            const product = await ctx.db.get(quote.productId);
+            
+            // Get vendor rating
+            const vendorRatings = await ctx.db
+              .query("ratings")
+              .withIndex("by_vendor", (q) => q.eq("vendorId", quote.vendorId))
+              .collect();
+            
+            const avgRating = vendorRatings.length > 0
+              ? vendorRatings.reduce((sum, r) => sum + r.rating, 0) / vendorRatings.length
+              : 0;
+
+            return {
+              ...quote,
+              vendor: vendor ? {
+                name: vendor.name,
+                email: vendor.email,
+                companyName: vendor.companyName || "N/A",
+                phone: vendor.phone || "N/A",
+                averageRating: avgRating,
+                totalRatings: vendorRatings.length,
+              } : null,
+              product: product ? {
+                name: product.name,
+                image: product.image,
+              } : null,
+            };
+          })
+        );
+
         return {
           ...rfq,
-          buyerInfo,
-          items: itemsWithProducts,
-          quotationsCount: quotationsCount.length,
+          buyer: buyerInfo,
+          items: itemsWithProduct,
+          sentQuotations: quotationsWithDetails,
+          quotationCount: quotationsWithDetails.length,
         };
       })
     );
-
-    return expandedRfqs;
   },
 });
