@@ -17,7 +17,11 @@ type BulkProductUploadProps = {
 export function BulkProductUpload({ open, onOpenChange }: BulkProductUploadProps) {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadResults, setUploadResults] = useState<{ success: number; failed: number } | null>(null);
+  const [uploadResults, setUploadResults] = useState<{ 
+    created: number; 
+    skipped: number;
+    skippedProducts?: string[];
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const categories = useQuery(api.categories.getCategories, {});
@@ -128,11 +132,12 @@ export function BulkProductUpload({ open, onOpenChange }: BulkProductUploadProps
       const result = await bulkCreateProducts({ products: productsToCreate });
 
       setUploadResults({
-        success: result.count,
-        failed: parsedProducts.length - result.count,
+        created: result.created,
+        skipped: result.skipped,
+        skippedProducts: result.skippedProducts,
       });
 
-      toast.success(`Successfully uploaded ${result.count} products`);
+      toast.success(`Successfully uploaded ${result.created} products${result.skipped > 0 ? `, skipped ${result.skipped} duplicates` : ''}`);
     } catch (error) {
       console.error("Upload error:", error);
       toast.error("Failed to upload products");
@@ -215,8 +220,8 @@ export function BulkProductUpload({ open, onOpenChange }: BulkProductUploadProps
 
           {/* Upload Results */}
           {uploadResults && (
-            <Alert variant={uploadResults.failed > 0 ? "destructive" : "default"}>
-              {uploadResults.failed > 0 ? (
+            <Alert variant={uploadResults.skipped > 0 ? "destructive" : "default"}>
+              {uploadResults.skipped > 0 ? (
                 <AlertCircle className="size-4" />
               ) : (
                 <CheckCircle className="size-4" />
@@ -224,9 +229,19 @@ export function BulkProductUpload({ open, onOpenChange }: BulkProductUploadProps
               <AlertDescription>
                 <p className="font-medium">Upload Complete</p>
                 <p className="text-sm">
-                  Successfully created: {uploadResults.success} products
-                  {uploadResults.failed > 0 && ` • Failed: ${uploadResults.failed} products`}
+                  Successfully created: {uploadResults.created} products
+                  {uploadResults.skipped > 0 && ` • Skipped: ${uploadResults.skipped} duplicates`}
                 </p>
+                {uploadResults.skippedProducts && uploadResults.skippedProducts.length > 0 && (
+                  <details className="mt-2 text-sm">
+                    <summary className="cursor-pointer font-medium">View skipped products</summary>
+                    <ul className="mt-2 list-disc list-inside space-y-1">
+                      {uploadResults.skippedProducts.map((name, idx) => (
+                        <li key={idx}>{name}</li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
               </AlertDescription>
             </Alert>
           )}

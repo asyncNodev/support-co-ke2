@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import { BulkProductUpload } from "@/pages/admin/_components/BulkProductUpload";
 import { EditProductDialog } from "@/pages/admin/_components/EditProductDialog";
 import { toast } from "sonner";
-import { Plus, Trash2, Users, Package, Tag, Settings, Upload, Edit, Globe, PlayCircle, CheckCircle } from "lucide-react";
+import { Plus, Trash2, Users, Package, Tag, Settings, Upload, Edit, Globe, PlayCircle, CheckCircle, AlertCircle } from "lucide-react";
 import { useAction } from "convex/react";
 
 export default function AdminDashboard() {
@@ -31,6 +31,8 @@ export default function AdminDashboard() {
   const createCategory = useMutation(api.categories.createCategory);
   const deleteCategory = useMutation(api.categories.deleteCategory);
   const verifyUser = useMutation(api.users.verifyUser);
+  const findDuplicates = useQuery(api.products.findDuplicateProducts);
+  const removeDuplicates = useMutation(api.products.removeDuplicateProducts);
   const assignCategoriesToVendor = useMutation(api.users.assignCategoriesToVendor);
 
   const verifyUserMutation = useMutation(api.users.verifyUser);
@@ -349,6 +351,15 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleRemoveDuplicates = async () => {
+    try {
+      const result = await removeDuplicates();
+      toast.success(`Removed ${result.removedCount} duplicate products`);
+    } catch (error) {
+      toast.error("Failed to remove duplicates");
+    }
+  };
+
   const vendors = users?.filter((u) => u.role === "vendor") || [];
   const buyers = users?.filter((u) => u.role === "buyer") || [];
 
@@ -530,6 +541,32 @@ export default function AdminDashboard() {
                     </Card>
                   ))}
                 </div>
+                {findDuplicates && findDuplicates.totalDuplicates > 0 && (
+                  <>
+                    <Separator className="my-6" />
+                    <div className="p-4 border rounded-lg bg-destructive/10">
+                      <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
+                        <AlertCircle className="size-5 text-destructive" />
+                        Duplicate Products Found ({findDuplicates.totalDuplicates})
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        The following products have duplicates. Click below to remove duplicates and keep only the oldest version of each.
+                      </p>
+                      <div className="max-h-48 overflow-y-auto mb-4 space-y-2">
+                        {findDuplicates.duplicates.map((dup, idx) => (
+                          <div key={idx} className="text-sm border-l-2 border-destructive pl-3 py-1">
+                            <span className="font-medium">{dup.name}</span>
+                            <span className="text-muted-foreground"> - {dup.count} copies found</span>
+                          </div>
+                        ))}
+                      </div>
+                      <Button variant="destructive" onClick={handleRemoveDuplicates}>
+                        <Trash2 className="size-4 mr-2" />
+                        Remove All Duplicates
+                      </Button>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

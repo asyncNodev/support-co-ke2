@@ -46,7 +46,7 @@ export default defineSchema({
     sku: v.optional(v.string()),
     specifications: v.optional(v.string()),
     createdAt: v.number(),
-  }).index("by_category", ["categoryId"]),
+  }).index("by_category", ["categoryId"]).index("by_name", ["name"]),
 
   // Vendor quotations
   vendorQuotations: defineTable({

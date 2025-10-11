@@ -82,6 +82,20 @@ export const createProduct = mutation({
       });
     }
 
+    // Check for duplicate product name (case-insensitive)
+    const normalizedName = args.name.trim().toLowerCase();
+    const allProducts = await ctx.db.query("products").collect();
+    const duplicate = allProducts.find(
+      (p) => p.name.trim().toLowerCase() === normalizedName
+    );
+
+    if (duplicate) {
+      throw new ConvexError({
+        message: `Product "${args.name}" already exists. Please use a different name.`,
+        code: "CONFLICT",
+      });
+    }
+
     const productId = await ctx.db.insert("products", {
       name: args.name,
       categoryId: args.categoryId,
@@ -131,9 +145,27 @@ export const bulkCreateProducts = mutation({
       });
     }
 
+    // Get all existing products for duplicate checking
+    const existingProducts = await ctx.db.query("products").collect();
+    const existingNames = new Set(
+      existingProducts.map((p) => p.name.trim().toLowerCase())
+    );
+
     const productIds: Array<Id<"products">> = [];
+    const skipped: string[] = [];
+    const duplicatesInBatch = new Set<string>();
     
     for (const product of args.products) {
+      const normalizedName = product.name.trim().toLowerCase();
+      
+      // Skip if already exists in database or already processed in this batch
+      if (existingNames.has(normalizedName) || duplicatesInBatch.has(normalizedName)) {
+        skipped.push(product.name);
+        continue;
+      }
+      
+      duplicatesInBatch.add(normalizedName);
+      
       const productId = await ctx.db.insert("products", {
         name: product.name,
         categoryId: product.categoryId,
@@ -146,7 +178,12 @@ export const bulkCreateProducts = mutation({
       productIds.push(productId);
     }
 
-    return { count: productIds.length, productIds };
+    return { 
+      created: productIds.length, 
+      skipped: skipped.length,
+      skippedProducts: skipped,
+      productIds 
+    };
   },
 });
 
@@ -252,5 +289,131 @@ export const generateUploadUrl = mutation({
     }
 
     return await ctx.storage.generateUploadUrl();
+  },
+});
+
+// Find duplicate products (admin only)
+export const findDuplicateProducts = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!currentUser || currentUser.role !== "admin") {
+      throw new ConvexError({
+        message: "Only admins can find duplicates",
+        code: "FORBIDDEN",
+      });
+    }
+
+    const allProducts = await ctx.db.query("products").collect();
+    
+    // Group products by normalized name
+    const productsByName = new Map<string, typeof allProducts>();
+    
+    for (const product of allProducts) {
+      const normalizedName = product.name.trim().toLowerCase();
+      if (!productsByName.has(normalizedName)) {
+        productsByName.set(normalizedName, []);
+      }
+      productsByName.get(normalizedName)!.push(product);
+    }
+    
+    // Find groups with more than one product
+    const duplicates: Array<{
+      name: string;
+      count: number;
+      products: typeof allProducts;
+    }> = [];
+    
+    for (const [normalizedName, products] of productsByName.entries()) {
+      if (products.length > 1) {
+        duplicates.push({
+          name: products[0].name,
+          count: products.length,
+          products: products,
+        });
+      }
+    }
+    
+    return {
+      totalDuplicates: duplicates.length,
+      duplicates,
+    };
+  },
+});
+
+// Remove duplicate products, keeping the oldest one (admin only)
+export const removeDuplicateProducts = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const currentUser = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!currentUser || currentUser.role !== "admin") {
+      throw new ConvexError({
+        message: "Only admins can remove duplicates",
+        code: "FORBIDDEN",
+      });
+    }
+
+    const allProducts = await ctx.db.query("products").collect();
+    
+    // Group products by normalized name
+    const productsByName = new Map<string, typeof allProducts>();
+    
+    for (const product of allProducts) {
+      const normalizedName = product.name.trim().toLowerCase();
+      if (!productsByName.has(normalizedName)) {
+        productsByName.set(normalizedName, []);
+      }
+      productsByName.get(normalizedName)!.push(product);
+    }
+    
+    let removedCount = 0;
+    const removedProducts: Array<{ name: string; id: Id<"products"> }> = [];
+    
+    // For each duplicate group, keep the oldest and delete the rest
+    for (const products of productsByName.values()) {
+      if (products.length > 1) {
+        // Sort by creation time (oldest first)
+        products.sort((a, b) => a.createdAt - b.createdAt);
+        
+        // Keep the first (oldest), delete the rest
+        for (let i = 1; i < products.length; i++) {
+          await ctx.db.delete(products[i]._id);
+          removedProducts.push({
+            name: products[i].name,
+            id: products[i]._id,
+          });
+          removedCount++;
+        }
+      }
+    }
+    
+    return {
+      removedCount,
+      removedProducts,
+    };
   },
 });
