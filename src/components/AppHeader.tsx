@@ -1,16 +1,20 @@
 import { Link, useNavigate } from "react-router-dom";
-import { BellIcon, LayoutDashboardIcon, ArrowRightIcon } from "lucide-react";
-import { SignInButton } from "@/components/ui/signin.tsx";
-import { Button } from "@/components/ui/button.tsx";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Button } from "@/components/ui/button";
+import { Bell, LayoutDashboard, ChevronDown, ChevronUp, X, ArrowRight } from "lucide-react";
+import { SignInButton } from "@/components/ui/signin";
+import { useAuth } from "@/hooks/use-auth";
+import { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api.js";
 
 export default function AppHeader() {
   const navigate = useNavigate();
   const currentUser = useQuery(api.users.getCurrentUser, {});
   const siteSettings = useQuery(api.siteSettings.getSiteSettings, {});
+  const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
 
   const logoUrl = siteSettings?.logoUrl || "https://cdn.hercules.app/file_bqE3zk4Ry0XmWJeiuCRNP3vv";
   const logoSize = siteSettings?.logoSize || "h-28";
@@ -64,7 +68,7 @@ export default function AppHeader() {
                   }
                 }}
               >
-                <LayoutDashboardIcon className="size-4 mr-2" />
+                <LayoutDashboard className="size-4 mr-2" />
                 Dashboard
               </Button>
             </Authenticated>
@@ -73,67 +77,92 @@ export default function AppHeader() {
         </div>
       </div>
 
-      {/* How It Works */}
-      <div className="bg-muted/30">
-        <div className="container mx-auto px-4 py-6">
-          <h2 className="text-center font-semibold mb-4 text-sm uppercase tracking-wide text-muted-foreground">
-            How It Works
-          </h2>
-          <div className="grid md:grid-cols-2 gap-8">
-            {/* For Hospitals */}
-            <div>
-              <h3 className="font-semibold text-primary mb-3 flex items-center gap-2">
-                <span className="bg-primary text-primary-foreground rounded-full size-6 flex items-center justify-center text-xs">
-                  1
-                </span>
-                For Hospitals
-              </h3>
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  {hospitalSteps[0]}
-                </span>
-                <ArrowRightIcon className="size-4 text-muted-foreground" />
-                <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  {hospitalSteps[1]}
-                </span>
-                <ArrowRightIcon className="size-4 text-muted-foreground" />
-                <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  {hospitalSteps[2]}
-                </span>
-                <ArrowRightIcon className="size-4 text-muted-foreground" />
-                <span className="bg-primary text-primary-foreground px-3 py-2 rounded-lg font-medium">
-                  {hospitalSteps[3]}
-                </span>
-              </div>
-            </div>
+      {/* How It Works - Collapsible */}
+      <div className="border-b bg-muted/20">
+        <div className="container mx-auto px-4">
+          <button
+            onClick={() => setIsHowItWorksOpen(!isHowItWorksOpen)}
+            className="w-full py-3 flex items-center justify-center gap-2 hover:bg-muted/50 transition-colors"
+          >
+            <span className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+              How It Works
+            </span>
+            {isHowItWorksOpen ? (
+              <ChevronUp className="size-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="size-4 text-muted-foreground" />
+            )}
+          </button>
 
-            {/* For Vendors */}
-            <div>
-              <h3 className="font-semibold text-primary mb-3 flex items-center gap-2">
-                <span className="bg-primary text-primary-foreground rounded-full size-6 flex items-center justify-center text-xs">
-                  2
-                </span>
-                For Vendors
-              </h3>
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  {vendorSteps[0]}
-                </span>
-                <ArrowRightIcon className="size-4 text-muted-foreground" />
-                <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  {vendorSteps[1]}
-                </span>
-                <ArrowRightIcon className="size-4 text-muted-foreground" />
-                <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                  {vendorSteps[2]}
-                </span>
-                <ArrowRightIcon className="size-4 text-muted-foreground" />
-                <span className="bg-primary text-primary-foreground px-3 py-2 rounded-lg font-medium">
-                  {vendorSteps[3]}
-                </span>
-              </div>
-            </div>
-          </div>
+          <AnimatePresence>
+            {isHowItWorksOpen && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="overflow-hidden"
+              >
+                <div className="pb-6 pt-2">
+                  <div className="grid md:grid-cols-2 gap-8">
+                    {/* For Hospitals */}
+                    <div>
+                      <h3 className="font-semibold text-primary mb-3 flex items-center gap-2">
+                        <span className="bg-primary text-primary-foreground rounded-full size-6 flex items-center justify-center text-xs">
+                          1
+                        </span>
+                        For Hospitals
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="bg-background px-3 py-2 rounded-lg border font-medium">
+                          {hospitalSteps[0]}
+                        </span>
+                        <ArrowRight className="size-4 text-muted-foreground" />
+                        <span className="bg-background px-3 py-2 rounded-lg border font-medium">
+                          {hospitalSteps[1]}
+                        </span>
+                        <ArrowRight className="size-4 text-muted-foreground" />
+                        <span className="bg-background px-3 py-2 rounded-lg border font-medium">
+                          {hospitalSteps[2]}
+                        </span>
+                        <ArrowRight className="size-4 text-muted-foreground" />
+                        <span className="bg-primary text-primary-foreground px-3 py-2 rounded-lg font-medium">
+                          {hospitalSteps[3]}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* For Vendors */}
+                    <div>
+                      <h3 className="font-semibold text-primary mb-3 flex items-center gap-2">
+                        <span className="bg-primary text-primary-foreground rounded-full size-6 flex items-center justify-center text-xs">
+                          2
+                        </span>
+                        For Vendors
+                      </h3>
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="bg-background px-3 py-2 rounded-lg border font-medium">
+                          {vendorSteps[0]}
+                        </span>
+                        <ArrowRight className="size-4 text-muted-foreground" />
+                        <span className="bg-background px-3 py-2 rounded-lg border font-medium">
+                          {vendorSteps[1]}
+                        </span>
+                        <ArrowRight className="size-4 text-muted-foreground" />
+                        <span className="bg-background px-3 py-2 rounded-lg border font-medium">
+                          {vendorSteps[2]}
+                        </span>
+                        <ArrowRight className="size-4 text-muted-foreground" />
+                        <span className="bg-primary text-primary-foreground px-3 py-2 rounded-lg font-medium">
+                          {vendorSteps[3]}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
