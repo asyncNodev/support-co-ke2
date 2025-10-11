@@ -35,19 +35,21 @@ export default function ProductDetail() {
 
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
 
-  // Try to get product by slug first, then by ID
+  // Determine if productSlug is actually an ID
+  const isProductSlugAnId = productSlug && (productSlug.startsWith("jd") || productSlug.startsWith("k9"));
+  const actualProductId = id || (isProductSlugAnId ? productSlug : null);
+  const actualProductSlug = !isProductSlugAnId ? productSlug : null;
+
+  // Try to get product by slug first
   const productBySlug = useQuery(
     api.products.getProductBySlug,
-    productSlug && !productSlug.startsWith("jd") && !productSlug.startsWith("k9")
-      ? { slug: productSlug }
-      : "skip"
+    actualProductSlug ? { slug: actualProductSlug } : "skip"
   );
 
+  // Fall back to ID-based lookup
   const productById = useQuery(
     api.products.getProduct,
-    id || (productSlug && (productSlug.startsWith("jd") || productSlug.startsWith("k9"))) 
-      ? { productId: (id || productSlug) as Id<"products"> }
-      : "skip"
+    actualProductId ? { productId: actualProductId as Id<"products"> } : "skip"
   );
 
   const displayProduct = productBySlug || productById;
