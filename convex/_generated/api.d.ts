@@ -13,6 +13,7 @@ import type {
   FilterApi,
   FunctionReference,
 } from "convex/server";
+import type * as ai_catalogScanner from "../ai/catalogScanner.js";
 import type * as analytics from "../analytics.js";
 import type * as browseAi_integration from "../browseAi/integration.js";
 import type * as categories from "../categories.js";
@@ -36,6 +37,7 @@ import type * as vendorQuotations from "../vendorQuotations.js";
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  "ai/catalogScanner": typeof ai_catalogScanner;
   analytics: typeof analytics;
   "browseAi/integration": typeof browseAi_integration;
   categories: typeof categories;

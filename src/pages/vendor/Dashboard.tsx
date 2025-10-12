@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
 import { PhotoUpload } from "@/components/ui/photo-upload";
+import CatalogScanner from "@/components/CatalogScanner.tsx";
 import { EditQuotationDialog } from "@/pages/vendor/_components/EditQuotationDialog";
 import {
   Dialog,
@@ -24,7 +25,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { EmptyState, EmptyStateContent, EmptyStateIcon, EmptyStateTitle, EmptyStateDescription } from "@/components/ui/empty-state.tsx";
-import { Package, AlertCircle, Plus, Edit, Trash2, MessageCircle, XCircle, Clock } from "lucide-react";
+import { Package, AlertCircle, Plus, Edit, Trash2, MessageCircle, XCircle, Clock, ScanLine } from "lucide-react";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-auth.ts";
 
@@ -74,6 +75,7 @@ export default function VendorDashboard() {
     productSpecifications?: string;
   } | null>(null);
   const [editQuotationOpen, setEditQuotationOpen] = useState(false);
+  const [catalogScannerOpen, setCatalogScannerOpen] = useState(false);
 
   const createQuotation = useMutation(api.vendorQuotations.createQuotation);
   const deleteQuotation = useMutation(api.vendorQuotations.deleteQuotation);
@@ -270,160 +272,166 @@ export default function VendorDashboard() {
           <TabsContent value="products" className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">My Product Quotations</h2>
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="size-4 mr-2" />
-                    Add Product Quotation
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Add Product Quotation</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Category *</Label>
-                      <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories?.map((cat) => (
-                            <SelectItem key={cat._id} value={cat._id}>
-                              {cat.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {selectedCategory && (
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setCatalogScannerOpen(true)}>
+                  <ScanLine className="size-4 mr-2" />
+                  Scan Catalog
+                </Button>
+                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="size-4 mr-2" />
+                      Add Product Quotation
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Add Product Quotation</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
                       <div className="space-y-2">
-                        <Label>Product *</Label>
-                        <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                        <Label>Category *</Label>
+                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select product" />
+                            <SelectValue placeholder="Select category" />
                           </SelectTrigger>
                           <SelectContent>
-                            {filteredProducts?.map((product) => (
-                              <SelectItem key={product._id} value={product._id}>
-                                {product.name}
+                            {categories?.map((cat) => (
+                              <SelectItem key={cat._id} value={cat._id}>
+                                {cat.name}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       </div>
-                    )}
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Price (KES) *</Label>
-                        <Input
-                          type="number"
-                          value={price}
-                          onChange={(e) => setPrice(e.target.value)}
-                          placeholder="4500"
-                        />
+                      {selectedCategory && (
+                        <div className="space-y-2">
+                          <Label>Product *</Label>
+                          <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select product" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {filteredProducts?.map((product) => (
+                                <SelectItem key={product._id} value={product._id}>
+                                  {product.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Price (KES) *</Label>
+                          <Input
+                            type="number"
+                            value={price}
+                            onChange={(e) => setPrice(e.target.value)}
+                            placeholder="4500"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Quantity Available *</Label>
+                          <Input
+                            type="number"
+                            value={quantity}
+                            onChange={(e) => setQuantity(e.target.value)}
+                            placeholder="100"
+                          />
+                        </div>
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Quantity Available *</Label>
+                        <Label>Brand</Label>
                         <Input
-                          type="number"
-                          value={quantity}
-                          onChange={(e) => setQuantity(e.target.value)}
-                          placeholder="100"
+                          value={brand}
+                          onChange={(e) => setBrand(e.target.value)}
+                          placeholder="Philips, Siemens, etc."
                         />
                       </div>
-                    </div>
 
-                    <div className="space-y-2">
-                      <Label>Brand</Label>
-                      <Input
-                        value={brand}
-                        onChange={(e) => setBrand(e.target.value)}
-                        placeholder="Philips, Siemens, etc."
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Payment Terms *</Label>
+                          <Select value={paymentTerms} onValueChange={(v: "cash" | "credit") => setPaymentTerms(v)}>
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="cash">Cash</SelectItem>
+                              <SelectItem value="credit">Credit</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Delivery Time *</Label>
+                          <Input
+                            value={deliveryTime}
+                            onChange={(e) => setDeliveryTime(e.target.value)}
+                            placeholder="3-5 days"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Warranty Period *</Label>
+                          <Input
+                            value={warrantyPeriod}
+                            onChange={(e) => setWarrantyPeriod(e.target.value)}
+                            placeholder="12 months"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Country of Origin</Label>
+                          <Input
+                            value={countryOfOrigin}
+                            onChange={(e) => setCountryOfOrigin(e.target.value)}
+                            placeholder="Kenya, China, USA, etc."
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Product Description</Label>
+                        <Textarea
+                          value={productDescription}
+                          onChange={(e) => setProductDescription(e.target.value)}
+                          placeholder="Detailed product description and specifications"
+                          rows={3}
+                        />
+                      </div>
+
+                      <PhotoUpload
+                        value={productPhoto}
+                        onChange={(url) => setProductPhoto(url)}
+                        label="Product Photo"
+                        uploadUrlMutation={api.vendorQuotations.generateUploadUrl}
                       />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Payment Terms *</Label>
-                        <Select value={paymentTerms} onValueChange={(v: "cash" | "credit") => setPaymentTerms(v)}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="cash">Cash</SelectItem>
-                            <SelectItem value="credit">Credit</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
 
                       <div className="space-y-2">
-                        <Label>Delivery Time *</Label>
-                        <Input
-                          value={deliveryTime}
-                          onChange={(e) => setDeliveryTime(e.target.value)}
-                          placeholder="3-5 days"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Warranty Period *</Label>
-                        <Input
-                          value={warrantyPeriod}
-                          onChange={(e) => setWarrantyPeriod(e.target.value)}
-                          placeholder="12 months"
+                        <Label>Product Specifications</Label>
+                        <Textarea
+                          value={productSpecifications}
+                          onChange={(e) => setProductSpecifications(e.target.value)}
+                          placeholder="Technical specifications"
+                          rows={3}
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Country of Origin</Label>
-                        <Input
-                          value={countryOfOrigin}
-                          onChange={(e) => setCountryOfOrigin(e.target.value)}
-                          placeholder="Kenya, China, USA, etc."
-                        />
-                      </div>
+                      <Button onClick={handleAddQuotation} className="w-full">
+                        Submit Quotation
+                      </Button>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label>Product Description</Label>
-                      <Textarea
-                        value={productDescription}
-                        onChange={(e) => setProductDescription(e.target.value)}
-                        placeholder="Detailed product description and specifications"
-                        rows={3}
-                      />
-                    </div>
-
-                    <PhotoUpload
-                      value={productPhoto}
-                      onChange={(url) => setProductPhoto(url)}
-                      label="Product Photo"
-                      uploadUrlMutation={api.vendorQuotations.generateUploadUrl}
-                    />
-
-                    <div className="space-y-2">
-                      <Label>Product Specifications</Label>
-                      <Textarea
-                        value={productSpecifications}
-                        onChange={(e) => setProductSpecifications(e.target.value)}
-                        placeholder="Technical specifications"
-                        rows={3}
-                      />
-                    </div>
-
-                    <Button onClick={handleAddQuotation} className="w-full">
-                      Submit Quotation
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
 
             {!myQuotations || myQuotations.length === 0 ? (
@@ -921,6 +929,13 @@ export default function VendorDashboard() {
         quotation={editQuotationData}
         open={editQuotationOpen}
         onOpenChange={setEditQuotationOpen}
+      />
+
+      <CatalogScanner
+        open={catalogScannerOpen}
+        onOpenChange={setCatalogScannerOpen}
+        userRole="vendor"
+        vendorId={currentUser?._id}
       />
     </div>
   );

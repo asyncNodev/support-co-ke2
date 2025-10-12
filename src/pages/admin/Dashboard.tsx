@@ -14,10 +14,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PhotoUpload } from "@/components/ui/photo-upload";
 import { Separator } from "@/components/ui/separator";
-import { BulkProductUpload } from "@/pages/admin/_components/BulkProductUpload";
+import CatalogScanner from "@/components/CatalogScanner.tsx";
+import { BulkProductUpload } from "@/pages/admin/_components/BulkProductUpload.tsx";
 import { EditProductDialog } from "@/pages/admin/_components/EditProductDialog";
 import { toast } from "sonner";
-import { Plus, Trash2, Users, Package, Tag, Settings, Upload, Edit, Globe, PlayCircle, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, Trash2, Users, Package, Tag, Settings, Upload, Edit, Globe, PlayCircle, CheckCircle, AlertCircle, ScanLine } from "lucide-react";
 import { useAction } from "convex/react";
 
 export default function AdminDashboard() {
@@ -57,6 +58,7 @@ export default function AdminDashboard() {
   const [viewDetailsUserId, setViewDetailsUserId] = useState<Id<"users"> | null>(null);
   const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
+  const [catalogScannerOpen, setCatalogScannerOpen] = useState(false);
   const [editProductId, setEditProductId] = useState<Id<"products"> | null>(null);
   const [editProductOpen, setEditProductOpen] = useState(false);
   
@@ -453,6 +455,10 @@ export default function AdminDashboard() {
                     <Button variant="outline" onClick={() => setBulkUploadOpen(true)}>
                       <Upload className="size-4 mr-2" />
                       Bulk Upload
+                    </Button>
+                    <Button variant="outline" onClick={() => setCatalogScannerOpen(true)}>
+                      <ScanLine className="size-4 mr-2" />
+                      Scan Catalog
                     </Button>
                     <Dialog open={addProductOpen} onOpenChange={setAddProductOpen}>
                       <DialogTrigger asChild>
@@ -1885,6 +1891,12 @@ export default function AdminDashboard() {
           )}
         </DialogContent>
       </Dialog>
+
+      <CatalogScanner
+        open={catalogScannerOpen}
+        onOpenChange={setCatalogScannerOpen}
+        userRole="admin"
+      />
 
       <BulkProductUpload
         open={bulkUploadOpen}
