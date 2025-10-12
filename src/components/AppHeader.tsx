@@ -16,6 +16,9 @@ export default function AppHeader() {
   const siteSettings = useQuery(api.siteSettings.getSiteSettings, {});
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
 
+  // Don't show logo until settings are loaded to prevent flash
+  const isLoadingSettings = siteSettings === undefined;
+
   const logoUrl = siteSettings?.logoUrl || "https://cdn.hercules.app/file_bqE3zk4Ry0XmWJeiuCRNP3vv";
   const logoSize = siteSettings?.logoSize || "h-28";
   const siteName = siteSettings?.siteName || "Medical Supplies Kenya";
@@ -43,11 +46,18 @@ export default function AppHeader() {
       <div className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <img 
-              src={logoUrl} 
-              alt={siteName} 
-              className={`${logoSize} w-auto`}
-            />
+            {isLoadingSettings ? (
+              <Skeleton className={`${logoSize} w-32`} />
+            ) : (
+              <motion.img
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                src={logoUrl} 
+                alt={siteName} 
+                className={`${logoSize} w-auto`}
+              />
+            )}
             <div>
               <h1 className="text-xl font-bold">{siteName}</h1>
               <p className="text-xs text-muted-foreground">{tagline}</p>
