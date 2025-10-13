@@ -3,7 +3,6 @@ import { MessageCircle, X, Send, Package, HelpCircle, Loader2 } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
@@ -238,7 +237,7 @@ Would you like to search for products now?`,
       {isOpen && (
         <div className="fixed inset-0 md:inset-auto md:bottom-6 md:right-6 md:w-[420px] md:h-[650px] md:max-h-[calc(100vh-3rem)] bg-card border-0 md:border-2 md:border-border md:rounded-2xl shadow-2xl z-50 flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 md:p-4 border-b border-border bg-primary text-primary-foreground md:rounded-t-2xl">
+          <div className="flex items-center justify-between p-4 md:p-4 border-b border-border bg-primary text-primary-foreground md:rounded-t-2xl flex-shrink-0">
             <div className="flex items-center gap-2 md:gap-3">
               <MessageCircle className="size-5 md:size-6" />
               <div>
@@ -256,8 +255,15 @@ Would you like to search for products now?`,
             </Button>
           </div>
 
-          {/* Messages */}
-          <ScrollArea className="flex-1 p-3 md:p-4" ref={scrollRef}>
+          {/* Messages - Scrollable area */}
+          <div 
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto p-3 md:p-4"
+            style={{ 
+              WebkitOverflowScrolling: 'touch',
+              overflowY: 'auto'
+            }}
+          >
             <div className="space-y-3 md:space-y-4">
               {messages.map((message) => (
                 <div key={message.id} className="space-y-2 md:space-y-3">
@@ -362,11 +368,11 @@ Would you like to search for products now?`,
                 </div>
               ))}
             </div>
-          </ScrollArea>
+          </div>
 
           {/* Input Area */}
           {conversationState === "search_product" && (
-            <div className="p-3 md:p-4 border-t border-border bg-background">
+            <div className="p-3 md:p-4 border-t border-border bg-background flex-shrink-0">
               <div className="flex gap-2">
                 <Input
                   value={inputValue}
