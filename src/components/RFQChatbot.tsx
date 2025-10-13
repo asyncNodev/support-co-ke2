@@ -228,21 +228,21 @@ Would you like to search for products now?`,
         <Button
           onClick={handleOpen}
           size="icon"
-          className="fixed bottom-6 right-6 size-16 rounded-full shadow-lg z-50 animate-bounce"
+          className="fixed bottom-4 right-4 md:bottom-6 md:right-6 size-14 md:size-16 rounded-full shadow-lg z-50 animate-bounce"
         >
-          <MessageCircle className="size-8" />
+          <MessageCircle className="size-6 md:size-8" />
         </Button>
       )}
 
-      {/* Chat Window */}
+      {/* Chat Window - Full screen on mobile, fixed size on desktop */}
       {isOpen && (
-        <div className="fixed bottom-6 right-6 w-[400px] h-[600px] bg-card border-2 border-border rounded-2xl shadow-2xl z-50 flex flex-col">
+        <div className="fixed inset-0 md:inset-auto md:bottom-6 md:right-6 md:w-[420px] md:h-[650px] md:max-h-[calc(100vh-3rem)] bg-card border-0 md:border-2 md:border-border md:rounded-2xl shadow-2xl z-50 flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border bg-primary text-primary-foreground rounded-t-2xl">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="size-5" />
+          <div className="flex items-center justify-between p-4 md:p-4 border-b border-border bg-primary text-primary-foreground md:rounded-t-2xl">
+            <div className="flex items-center gap-2 md:gap-3">
+              <MessageCircle className="size-5 md:size-6" />
               <div>
-                <h3 className="font-semibold">RFQ Assistant</h3>
+                <h3 className="font-semibold text-base md:text-lg">RFQ Assistant</h3>
                 <p className="text-xs opacity-90">Here to help you</p>
               </div>
             </div>
@@ -250,26 +250,26 @@ Would you like to search for products now?`,
               variant="ghost"
               size="icon"
               onClick={() => setIsOpen(false)}
-              className="text-primary-foreground hover:bg-primary-foreground/20"
+              className="text-primary-foreground hover:bg-primary-foreground/20 size-8 md:size-10"
             >
               <X className="size-5" />
             </Button>
           </div>
 
           {/* Messages */}
-          <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-            <div className="space-y-4">
+          <ScrollArea className="flex-1 p-3 md:p-4" ref={scrollRef}>
+            <div className="space-y-3 md:space-y-4">
               {messages.map((message) => (
-                <div key={message.id} className="space-y-3">
+                <div key={message.id} className="space-y-2 md:space-y-3">
                   <div className={`flex ${message.isBot ? "justify-start" : "justify-end"}`}>
                     <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                      className={`max-w-[85%] md:max-w-[80%] rounded-2xl px-3 py-2 md:px-4 md:py-2 ${
                         message.isBot
                           ? "bg-muted text-foreground"
                           : "bg-primary text-primary-foreground"
                       }`}
                     >
-                      <p className="text-sm whitespace-pre-line">{message.text}</p>
+                      <p className="text-sm md:text-base whitespace-pre-line leading-relaxed">{message.text}</p>
                     </div>
                   </div>
 
@@ -283,7 +283,7 @@ Would you like to search for products now?`,
                           className="w-full text-left p-3 bg-background border border-border rounded-lg hover:bg-muted transition-colors flex items-center gap-2"
                         >
                           <Package className="size-4 text-primary flex-shrink-0" />
-                          <span className="text-sm">{product.name}</span>
+                          <span className="text-sm md:text-base">{product.name}</span>
                         </button>
                       ))}
                     </div>
@@ -298,7 +298,7 @@ Would you like to search for products now?`,
                           variant="outline"
                           size="sm"
                           onClick={() => handleOptionClick(option.action)}
-                          className="text-xs"
+                          className="text-xs md:text-sm h-8 md:h-9"
                         >
                           {option.label}
                         </Button>
@@ -308,13 +308,14 @@ Would you like to search for products now?`,
 
                   {/* Contact Form */}
                   {message.showContactForm && (
-                    <form onSubmit={handleContactFormSubmit} className="space-y-3 ml-2 p-4 bg-background border border-border rounded-lg">
+                    <form onSubmit={handleContactFormSubmit} className="space-y-3 ml-2 p-3 md:p-4 bg-background border border-border rounded-lg">
                       <div>
                         <Input
                           placeholder="Your Name"
                           value={contactForm.name}
                           onChange={(e) => setContactForm({ ...contactForm, name: e.target.value })}
                           required
+                          className="h-10 md:h-11"
                         />
                       </div>
                       <div>
@@ -324,6 +325,7 @@ Would you like to search for products now?`,
                           value={contactForm.email}
                           onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
                           required
+                          className="h-10 md:h-11"
                         />
                       </div>
                       <div>
@@ -332,6 +334,7 @@ Would you like to search for products now?`,
                           value={contactForm.phone}
                           onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
                           required
+                          className="h-10 md:h-11"
                         />
                       </div>
                       <div>
@@ -341,9 +344,10 @@ Would you like to search for products now?`,
                           onChange={(e) => setContactForm({ ...contactForm, product: e.target.value })}
                           rows={3}
                           required
+                          className="text-sm md:text-base"
                         />
                       </div>
-                      <Button type="submit" className="w-full" disabled={conversationState === "processing"}>
+                      <Button type="submit" className="w-full h-10 md:h-11" disabled={conversationState === "processing"}>
                         {conversationState === "processing" ? (
                           <>
                             <Loader2 className="size-4 animate-spin mr-2" />
@@ -362,16 +366,16 @@ Would you like to search for products now?`,
 
           {/* Input Area */}
           {conversationState === "search_product" && (
-            <div className="p-4 border-t border-border">
+            <div className="p-3 md:p-4 border-t border-border bg-background">
               <div className="flex gap-2">
                 <Input
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
                   placeholder="Type product name..."
-                  className="flex-1"
+                  className="flex-1 h-10 md:h-11"
                 />
-                <Button onClick={handleSendMessage} size="icon" disabled={!inputValue.trim()}>
+                <Button onClick={handleSendMessage} size="icon" disabled={!inputValue.trim()} className="size-10 md:size-11">
                   <Send className="size-4" />
                 </Button>
               </div>
