@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel.d.ts";
 import { useRef } from "react";
 import AppHeader from "@/components/AppHeader";
+import RFQChatbot from "@/components/RFQChatbot";
 
 export default function BrowseProducts() {
   const { isAuthenticated } = useAuth();
@@ -203,6 +204,9 @@ export default function BrowseProducts() {
           )}
         </div>
       </main>
+
+      {/* RFQ Chatbot */}
+      <RFQChatbot />
     </div>
   );
 }

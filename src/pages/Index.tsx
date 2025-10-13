@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth.ts";
 import { toast } from "sonner";
 import AppHeader from "@/components/AppHeader";
+import RFQChatbot from "@/components/RFQChatbot";
 
 export default function Index() {
   const navigate = useNavigate();
@@ -193,6 +194,9 @@ export default function Index() {
           <p>&copy; {new Date().getFullYear()} Medical Supplies Kenya. All rights reserved.</p>
         </div>
       </footer>
+
+      {/* RFQ Chatbot */}
+      <RFQChatbot />
     </div>
   );
 }

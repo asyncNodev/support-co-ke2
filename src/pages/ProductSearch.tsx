@@ -8,6 +8,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import AppHeader from "@/components/AppHeader";
+import RFQChatbot from "@/components/RFQChatbot";
 
 export default function ProductSearch() {
   const [searchParams] = useSearchParams();
@@ -159,6 +160,9 @@ export default function ProductSearch() {
           </div>
         )}
       </main>
+
+      {/* RFQ Chatbot */}
+      <RFQChatbot />
     </div>
   );
 }

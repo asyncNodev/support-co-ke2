@@ -120,3 +120,34 @@ export const getUnreadCount = query({
     return notifications.filter((n) => !n.read).length;
   },
 });
+
+// Send admin contact message (from chatbot)
+export const sendAdminContactMessage = mutation({
+  args: {
+    name: v.string(),
+    email: v.string(),
+    phone: v.string(),
+    productRequest: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Get all admin users
+    const admins = await ctx.db
+      .query("users")
+      .withIndex("by_role", (q) => q.eq("role", "admin"))
+      .collect();
+
+    // Send notification to all admins
+    for (const admin of admins) {
+      await ctx.db.insert("notifications", {
+        userId: admin._id,
+        type: "rfq_received",
+        title: "Product Request from Chatbot",
+        message: `${args.name} (${args.email}, ${args.phone}) is looking for: ${args.productRequest}`,
+        read: false,
+        createdAt: Date.now(),
+      });
+    }
+
+    return null;
+  },
+});
