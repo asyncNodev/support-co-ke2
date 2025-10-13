@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "convex/react";
-import { ShoppingCart, Zap, Search, Package, Camera } from "lucide-react";
+import { ShoppingCart, Zap, Search, Package } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { addToRFQCart, getRFQCart } from "@/lib/rfq-cart";
 import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel.d.ts";
-import { useRef } from "react";
 import AppHeader from "@/components/AppHeader";
 import RFQChatbot from "@/components/RFQChatbot";
 
@@ -29,7 +28,6 @@ export default function BrowseProducts() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<Id<"categories"> | undefined>();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const categories = useQuery(api.categories.getCategories);
   const products = useQuery(api.products.getProducts, {
@@ -52,23 +50,6 @@ export default function BrowseProducts() {
     toast.success(`${productName} added to RFQ cart`);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
-      return;
-    }
-
-    toast.success("Image uploaded! Showing all products for visual comparison");
-    navigate(`/product-search?image=true`);
-  };
-
-  const handleImageSearchClick = () => {
-    fileInputRef.current?.click();
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -79,31 +60,15 @@ export default function BrowseProducts() {
         <div className="border-b bg-muted/50">
           <div className="container mx-auto px-4 py-6">
             <div className="flex flex-col md:flex-row gap-4">
-              <div className="relative">
+              <div className="relative flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-muted-foreground" />
                 <Input
                   type="text"
                   placeholder="Search products..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-12 pr-16"
+                  className="pl-12"
                 />
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2"
-                  onClick={handleImageSearchClick}
-                >
-                  <Camera className="size-5 text-muted-foreground" />
-                </Button>
               </div>
               <Button
                 variant={selectedCategory === undefined ? "default" : "outline"}
