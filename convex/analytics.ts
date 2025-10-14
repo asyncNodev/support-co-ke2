@@ -1,174 +1,198 @@
-import { ConvexError, v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
+import { query, mutation } from "./_generated/server";
 
-// Track page visit
-export const trackVisit = mutation({
+// Track site analytics
+export const trackEvent = mutation({
   args: {
-    page: v.optional(v.string()),
+    type: v.union(
+      v.literal("visitor"),
+      v.literal("rfq_sent"),
+      v.literal("quotation_sent")
+    ),
+    metadata: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await ctx.db.insert("analytics", {
-      type: "visitor",
-      metadata: args.page ? JSON.stringify({ page: args.page }) : undefined,
+      type: args.type,
+      metadata: args.metadata,
       timestamp: Date.now(),
     });
-
-    return null;
   },
 });
 
-// Get admin analytics
-export const getAnalytics = query({
+// Get market intelligence report
+export const getMarketIntelligence = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return null;
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
-
-    if (!currentUser || currentUser.role !== "admin") {
-      throw new ConvexError({
-        message: "Only admins can view analytics",
-        code: "FORBIDDEN",
-      });
-    }
-
     const now = Date.now();
     const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+    const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
 
-    // Get visitor count (last 30 days)
-    const visitors = await ctx.db
-      .query("analytics")
-      .withIndex("by_type", (q) => q.eq("type", "visitor"))
-      .collect();
+    // Get all RFQs
+    const allRFQs = await ctx.db.query("rfqs").collect();
+    const recentRFQs = allRFQs.filter((rfq) => rfq.createdAt >= thirtyDaysAgo);
 
-    const recentVisitors = visitors.filter((v) => v.timestamp >= thirtyDaysAgo);
+    // Get all quotations
+    const allQuotations = await ctx.db.query("vendorQuotations").collect();
+    
+    // Get all orders
+    const allOrders = await ctx.db.query("orders").collect();
+    const recentOrders = allOrders.filter((order) => order.orderDate >= thirtyDaysAgo);
 
-    // Get RFQ stats
-    const allRfqs = await ctx.db.query("rfqs").collect();
-    const rfqsSent = await ctx.db
-      .query("analytics")
-      .withIndex("by_type", (q) => q.eq("type", "rfq_sent"))
-      .collect();
-
-    const recentRfqs = allRfqs.filter((r) => r.createdAt >= thirtyDaysAgo);
-
-    // Get sent quotation stats
-    const sentQuotations = await ctx.db.query("sentQuotations").collect();
-    const openedQuotations = sentQuotations.filter((q) => q.opened);
-
-    // Get user counts
-    const allUsers = await ctx.db.query("users").collect();
-    const vendors = allUsers.filter((u) => u.role === "vendor");
-    const buyers = allUsers.filter((u) => u.role === "buyer");
-    const verifiedVendors = vendors.filter((v) => v.verified);
-    const verifiedBuyers = buyers.filter((b) => b.verified);
-
-    // Get category stats
+    // Get all products with their names
     const products = await ctx.db.query("products").collect();
     const categories = await ctx.db.query("categories").collect();
 
-    const categoryStats = await Promise.all(
-      categories.map(async (category) => {
-        const categoryProducts = products.filter(
-          (p) => p.categoryId === category._id
-        );
+    // Calculate most requested products
+    const rfqItems = await ctx.db.query("rfqItems").collect();
+    const productRequestCounts: Record<string, number> = {};
+    
+    for (const item of rfqItems) {
+      const product = products.find((p) => p._id === item.productId);
+      if (product) {
+        productRequestCounts[product.name] = (productRequestCounts[product.name] || 0) + 1;
+      }
+    }
 
-        // Get RFQ items for this category
-        const rfqItems = await ctx.db.query("rfqItems").collect();
-        const categoryRfqItems = rfqItems.filter((item) =>
-          categoryProducts.some((p) => p._id === item.productId)
-        );
+    const topProducts = Object.entries(productRequestCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
 
-        return {
-          categoryName: category.name,
-          productCount: categoryProducts.length,
-          rfqCount: categoryRfqItems.length,
-        };
-      })
+    // Calculate average prices by product
+    const productPrices: Record<string, number[]> = {};
+    
+    for (const quotation of allQuotations) {
+      const product = products.find((p) => p._id === quotation.productId);
+      if (product && quotation.active) {
+        if (!productPrices[product.name]) {
+          productPrices[product.name] = [];
+        }
+        productPrices[product.name].push(quotation.price);
+      }
+    }
+
+    const avgPricesByProduct = Object.entries(productPrices)
+      .map(([name, prices]) => ({
+        name,
+        avgPrice: Math.round(prices.reduce((sum, p) => sum + p, 0) / prices.length),
+        minPrice: Math.min(...prices),
+        maxPrice: Math.max(...prices),
+        quotationCount: prices.length,
+      }))
+      .sort((a, b) => b.quotationCount - a.quotationCount)
+      .slice(0, 10);
+
+    // Calculate total platform value
+    const totalOrderValue = allOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const recentOrderValue = recentOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+
+    // Get active users count
+    const buyers = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("role"), "buyer"))
+      .collect();
+    
+    const vendors = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("role"), "vendor"))
+      .collect();
+
+    const activeBuyers = buyers.filter((b) => b.verified).length;
+    const activeVendors = vendors.filter((v) => v.verified && v.status === "approved").length;
+
+    // Calculate average delivery times
+    const deliveredOrders = allOrders.filter(
+      (o) => o.status === "delivered" && o.actualDeliveryDate
     );
+    
+    const avgDeliveryTime = deliveredOrders.length > 0
+      ? Math.round(
+          deliveredOrders.reduce((sum, order) => {
+            const deliveryTime = order.actualDeliveryDate! - order.orderDate;
+            return sum + deliveryTime;
+          }, 0) / deliveredOrders.length / (24 * 60 * 60 * 1000)
+        )
+      : 0;
+
+    // Calculate RFQ trends (monthly for last 6 months)
+    const sixMonthsAgo = now - 180 * 24 * 60 * 60 * 1000;
+    const recentSixMonthRFQs = allRFQs.filter((rfq) => rfq.createdAt >= sixMonthsAgo);
+    
+    const monthlyRFQs: Record<string, number> = {};
+    for (const rfq of recentSixMonthRFQs) {
+      const date = new Date(rfq.createdAt);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      monthlyRFQs[monthKey] = (monthlyRFQs[monthKey] || 0) + 1;
+    }
+
+    const rfqTrends = Object.entries(monthlyRFQs)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([month, count]) => ({ month, count }));
 
     return {
-      visitors: {
-        total: recentVisitors.length,
-        last30Days: recentVisitors.length,
+      overview: {
+        totalRFQs: allRFQs.length,
+        recentRFQs: recentRFQs.length,
+        totalQuotations: allQuotations.length,
+        totalOrders: allOrders.length,
+        recentOrders: recentOrders.length,
+        totalOrderValue,
+        recentOrderValue,
+        activeBuyers,
+        activeVendors,
+        avgDeliveryTime,
+        totalProducts: products.length,
+        totalCategories: categories.length,
       },
-      rfqs: {
-        total: allRfqs.length,
-        last30Days: recentRfqs.length,
-        pending: allRfqs.filter((r) => r.status === "pending").length,
-        quoted: allRfqs.filter((r) => r.status === "quoted").length,
-        completed: allRfqs.filter((r) => r.status === "completed").length,
-      },
-      quotations: {
-        total: sentQuotations.length,
-        opened: openedQuotations.length,
-        openRate:
-          sentQuotations.length > 0
-            ? (openedQuotations.length / sentQuotations.length) * 100
-            : 0,
-      },
-      users: {
-        totalVendors: vendors.length,
-        verifiedVendors: verifiedVendors.length,
-        totalBuyers: buyers.length,
-        verifiedBuyers: verifiedBuyers.length,
-      },
-      categories: categoryStats,
+      topProducts,
+      avgPricesByProduct,
+      rfqTrends,
     };
   },
 });
 
-// Get vendor dashboard stats
-export const getVendorStats = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return null;
-    }
-
-    const vendor = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
-
-    if (!vendor || vendor.role !== "vendor") {
-      return null;
-    }
-
+// Get price trends for a specific product
+export const getProductPriceTrends = query({
+  args: {
+    productId: v.id("products"),
+  },
+  handler: async (ctx, args) => {
     const quotations = await ctx.db
       .query("vendorQuotations")
-      .withIndex("by_vendor", (q) => q.eq("vendorId", vendor._id))
+      .filter((q) => q.eq(q.field("productId"), args.productId))
       .collect();
 
-    const sentQuotations = await ctx.db
-      .query("sentQuotations")
-      .withIndex("by_vendor", (q) => q.eq("vendorId", vendor._id))
-      .collect();
+    const now = Date.now();
+    const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
 
-    const ratings = await ctx.db
-      .query("ratings")
-      .withIndex("by_vendor", (q) => q.eq("vendorId", vendor._id))
-      .collect();
+    const recentQuotations = quotations.filter(
+      (q) => q.createdAt >= ninetyDaysAgo && q.active
+    );
 
-    const avgRating =
-      ratings.length > 0
-        ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
-        : 0;
+    // Group by month
+    const monthlyPrices: Record<string, number[]> = {};
+    
+    for (const quotation of recentQuotations) {
+      const date = new Date(quotation.createdAt);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      
+      if (!monthlyPrices[monthKey]) {
+        monthlyPrices[monthKey] = [];
+      }
+      monthlyPrices[monthKey].push(quotation.price);
+    }
 
-    return {
-      totalQuotations: quotations.length,
-      activeQuotations: quotations.filter((q) => q.active).length,
-      quotationsSent: sentQuotations.length,
-      quotationsOpened: sentQuotations.filter((q) => q.opened).length,
-      averageRating: avgRating,
-      totalRatings: ratings.length,
-    };
+    const trends = Object.entries(monthlyPrices)
+      .map(([month, prices]) => ({
+        month,
+        avgPrice: Math.round(prices.reduce((sum, p) => sum + p, 0) / prices.length),
+        minPrice: Math.min(...prices),
+        maxPrice: Math.max(...prices),
+        quotationCount: prices.length,
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    return trends;
   },
 });

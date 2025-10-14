@@ -18,16 +18,16 @@ import CatalogScanner from "@/components/CatalogScanner.tsx";
 import { BulkProductUpload } from "@/pages/admin/_components/BulkProductUpload.tsx";
 import { EditProductDialog } from "@/pages/admin/_components/EditProductDialog";
 import { toast } from "sonner";
-import { Plus, Trash2, Users, Package, Tag, Settings, Upload, Edit, Globe, PlayCircle, CheckCircle, AlertCircle, ScanLine } from "lucide-react";
+import { Plus, Trash2, Users, Package, Tag, Settings, Upload, Edit, Globe, PlayCircle, CheckCircle, AlertCircle, ScanLine, BarChart3, TrendingUp, DollarSign, ShoppingCart, XCircle } from "lucide-react";
 import { useAction } from "convex/react";
 
 export default function AdminDashboard() {
   const products = useQuery(api.products.getProducts, {});
   const categories = useQuery(api.categories.getCategories, {});
   const users = useQuery(api.users.getAllUsers, {});
-  const analytics = useQuery(api.analytics.getAnalytics, {});
   const allRfqs = useQuery(api.rfqs.getAllRFQsForAdmin, {});
   const allQuotations = useQuery(api.vendorQuotations.getAllQuotationsForAdmin, {});
+  const marketIntelligence = useQuery(api.analytics.getMarketIntelligence, {});
 
   const createProduct = useMutation(api.products.createProduct);
   const deleteProduct = useMutation(api.products.deleteProduct);
@@ -438,6 +438,10 @@ export default function AdminDashboard() {
             <TabsTrigger value="rfqs">RFQs</TabsTrigger>
             <TabsTrigger value="quotations">Quotations</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="market-intelligence">
+              <BarChart3 className="mr-2 size-4" />
+              Market Intelligence
+            </TabsTrigger>
             <TabsTrigger value="browse-ai">Browse.ai</TabsTrigger>
             <TabsTrigger value="approvals">Pending Approvals</TabsTrigger>
             <TabsTrigger value="site-settings">Site Settings</TabsTrigger>
@@ -1172,28 +1176,163 @@ export default function AdminDashboard() {
           <TabsContent value="analytics" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Platform Analytics</CardTitle>
+                <CardTitle>Analytics</CardTitle>
                 <CardDescription>Overview of platform activity</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Visitors</p>
-                    <p className="text-2xl font-bold">
-                      {typeof analytics?.visitors === 'number' ? analytics.visitors : 0}
-                    </p>
-                  </div>
-                  <div>
                     <p className="text-sm text-muted-foreground">Total RFQs</p>
                     <p className="text-2xl font-bold">
-                      {typeof analytics?.rfqs === 'number' ? analytics.rfqs : analytics?.rfqs?.total || 0}
+                      {marketIntelligence?.overview.totalRFQs || 0}
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Total Quotations</p>
                     <p className="text-2xl font-bold">
-                      {typeof analytics?.quotations === 'number' ? analytics.quotations : analytics?.quotations?.total || 0}
+                      {marketIntelligence?.overview.totalQuotations || 0}
                     </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Orders</p>
+                    <p className="text-2xl font-bold">
+                      {marketIntelligence?.overview.totalOrders || 0}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="market-intelligence" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Market Intelligence Report</CardTitle>
+                <CardDescription>Comprehensive market trends, demand analysis, and pricing insights</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Overview Statistics */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Platform Overview</h3>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardDescription>Total RFQs</CardDescription>
+                        <CardTitle className="text-3xl">{marketIntelligence?.overview.totalRFQs || 0}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-xs text-muted-foreground">
+                          {marketIntelligence?.overview.recentRFQs || 0} in last 30 days
+                        </p>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardDescription>Total Orders</CardDescription>
+                        <CardTitle className="text-3xl">{marketIntelligence?.overview.totalOrders || 0}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-xs text-muted-foreground">
+                          {marketIntelligence?.overview.recentOrders || 0} in last 30 days
+                        </p>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardDescription>Total Value</CardDescription>
+                        <CardTitle className="text-3xl">
+                          KES {(marketIntelligence?.overview.totalOrderValue || 0).toLocaleString()}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-xs text-muted-foreground">
+                          KES {(marketIntelligence?.overview.recentOrderValue || 0).toLocaleString()} (30d)
+                        </p>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardDescription>Avg Delivery</CardDescription>
+                        <CardTitle className="text-3xl">{marketIntelligence?.overview.avgDeliveryTime || 0} days</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-xs text-muted-foreground">
+                          {marketIntelligence?.overview.activeBuyers || 0} buyers, {marketIntelligence?.overview.activeVendors || 0} vendors
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+
+                {/* Top Requested Products */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Top 10 Most Requested Products</h3>
+                  <div className="space-y-2">
+                    {marketIntelligence?.topProducts.map((product, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <Badge variant="secondary">{index + 1}</Badge>
+                          <span className="font-medium">{product.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="size-4 text-muted-foreground" />
+                          <span className="text-sm font-semibold">{product.count} requests</span>
+                        </div>
+                      </div>
+                    )) || <p className="text-sm text-muted-foreground">No data available</p>}
+                  </div>
+                </div>
+
+                {/* Average Prices by Product */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">Average Market Prices (Top 10 Products)</h3>
+                  <div className="space-y-2">
+                    {marketIntelligence?.avgPricesByProduct.map((product, index) => (
+                      <div key={index} className="p-3 border rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium">{product.name}</span>
+                          <Badge variant="outline">{product.quotationCount} quotes</Badge>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <p className="text-muted-foreground">Min Price</p>
+                            <p className="font-semibold">KES {product.minPrice.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Avg Price</p>
+                            <p className="font-semibold text-primary">KES {product.avgPrice.toLocaleString()}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Max Price</p>
+                            <p className="font-semibold">KES {product.maxPrice.toLocaleString()}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )) || <p className="text-sm text-muted-foreground">No data available</p>}
+                  </div>
+                </div>
+
+                {/* RFQ Trends */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">RFQ Volume Trends (Last 6 Months)</h3>
+                  <div className="space-y-2">
+                    {marketIntelligence?.rfqTrends.map((trend, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                        <span className="font-medium">{trend.month}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-48 bg-muted rounded-full h-2">
+                            <div 
+                              className="bg-primary h-2 rounded-full" 
+                              style={{ width: `${Math.min(100, (trend.count / Math.max(...(marketIntelligence?.rfqTrends.map(t => t.count) || [1]))) * 100)}%` }}
+                            />
+                          </div>
+                          <span className="text-sm font-semibold w-16 text-right">{trend.count} RFQs</span>
+                        </div>
+                      </div>
+                    )) || <p className="text-sm text-muted-foreground">No data available</p>}
                   </div>
                 </div>
               </CardContent>
