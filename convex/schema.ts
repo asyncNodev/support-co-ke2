@@ -26,6 +26,16 @@ export default defineSchema({
     )),
     whatsappNotifications: v.optional(v.boolean()),
     emailNotifications: v.optional(v.boolean()),
+    // Approval workflow settings
+    organizationRole: v.optional(v.union(
+      v.literal("procurement_officer"),
+      v.literal("department_head"),
+      v.literal("finance_director"),
+      v.literal("ceo"),
+      v.literal("none")
+    )),
+    approvalLevel: v.optional(v.number()),
+    canApproveUpTo: v.optional(v.number()),
   })
     .index("by_authId", ["authId"])
     .index("by_email", ["email"])
@@ -133,7 +143,37 @@ export default defineSchema({
     isBroker: v.optional(v.boolean()),
     expectedDeliveryTime: v.optional(v.string()),
     createdAt: v.number(),
+    // Approval workflow
+    approvalStatus: v.optional(v.union(
+      v.literal("draft"),
+      v.literal("pending_approval"),
+      v.literal("approved"),
+      v.literal("rejected")
+    )),
+    requiresApproval: v.optional(v.boolean()),
+    estimatedValue: v.optional(v.number()),
+    submittedBy: v.optional(v.id("users")),
+    submittedAt: v.optional(v.number()),
   }).index("by_buyer", ["buyerId"]),
+
+  // Approval requests
+  approvalRequests: defineTable({
+    rfqId: v.id("rfqs"),
+    requestedBy: v.id("users"),
+    approverId: v.id("users"),
+    approverLevel: v.number(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected")
+    ),
+    comments: v.optional(v.string()),
+    createdAt: v.number(),
+    respondedAt: v.optional(v.number()),
+  })
+    .index("by_rfq", ["rfqId"])
+    .index("by_approver", ["approverId"])
+    .index("by_status", ["status"]),
 
   // RFQ items
   rfqItems: defineTable({

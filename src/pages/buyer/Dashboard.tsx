@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
-import { Package, FileText, CheckCircle, XCircle, Clock, ShoppingBag, MessageCircle, Users } from "lucide-react";
+import { Package, FileText, CheckCircle, XCircle, Clock, ShoppingBag, MessageCircle, Users, CheckCircle2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -24,17 +24,32 @@ export default function BuyerDashboard() {
   const currentUser = useQuery(api.users.getCurrentUser, isAuthenticated ? {} : "skip");
   const myRFQs = useQuery(api.rfqs.getMyRFQs, isAuthenticated ? {} : "skip");
   const myQuotations = useQuery(api.rfqs.getMyQuotationsSent, isAuthenticated ? {} : "skip");
-  const activeGroupBuys = useQuery(api.groupBuys.getActiveGroupBuys, isAuthenticated ? {} : "skip");
-  const myGroupBuys = useQuery(api.groupBuys.getMyGroupBuys, isAuthenticated ? {} : "skip");
+  const activeGroupBuys = useQuery(api.groupBuys.getActiveGroupBuys, {});
+  const myGroupBuys = useQuery(api.groupBuys.getMyGroupBuys, {});
   
+  const myApprovalRequests = useQuery(api.approvals.getMyApprovalRequests, {});
+
   const approveQuotation = useMutation(api.rfqs.chooseQuotation);
+  const respondToApproval = useMutation(api.approvals.respondToApprovalRequest);
   const declineQuotation = useMutation(api.rfqs.declineQuotation);
 
-  const [declineDialog, setDeclineDialog] = useState<{
-    open: boolean;
-    quotationId: Id<"sentQuotations"> | null;
-  }>({ open: false, quotationId: null });
+  const [declineDialog, setDeclineDialog] = useState<{ open: boolean; quotationId: Id<"sentQuotations"> | null }>({
+    open: false,
+    quotationId: null,
+  });
   const [declineReason, setDeclineReason] = useState("");
+
+  const [approvalDialog, setApprovalDialog] = useState<{
+    open: boolean;
+    requestId: Id<"approvalRequests"> | null;
+    action: "approve" | "reject" | null;
+  }>({
+    open: false,
+    requestId: null,
+    action: null,
+  });
+  const [approvalComments, setApprovalComments] = useState("");
+
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Handle redirects in useEffect
@@ -173,7 +188,7 @@ export default function BuyerDashboard() {
         <h1 className="text-3xl font-bold mb-8">Buyer Dashboard</h1>
 
         <Tabs defaultValue="quotations" className="space-y-6">
-          <TabsList>
+          <TabsList className="grid grid-cols-5 lg:grid-cols-6">
             <TabsTrigger value="quotations" className="gap-2">
               <FileText className="size-4" />
               Quotations
@@ -181,19 +196,20 @@ export default function BuyerDashboard() {
                 <Badge variant="secondary">{myQuotations.length}</Badge>
               )}
             </TabsTrigger>
-            <TabsTrigger value="rfqs" className="gap-2">
-              <Package className="size-4" />
-              My RFQs
-              {myRFQs && myRFQs.length > 0 && (
-                <Badge variant="secondary">{myRFQs.length}</Badge>
-              )}
+            <TabsTrigger value="rfqs">
+              <FileText className="size-4 mr-2" />
+              <span className="hidden sm:inline">My RFQs</span>
+              <span className="sm:hidden">RFQs</span>
             </TabsTrigger>
-            <TabsTrigger value="groupbuys" className="gap-2">
-              <Users className="size-4" />
-              Group Buys
-              {activeGroupBuys && activeGroupBuys.length > 0 && (
-                <Badge variant="secondary">{activeGroupBuys.length}</Badge>
-              )}
+            <TabsTrigger value="groupbuys">
+              <Users className="size-4 mr-2" />
+              <span className="hidden sm:inline">Group Buys</span>
+              <span className="sm:hidden">Groups</span>
+            </TabsTrigger>
+            <TabsTrigger value="approvals">
+              <CheckCircle2 className="size-4 mr-2" />
+              <span className="hidden sm:inline">Approvals</span>
+              <span className="sm:hidden">Approve</span>
             </TabsTrigger>
           </TabsList>
 
@@ -401,54 +417,6 @@ export default function BuyerDashboard() {
           {/* Group Buys Tab */}
           <TabsContent value="groupbuys">
             <div className="space-y-6">
-              {/* My Group Buys Section */}
-              {myGroupBuys && myGroupBuys.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold mb-4">My Group Buys</h3>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {myGroupBuys.map((participation) => (
-                      <Card key={participation._id}>
-                        <CardHeader>
-                          <CardTitle className="text-base">
-                            {participation.product?.name}
-                          </CardTitle>
-                          <CardDescription>
-                            {participation.groupBuy.title}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Your Quantity:</span>
-                              <span className="font-semibold">{participation.quantity} units</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Total Progress:</span>
-                              <span className="font-semibold">
-                                {participation.currentQuantity}/{participation.groupBuy.targetQuantity}
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Participants:</span>
-                              <span className="font-semibold">{participation.participantCount}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Deadline:</span>
-                              <span className="font-semibold">
-                                {participation.daysLeft === 0 ? "Today" : `${participation.daysLeft} days`}
-                              </span>
-                            </div>
-                            <Badge variant={participation.status === "active" ? "default" : "secondary"}>
-                              {participation.status}
-                            </Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Available Group Buys Section */}
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -486,6 +454,144 @@ export default function BuyerDashboard() {
               </div>
             </div>
           </TabsContent>
+
+          {/* Approvals Tab */}
+          <TabsContent value="approvals" className="space-y-6">
+            <div className="space-y-6">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-bold">Pending Approvals</h2>
+                  <Badge variant="outline">
+                    {myApprovalRequests?.filter((r) => r.status === "pending").length || 0} Pending
+                  </Badge>
+                </div>
+
+                {!myApprovalRequests || myApprovalRequests.length === 0 ? (
+                  <Card>
+                    <CardContent className="text-center py-12">
+                      <CheckCircle2 className="size-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-2">
+                        No approval requests at the moment
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        You'll see RFQs that need your approval here
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {myApprovalRequests
+                      .filter((request) => request.status === "pending")
+                      .map((request) => (
+                        <Card key={request._id}>
+                          <CardHeader>
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <CardTitle className="text-base">
+                                  RFQ from {request.requestedBy?.name}
+                                </CardTitle>
+                                <CardDescription>
+                                  Submitted {new Date(request.createdAt).toLocaleDateString()} •
+                                  Level {request.approverLevel} approval required
+                                </CardDescription>
+                              </div>
+                              {request.rfq?.estimatedValue && (
+                                <Badge variant="secondary" className="ml-2">
+                                  KES {request.rfq.estimatedValue.toLocaleString()}
+                                </Badge>
+                              )}
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div>
+                              <div className="font-medium text-sm mb-2">Requested Items:</div>
+                              <div className="space-y-1">
+                                {request.items?.map((item) => (
+                                  <div key={item._id} className="text-sm flex justify-between">
+                                    <span>{item.product?.name}</span>
+                                    <span className="text-muted-foreground">
+                                      Qty: {item.quantity}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setApprovalDialog({
+                                    open: true,
+                                    requestId: request._id,
+                                    action: "approve",
+                                  });
+                                }}
+                              >
+                                <CheckCircle2 className="size-4 mr-2" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => {
+                                  setApprovalDialog({
+                                    open: true,
+                                    requestId: request._id,
+                                    action: "reject",
+                                  });
+                                }}
+                              >
+                                <XCircle className="size-4 mr-2" />
+                                Reject
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                  </div>
+                )}
+
+                {/* Completed Approvals */}
+                {myApprovalRequests && myApprovalRequests.filter((r) => r.status !== "pending").length > 0 && (
+                  <div className="mt-8">
+                    <h3 className="text-lg font-semibold mb-4">Approval History</h3>
+                    <div className="space-y-3">
+                      {myApprovalRequests
+                        .filter((request) => request.status !== "pending")
+                        .map((request) => (
+                          <Card key={request._id}>
+                            <CardContent className="pt-6">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1">
+                                  <div className="font-medium text-sm">
+                                    RFQ from {request.requestedBy?.name}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-1">
+                                    {request.respondedAt
+                                      ? new Date(request.respondedAt).toLocaleString()
+                                      : new Date(request.createdAt).toLocaleString()}
+                                  </div>
+                                </div>
+                                <Badge
+                                  variant={request.status === "approved" ? "default" : "destructive"}
+                                >
+                                  {request.status}
+                                </Badge>
+                              </div>
+                              {request.comments && (
+                                <div className="text-sm mt-3 p-2 bg-muted rounded">
+                                  {request.comments}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -517,6 +623,73 @@ export default function BuyerDashboard() {
               disabled={isSubmitting || !declineReason.trim()}
             >
               {isSubmitting ? "Declining..." : "Decline Quotation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approval Dialog */}
+      <Dialog open={approvalDialog.open} onOpenChange={(open) => setApprovalDialog({ open, requestId: null, action: null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {approvalDialog.action === "approve" ? "Approve RFQ" : "Reject RFQ"}
+            </DialogTitle>
+            <DialogDescription>
+              {approvalDialog.action === "approve" 
+                ? "Approve this RFQ and provide comments if needed"
+                : "Reject this RFQ and provide a reason for rejection"
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={approvalComments}
+            onChange={(e) => setApprovalComments(e.target.value)}
+            placeholder={approvalDialog.action === "approve" 
+              ? "Provide comments on why you're approving this RFQ..."
+              : "Provide a reason for rejecting this RFQ..."
+            }
+            rows={4}
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setApprovalDialog({ open: false, requestId: null, action: null })}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!approvalDialog.requestId) return;
+                if (!approvalComments.trim()) {
+                  toast.error("Please provide a comment for your decision");
+                  return;
+                }
+
+                try {
+                  setIsSubmitting(true);
+                  await respondToApproval({
+                    requestId: approvalDialog.requestId as Id<"approvalRequests">,
+                    decision: approvalDialog.action === "approve" ? "approved" : "rejected",
+                    comments: approvalComments,
+                  });
+                  toast.success(
+                    approvalDialog.action === "approve" 
+                      ? "RFQ approved successfully"
+                      : "RFQ rejected successfully"
+                  );
+                  setApprovalDialog({ open: false, requestId: null, action: null });
+                  setApprovalComments("");
+                } catch (error) {
+                  toast.error("Failed to process approval");
+                  console.error(error);
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
+              disabled={isSubmitting || !approvalDialog.requestId || !approvalComments.trim()}
+            >
+              {isSubmitting ? "Processing..." : approvalDialog.action === "approve" ? "Approve RFQ" : "Reject RFQ"}
             </Button>
           </DialogFooter>
         </DialogContent>

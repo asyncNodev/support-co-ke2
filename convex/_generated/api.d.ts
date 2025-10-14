@@ -15,6 +15,7 @@ import type {
 } from "convex/server";
 import type * as ai_catalogScanner from "../ai/catalogScanner.js";
 import type * as analytics from "../analytics.js";
+import type * as approvals from "../approvals.js";
 import type * as browseAi_integration from "../browseAi/integration.js";
 import type * as categories from "../categories.js";
 import type * as createTestUser from "../createTestUser.js";
@@ -42,6 +43,7 @@ import type * as whatsapp from "../whatsapp.js";
 declare const fullApi: ApiFromModules<{
   "ai/catalogScanner": typeof ai_catalogScanner;
   analytics: typeof analytics;
+  approvals: typeof approvals;
   "browseAi/integration": typeof browseAi_integration;
   categories: typeof categories;
   createTestUser: typeof createTestUser;
