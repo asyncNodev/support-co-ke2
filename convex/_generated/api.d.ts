@@ -28,6 +28,7 @@ import type * as seedPublic from "../seedPublic.js";
 import type * as siteSettings from "../siteSettings.js";
 import type * as users from "../users.js";
 import type * as vendorQuotations from "../vendorQuotations.js";
+import type * as whatsapp from "../whatsapp.js";
 
 /**
  * A utility for referencing Convex functions in your app's API.
@@ -53,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   siteSettings: typeof siteSettings;
   users: typeof users;
   vendorQuotations: typeof vendorQuotations;
+  whatsapp: typeof whatsapp;
 }>;
 export declare const api: FilterApi<
   typeof fullApi,

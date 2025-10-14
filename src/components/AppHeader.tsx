@@ -67,6 +67,14 @@ export default function AppHeader() {
           <div className="flex items-center gap-4">
             <Authenticated>
               <Button 
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate("/settings/notifications")}
+                title="Notification Settings"
+              >
+                <Bell className="size-5" />
+              </Button>
+              <Button 
                 variant="outline" 
                 onClick={() => {
                   if (currentUser?.role === "admin") {

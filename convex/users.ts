@@ -1,5 +1,5 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalQuery } from "./_generated/server";
 import type { Id } from "./_generated/dataModel.d.ts";
 
 export const getCurrentUser = query({
@@ -344,5 +344,64 @@ export const getPendingUsers = query({
     const allUsers = await ctx.db.query("users").collect();
     // Filter for users with status === "pending"
     return allUsers.filter(user => user.status === "pending");
+  },
+});
+
+// Internal queries for WhatsApp notifications
+export const getUserById = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.userId);
+  },
+});
+
+export const getAdminUsers = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("users")
+      .withIndex("by_role", (q) => q.eq("role", "admin"))
+      .collect();
+  },
+});
+
+// Update notification preferences
+export const updateNotificationPreferences = mutation({
+  args: {
+    whatsappNotifications: v.optional(v.boolean()),
+    emailNotifications: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!user) {
+      throw new ConvexError({
+        message: "User not found",
+        code: "NOT_FOUND",
+      });
+    }
+
+    const updates: Record<string, boolean> = {};
+    if (args.whatsappNotifications !== undefined) {
+      updates.whatsappNotifications = args.whatsappNotifications;
+    }
+    if (args.emailNotifications !== undefined) {
+      updates.emailNotifications = args.emailNotifications;
+    }
+
+    await ctx.db.patch(user._id, updates);
+
+    return { success: true };
   },
 });

@@ -24,6 +24,8 @@ export default defineSchema({
       v.literal("registered_all"),
       v.literal("all_including_guests")
     )),
+    whatsappNotifications: v.optional(v.boolean()),
+    emailNotifications: v.optional(v.boolean()),
   })
     .index("by_authId", ["authId"])
     .index("by_email", ["email"])

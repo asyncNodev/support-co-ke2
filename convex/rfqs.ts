@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel.d.ts";
+import { internal } from "./_generated/api";
 
 // Submit RFQ as guest (unauthenticated user)
 export const submitGuestRFQ = mutation({
@@ -751,6 +752,9 @@ export const chooseQuotation = mutation({
       });
     }
 
+    // Get product name for notification
+    const product = await ctx.db.get(quotation.productId);
+
     // Mark quotation as chosen
     await ctx.db.patch(args.sentQuotationId, { chosen: true });
 
@@ -766,6 +770,15 @@ export const chooseQuotation = mutation({
       read: false,
       relatedId: args.sentQuotationId,
       createdAt: Date.now(),
+    });
+
+    // Send WhatsApp notification to vendor
+    await ctx.scheduler.runAfter(0, internal.whatsapp.notifyVendorQuotationChosen, {
+      vendorId: quotation.vendorId,
+      productName: product?.name ?? "Product",
+      buyerName: user.name,
+      buyerPhone: user.phone ?? "Not provided",
+      buyerEmail: user.email,
     });
 
     return { success: true };
