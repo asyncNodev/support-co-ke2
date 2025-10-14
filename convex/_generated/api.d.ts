@@ -21,6 +21,7 @@ import type * as categories from "../categories.js";
 import type * as createTestUser from "../createTestUser.js";
 import type * as groupBuys from "../groupBuys.js";
 import type * as notifications from "../notifications.js";
+import type * as orders from "../orders.js";
 import type * as priceAnalytics from "../priceAnalytics.js";
 import type * as products from "../products.js";
 import type * as ratings from "../ratings.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   createTestUser: typeof createTestUser;
   groupBuys: typeof groupBuys;
   notifications: typeof notifications;
+  orders: typeof orders;
   priceAnalytics: typeof priceAnalytics;
   products: typeof products;
   ratings: typeof ratings;

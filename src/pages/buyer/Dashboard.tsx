@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
-import { Package, FileText, CheckCircle, XCircle, Clock, ShoppingBag, MessageCircle, Users, CheckCircle2 } from "lucide-react";
+import { Package, FileText, CheckCircle, XCircle, Clock, ShoppingBag, MessageCircle, Users, CheckCircle2, Star, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -29,17 +29,15 @@ export default function BuyerDashboard() {
   
   const myApprovalRequests = useQuery(api.approvals.getMyApprovalRequests, {});
 
+  const approvalRequests = useQuery(api.approvals.getMyApprovalRequests, {});
+  const myOrders = useQuery(api.orders.getMyOrders, {});
+  const orderStats = useQuery(api.orders.getOrderStats, {});
+
   const approveQuotation = useMutation(api.rfqs.chooseQuotation);
   const respondToApproval = useMutation(api.approvals.respondToApprovalRequest);
   const declineQuotation = useMutation(api.rfqs.declineQuotation);
 
-  const [declineDialog, setDeclineDialog] = useState<{ open: boolean; quotationId: Id<"sentQuotations"> | null }>({
-    open: false,
-    quotationId: null,
-  });
-  const [declineReason, setDeclineReason] = useState("");
-
-  const [approvalDialog, setApprovalDialog] = useState<{
+  const [showApprovalDialog, setShowApprovalDialog] = useState<{
     open: boolean;
     requestId: Id<"approvalRequests"> | null;
     action: "approve" | "reject" | null;
@@ -49,6 +47,12 @@ export default function BuyerDashboard() {
     action: null,
   });
   const [approvalComments, setApprovalComments] = useState("");
+
+  const [declineDialog, setDeclineDialog] = useState<{ open: boolean; quotationId: Id<"sentQuotations"> | null }>({
+    open: false,
+    quotationId: null,
+  });
+  const [declineReason, setDeclineReason] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -210,6 +214,11 @@ export default function BuyerDashboard() {
               <CheckCircle2 className="size-4 mr-2" />
               <span className="hidden sm:inline">Approvals</span>
               <span className="sm:hidden">Approve</span>
+            </TabsTrigger>
+            <TabsTrigger value="orders">
+              <Package className="size-4 mr-2" />
+              <span className="hidden sm:inline">Orders</span>
+              <span className="sm:hidden">Orders</span>
             </TabsTrigger>
           </TabsList>
 
@@ -520,7 +529,7 @@ export default function BuyerDashboard() {
                               <Button
                                 size="sm"
                                 onClick={() => {
-                                  setApprovalDialog({
+                                  setShowApprovalDialog({
                                     open: true,
                                     requestId: request._id,
                                     action: "approve",
@@ -534,7 +543,7 @@ export default function BuyerDashboard() {
                                 size="sm"
                                 variant="destructive"
                                 onClick={() => {
-                                  setApprovalDialog({
+                                  setShowApprovalDialog({
                                     open: true,
                                     requestId: request._id,
                                     action: "reject",
@@ -592,6 +601,204 @@ export default function BuyerDashboard() {
               </div>
             </div>
           </TabsContent>
+
+          {/* Orders Tab */}
+          <TabsContent value="orders" className="space-y-6">
+            <div className="space-y-6">
+              {/* Order Statistics */}
+              {orderStats && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
+                          <Package className="size-6 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Total Orders</p>
+                          <p className="text-2xl font-bold">{orderStats.totalOrders}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-green-100 dark:bg-green-900 rounded-full">
+                          <TrendingUp className="size-6 text-green-600 dark:text-green-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Total Value</p>
+                          <p className="text-2xl font-bold">KES {orderStats.totalValue.toLocaleString()}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-purple-100 dark:bg-purple-900 rounded-full">
+                          <CheckCircle className="size-6 text-purple-600 dark:text-purple-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Delivered</p>
+                          <p className="text-2xl font-bold">{orderStats.delivered}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-orange-100 dark:bg-orange-900 rounded-full">
+                          <Clock className="size-6 text-orange-600 dark:text-orange-400" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">In Progress</p>
+                          <p className="text-2xl font-bold">{orderStats.inProgress}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Orders List */}
+              <div>
+                <h2 className="text-2xl font-bold mb-4">My Orders</h2>
+
+                {!myOrders || myOrders.length === 0 ? (
+                  <Card>
+                    <CardContent className="text-center py-12">
+                      <Package className="size-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-2">
+                        No orders yet
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Orders will appear here when you choose quotations
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-4">
+                    {myOrders.map((order) => (
+                      <Card key={order._id}>
+                        <CardHeader>
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="text-lg">{order.productName}</CardTitle>
+                              <CardDescription>
+                                Order #{order._id.slice(-8)} • {format(order.orderDate, "MMM d, yyyy")}
+                              </CardDescription>
+                            </div>
+                            <Badge
+                              variant={
+                                order.status === "delivered" ? "default" :
+                                order.status === "cancelled" ? "destructive" :
+                                "secondary"
+                              }
+                            >
+                              {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">Vendor</p>
+                              <p className="font-medium">{order.vendorName}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">Quantity</p>
+                              <p className="font-medium">{order.quantity} units</p>
+                            </div>
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-1">Total Amount</p>
+                              <p className="font-medium">KES {order.totalAmount.toLocaleString()}</p>
+                            </div>
+                            {order.trackingNumber && (
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">Tracking Number</p>
+                                <p className="font-medium font-mono">{order.trackingNumber}</p>
+                              </div>
+                            )}
+                            {order.estimatedDeliveryDate && (
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">Est. Delivery</p>
+                                <p className="font-medium">
+                                  {format(order.estimatedDeliveryDate, "MMM d, yyyy")}
+                                </p>
+                              </div>
+                            )}
+                            {order.actualDeliveryDate && (
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">Delivered On</p>
+                                <p className="font-medium">
+                                  {format(order.actualDeliveryDate, "MMM d, yyyy")}
+                                </p>
+                              </div>
+                            )}
+                            {order.cancelReason && (
+                              <div className="md:col-span-2">
+                                <p className="text-sm text-muted-foreground mb-1">Cancellation Reason</p>
+                                <p className="text-sm">{order.cancelReason}</p>
+                              </div>
+                            )}
+                            {order.deliveryNotes && (
+                              <div className="md:col-span-2">
+                                <p className="text-sm text-muted-foreground mb-1">Delivery Notes</p>
+                                <p className="text-sm">{order.deliveryNotes}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Order Timeline */}
+                          <div className="mt-6 pt-6 border-t">
+                            <p className="text-sm font-medium mb-3">Order Progress</p>
+                            <div className="flex items-center gap-2">
+                              {["ordered", "confirmed", "processing", "shipped", "delivered"].map((status, idx) => (
+                                <div key={status} className="flex items-center gap-2 flex-1">
+                                  <div
+                                    className={`size-8 rounded-full flex items-center justify-center ${
+                                      ["ordered", "confirmed", "processing", "shipped", "delivered"].indexOf(order.status) >= idx
+                                        ? "bg-primary text-primary-foreground"
+                                        : "bg-muted text-muted-foreground"
+                                    }`}
+                                  >
+                                    {["ordered", "confirmed", "processing", "shipped", "delivered"].indexOf(order.status) >= idx ? (
+                                      <CheckCircle className="size-4" />
+                                    ) : (
+                                      <Clock className="size-4" />
+                                    )}
+                                  </div>
+                                  {idx < 4 && (
+                                    <div
+                                      className={`h-0.5 flex-1 ${
+                                        ["ordered", "confirmed", "processing", "shipped", "delivered"].indexOf(order.status) > idx
+                                          ? "bg-primary"
+                                          : "bg-muted"
+                                      }`}
+                                    />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex justify-between mt-2">
+                              {["Ordered", "Confirmed", "Processing", "Shipped", "Delivered"].map((label) => (
+                                <p key={label} className="text-xs text-muted-foreground">
+                                  {label}
+                                </p>
+                              ))}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -629,14 +836,14 @@ export default function BuyerDashboard() {
       </Dialog>
 
       {/* Approval Dialog */}
-      <Dialog open={approvalDialog.open} onOpenChange={(open) => setApprovalDialog({ open, requestId: null, action: null })}>
+      <Dialog open={showApprovalDialog.open} onOpenChange={(open) => setShowApprovalDialog({ open, requestId: null, action: null })}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {approvalDialog.action === "approve" ? "Approve RFQ" : "Reject RFQ"}
+              {showApprovalDialog.action === "approve" ? "Approve RFQ" : "Reject RFQ"}
             </DialogTitle>
             <DialogDescription>
-              {approvalDialog.action === "approve" 
+              {showApprovalDialog.action === "approve" 
                 ? "Approve this RFQ and provide comments if needed"
                 : "Reject this RFQ and provide a reason for rejection"
               }
@@ -645,7 +852,7 @@ export default function BuyerDashboard() {
           <Textarea
             value={approvalComments}
             onChange={(e) => setApprovalComments(e.target.value)}
-            placeholder={approvalDialog.action === "approve" 
+            placeholder={showApprovalDialog.action === "approve" 
               ? "Provide comments on why you're approving this RFQ..."
               : "Provide a reason for rejecting this RFQ..."
             }
@@ -654,13 +861,13 @@ export default function BuyerDashboard() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setApprovalDialog({ open: false, requestId: null, action: null })}
+              onClick={() => setShowApprovalDialog({ open: false, requestId: null, action: null })}
             >
               Cancel
             </Button>
             <Button
               onClick={async () => {
-                if (!approvalDialog.requestId) return;
+                if (!showApprovalDialog.requestId) return;
                 if (!approvalComments.trim()) {
                   toast.error("Please provide a comment for your decision");
                   return;
@@ -669,16 +876,16 @@ export default function BuyerDashboard() {
                 try {
                   setIsSubmitting(true);
                   await respondToApproval({
-                    requestId: approvalDialog.requestId as Id<"approvalRequests">,
-                    decision: approvalDialog.action === "approve" ? "approved" : "rejected",
+                    requestId: showApprovalDialog.requestId as Id<"approvalRequests">,
+                    decision: showApprovalDialog.action === "approve" ? "approved" : "rejected",
                     comments: approvalComments,
                   });
                   toast.success(
-                    approvalDialog.action === "approve" 
+                    showApprovalDialog.action === "approve" 
                       ? "RFQ approved successfully"
                       : "RFQ rejected successfully"
                   );
-                  setApprovalDialog({ open: false, requestId: null, action: null });
+                  setShowApprovalDialog({ open: false, requestId: null, action: null });
                   setApprovalComments("");
                 } catch (error) {
                   toast.error("Failed to process approval");
@@ -687,9 +894,9 @@ export default function BuyerDashboard() {
                   setIsSubmitting(false);
                 }
               }}
-              disabled={isSubmitting || !approvalDialog.requestId || !approvalComments.trim()}
+              disabled={isSubmitting || !showApprovalDialog.requestId || !approvalComments.trim()}
             >
-              {isSubmitting ? "Processing..." : approvalDialog.action === "approve" ? "Approve RFQ" : "Reject RFQ"}
+              {isSubmitting ? "Processing..." : showApprovalDialog.action === "approve" ? "Approve RFQ" : "Reject RFQ"}
             </Button>
           </DialogFooter>
         </DialogContent>

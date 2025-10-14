@@ -251,7 +251,7 @@ export default function VendorDashboard() {
               My Products ({myQuotations?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="my-rfqs">
-              My RFQs ({myRFQs?.length || 0})
+              My RFQs ({pendingRFQs?.length || 0})
             </TabsTrigger>
             <TabsTrigger value="quotations">
               Sent Quotations
@@ -270,6 +270,10 @@ export default function VendorDashboard() {
             <TabsTrigger value="groupbuys" className="flex items-center gap-2">
               <Users className="size-4" />
               Group Buys
+            </TabsTrigger>
+            <TabsTrigger value="orders" className="flex items-center gap-2">
+              <Package className="size-4" />
+              Orders
             </TabsTrigger>
             <TabsTrigger value="settings">
               Settings
@@ -528,14 +532,14 @@ export default function VendorDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {!myRFQs && (
+                {!pendingRFQs && (
                   <div className="space-y-2">
                     <Skeleton className="h-12 w-full" />
                     <Skeleton className="h-12 w-full" />
                     <Skeleton className="h-12 w-full" />
                   </div>
                 )}
-                {myRFQs && myRFQs.length === 0 && (
+                {pendingRFQs && pendingRFQs.length === 0 && (
                   <EmptyState>
                     <EmptyStateContent>
                       <EmptyStateIcon>
@@ -548,9 +552,9 @@ export default function VendorDashboard() {
                     </EmptyStateContent>
                   </EmptyState>
                 )}
-                {myRFQs && myRFQs.length > 0 && (
+                {pendingRFQs && pendingRFQs.length > 0 && (
                   <div className="grid gap-4">
-                    {myRFQs.map((rfq) => (
+                    {pendingRFQs.map((rfq) => (
                       <Card key={rfq._id}>
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start mb-4">
@@ -565,34 +569,32 @@ export default function VendorDashboard() {
                               rfq.status === "quoted" ? "secondary" : "outline"
                             }>
                               {rfq.status === "completed" ? "Completed" :
-                               rfq.status === "quoted" ? `${rfq.quotationCount} Quotes` :
+                               rfq.status === "quoted" ? "Quoted" :
                                "Pending"}
                             </Badge>
                           </div>
                           <div className="space-y-2">
                             {rfq.items?.map((item, idx) => (
-                              <div key={idx} className="flex justify-between items-center text-sm border-t pt-2">
-                                <span className="font-medium">{item.product?.name || "Unknown Product"}</span>
-                                <span className="text-muted-foreground">Qty: {item.quantity}</span>
+                              <div key={idx} className="flex items-center gap-2">
+                                <Package className="size-4" />
+                                <span>{item.productName} - {item.quantity} units</span>
                               </div>
                             ))}
                           </div>
                           {rfq.expectedDeliveryTime && (
-                            <p className="text-sm text-muted-foreground mt-3">
+                            <p className="text-sm text-muted-foreground">
                               Expected by: {rfq.expectedDeliveryTime}
                             </p>
                           )}
-                          {rfq.quotationCount > 0 && (
-                            <Button 
-                              className="w-full mt-4" 
-                              size="sm"
-                              onClick={() => {
-                                navigate(`/buyer/rfq/${rfq._id}`);
-                              }}
-                            >
-                              View {rfq.quotationCount} Quotation{rfq.quotationCount > 1 ? "s" : ""}
-                            </Button>
-                          )}
+                          <Button 
+                            className="w-full mt-4" 
+                            size="sm"
+                            onClick={() => {
+                              toast.info("Quote this RFQ from the Pending RFQs tab");
+                            }}
+                          >
+                            Submit Quotation
+                          </Button>
                         </CardContent>
                       </Card>
                     ))}
@@ -820,6 +822,31 @@ export default function VendorDashboard() {
           {/* Group Buys Tab */}
           <TabsContent value="groupbuys">
             <GroupBuyOpportunities />
+          </TabsContent>
+
+          {/* Orders Tab */}
+          <TabsContent value="orders">
+            <Card>
+              <CardHeader>
+                <CardTitle>Orders</CardTitle>
+                <CardDescription>
+                  Track your orders and order status
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <EmptyState>
+                  <EmptyStateContent>
+                    <EmptyStateIcon>
+                      <Package className="size-8" />
+                    </EmptyStateIcon>
+                    <EmptyStateTitle>No orders yet</EmptyStateTitle>
+                    <EmptyStateDescription>
+                      Your orders will appear here when buyers place orders for your products
+                    </EmptyStateDescription>
+                  </EmptyStateContent>
+                </EmptyState>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Settings Tab */}

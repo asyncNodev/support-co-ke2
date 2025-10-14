@@ -761,6 +761,20 @@ export const chooseQuotation = mutation({
     // Update RFQ status to completed
     await ctx.db.patch(quotation.rfqId, { status: "completed" });
 
+    // Create order
+    await ctx.db.insert("orders", {
+      rfqId: quotation.rfqId,
+      quotationId: args.sentQuotationId,
+      buyerId: user._id,
+      vendorId: quotation.vendorId,
+      productId: quotation.productId,
+      quantity: quotation.quantity,
+      totalAmount: quotation.price * quotation.quantity,
+      status: "ordered",
+      orderDate: Date.now(),
+      lastUpdated: Date.now(),
+    });
+
     // Notify vendor
     await ctx.db.insert("notifications", {
       userId: quotation.vendorId,

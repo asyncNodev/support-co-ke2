@@ -41,6 +41,37 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_role", ["role"]),
 
+  // Orders (created when quotation is chosen)
+  orders: defineTable({
+    rfqId: v.id("rfqs"),
+    quotationId: v.id("sentQuotations"),
+    buyerId: v.id("users"),
+    vendorId: v.id("users"),
+    productId: v.id("products"),
+    quantity: v.number(),
+    totalAmount: v.number(),
+    status: v.union(
+      v.literal("ordered"),
+      v.literal("confirmed"),
+      v.literal("processing"),
+      v.literal("shipped"),
+      v.literal("delivered"),
+      v.literal("cancelled")
+    ),
+    trackingNumber: v.optional(v.string()),
+    estimatedDeliveryDate: v.optional(v.number()),
+    actualDeliveryDate: v.optional(v.number()),
+    proofOfDelivery: v.optional(v.string()),
+    deliveryNotes: v.optional(v.string()),
+    cancelReason: v.optional(v.string()),
+    orderDate: v.number(),
+    lastUpdated: v.number(),
+  })
+    .index("by_rfq", ["rfqId"])
+    .index("by_buyer", ["buyerId"])
+    .index("by_vendor", ["vendorId"])
+    .index("by_status", ["status"]),
+
   // Group buying opportunities
   groupBuys: defineTable({
     productId: v.id("products"),
