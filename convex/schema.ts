@@ -138,10 +138,16 @@ export default defineSchema({
     rfqId: v.id("rfqs"),
     rating: v.number(),
     review: v.optional(v.string()),
+    deliveryRating: v.optional(v.number()),
+    communicationRating: v.optional(v.number()),
+    qualityRating: v.optional(v.number()),
+    wouldRecommend: v.optional(v.boolean()),
+    orderValue: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_vendor", ["vendorId"])
-    .index("by_buyer", ["buyerId"]),
+    .index("by_buyer", ["buyerId"])
+    .index("by_rfq", ["rfqId"]),
 
   // Notifications
   notifications: defineTable({

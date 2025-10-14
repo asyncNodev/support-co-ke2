@@ -9,6 +9,9 @@ import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { ArrowLeft, Check, Star, MessageCircle, TrendingDown, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 import { PriceComparisonCard } from "./_components/PriceComparisonCard.tsx";
+import RatingDialog from "./_components/RatingDialog.tsx";
+import VendorRatingDisplay from "@/components/VendorRatingDisplay.tsx";
+import { useState } from "react";
 
 export default function RFQDetails() {
   const { id } = useParams();
@@ -16,6 +19,13 @@ export default function RFQDetails() {
   const rfqDetails = useQuery(api.rfqs.getRFQDetails, id ? { rfqId: id as Id<"rfqs"> } : "skip");
   const priceAnalytics = useQuery(api.priceAnalytics.getRFQPriceAnalytics, id ? { rfqId: id as Id<"rfqs"> } : "skip");
   const chooseQuotation = useMutation(api.rfqs.chooseQuotation);
+
+  const [ratingDialogOpen, setRatingDialogOpen] = useState(false);
+  const [selectedVendorForRating, setSelectedVendorForRating] = useState<{
+    vendorId: Id<"users">;
+    vendorName: string;
+    orderValue: number;
+  } | null>(null);
 
   const handleChooseQuotation = async (quotationId: Id<"sentQuotations">) => {
     try {
@@ -171,7 +181,59 @@ export default function RFQDetails() {
             </CardContent>
           </Card>
         )}
+
+        {/* Vendor Ratings Section - Show ratings for vendors who got chosen */}
+        {rfqDetails.quotations.some((q) => q.chosen) && (
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold mb-4">Vendor Ratings</h2>
+            <div className="space-y-6">
+              {Array.from(new Set(rfqDetails.quotations.filter((q) => q.chosen).map((q) => q.vendorId))).map((vendorId) => {
+                const vendor = rfqDetails.quotations.find((q) => q.vendorId === vendorId);
+                if (!vendor) return null;
+                
+                return (
+                  <div key={vendorId}>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold">{vendor.vendor?.name}</h3>
+                      <Button
+                        onClick={() => {
+                          const totalValue = rfqDetails.quotations
+                            .filter((q) => q.vendorId === vendorId && q.chosen)
+                            .reduce((sum, q) => sum + (q.price * q.quantity), 0);
+                          setSelectedVendorForRating({
+                            vendorId,
+                            vendorName: vendor.vendor?.name || "Vendor",
+                            orderValue: totalValue,
+                          });
+                          setRatingDialogOpen(true);
+                        }}
+                        size="sm"
+                        variant="outline"
+                      >
+                        <Star className="size-4 mr-2" />
+                        Rate This Vendor
+                      </Button>
+                    </div>
+                    <VendorRatingDisplay vendorId={vendorId} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Rating Dialog */}
+      {selectedVendorForRating && (
+        <RatingDialog
+          vendorId={selectedVendorForRating.vendorId}
+          vendorName={selectedVendorForRating.vendorName}
+          rfqId={id as Id<"rfqs">}
+          open={ratingDialogOpen}
+          onOpenChange={setRatingDialogOpen}
+          orderValue={selectedVendorForRating.orderValue}
+        />
+      )}
     </div>
   );
 }

@@ -28,6 +28,7 @@ import { EmptyState, EmptyStateContent, EmptyStateIcon, EmptyStateTitle, EmptySt
 import { Package, AlertCircle, Plus, Edit, Trash2, MessageCircle, XCircle, Clock, ScanLine } from "lucide-react";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-auth.ts";
+import VendorRatingDisplay from "@/components/VendorRatingDisplay.tsx";
 
 export default function VendorDashboard() {
   const navigate = useNavigate();
@@ -263,6 +264,9 @@ export default function VendorDashboard() {
                   {notifications.filter(n => !n.read).length}
                 </Badge>
               )}
+            </TabsTrigger>
+            <TabsTrigger value="ratings">
+              My Ratings
             </TabsTrigger>
             <TabsTrigger value="settings">
               Settings
@@ -788,6 +792,23 @@ export default function VendorDashboard() {
                       </Card>
                     ))}
                   </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* My Ratings Tab */}
+          <TabsContent value="ratings">
+            <Card>
+              <CardHeader>
+                <CardTitle>My Ratings & Reviews</CardTitle>
+                <CardDescription>
+                  See what hospitals are saying about your service
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {currentUser && (
+                  <VendorRatingDisplay vendorId={currentUser._id} />
                 )}
               </CardContent>
             </Card>

@@ -1,8 +1,9 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { TrendingDown, TrendingUp, DollarSign, Award, AlertCircle } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Check, TrendingDown, TrendingUp, AlertTriangle, DollarSign, AlertCircle } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel.d.ts";
+import VendorRatingDisplay from "@/components/VendorRatingDisplay.tsx";
 import { Progress } from "@/components/ui/progress";
 
 type QuoteData = {
@@ -97,19 +98,29 @@ export function PriceComparisonCard({
                 } ${quote.chosen ? "bg-primary/5" : ""}`}
               >
                 <div className="flex items-start justify-between gap-4">
-                  {/* Vendor Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h4 className="font-semibold truncate">{quote.vendorName}</h4>
+                  {/* Vendor Info & Details */}
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-3">
+                      <h3 className="font-semibold text-lg">{quote.vendorName}</h3>
                       {quote.isLowest && (
-                        <Badge variant="default" className="gap-1 bg-green-600">
-                          <Award className="size-3" />
+                        <Badge variant="default" className="bg-green-600">
                           Best Price
                         </Badge>
                       )}
-                      {quote.chosen && <Badge variant="secondary">Selected</Badge>}
+                      {quote.chosen && (
+                        <Badge variant="outline" className="border-green-600 text-green-600">
+                          <Check className="size-3 mr-1" />
+                          Chosen
+                        </Badge>
+                      )}
                     </div>
 
+                    {/* Vendor Rating */}
+                    <div className="mb-3">
+                      <VendorRatingDisplay vendorId={quote.vendorId} compact />
+                    </div>
+
+                    {/* Quote Details Grid */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
                       <div>
                         <span className="text-muted-foreground block text-xs">Payment</span>
