@@ -10,6 +10,27 @@ export default defineSchema({
     role: v.union(v.literal("admin"), v.literal("vendor"), v.literal("buyer")),
     verified: v.boolean(),
     status: v.optional(v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"))),
+    // New verification fields
+    verificationLevel: v.optional(v.union(
+      v.literal("none"),          // Not verified
+      v.literal("email"),          // Email verified only
+      v.literal("business"),       // Business documents verified
+      v.literal("full")            // Full verification including background check
+    )),
+    verifiedAt: v.optional(v.number()),
+    verifiedBy: v.optional(v.id("users")),
+    businessLicense: v.optional(v.string()),
+    taxId: v.optional(v.string()),
+    physicalAddress: v.optional(v.string()),
+    phoneVerified: v.optional(v.boolean()),
+    // Trust score fields
+    trustScore: v.optional(v.number()), // 0-100
+    responseRate: v.optional(v.number()), // 0-100 percentage
+    averageResponseTime: v.optional(v.number()), // in hours
+    deliveryRate: v.optional(v.number()), // 0-100 percentage
+    cancellationRate: v.optional(v.number()), // 0-100 percentage
+    disputeCount: v.optional(v.number()),
+    successfulDeals: v.optional(v.number()),
     avatar: v.optional(v.string()),
     companyName: v.optional(v.string()),
     phone: v.optional(v.string()),
