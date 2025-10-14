@@ -30,6 +30,7 @@ import type * as seed from "../seed.js";
 import type * as seedPublic from "../seedPublic.js";
 import type * as siteSettings from "../siteSettings.js";
 import type * as users from "../users.js";
+import type * as vendorAnalytics from "../vendorAnalytics.js";
 import type * as vendorQuotations from "../vendorQuotations.js";
 import type * as whatsapp from "../whatsapp.js";
 
@@ -59,6 +60,7 @@ declare const fullApi: ApiFromModules<{
   seedPublic: typeof seedPublic;
   siteSettings: typeof siteSettings;
   users: typeof users;
+  vendorAnalytics: typeof vendorAnalytics;
   vendorQuotations: typeof vendorQuotations;
   whatsapp: typeof whatsapp;
 }>;

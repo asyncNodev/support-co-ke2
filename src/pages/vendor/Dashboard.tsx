@@ -26,7 +26,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { EmptyState, EmptyStateContent, EmptyStateIcon, EmptyStateTitle, EmptyStateDescription } from "@/components/ui/empty-state.tsx";
-import { Package, AlertCircle, Plus, Edit, Trash2, MessageCircle, XCircle, Clock, ScanLine, Users } from "lucide-react";
+import { Package, AlertCircle, Plus, Edit, Trash2, MessageCircle, XCircle, Clock, ScanLine, Users, BarChart3, TrendingUp, Star } from "lucide-react";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-auth.ts";
 import VendorRatingDisplay from "@/components/VendorRatingDisplay.tsx";
@@ -40,6 +40,10 @@ export default function VendorDashboard() {
   const myQuotations = useQuery(api.vendorQuotations.getMyQuotations, {});
   const pendingRFQs = useQuery(api.vendorQuotations.getPendingRFQs, {});
   const sentQuotations = useQuery(api.rfqs.getMyVendorQuotationsSent, {});
+  const groupBuyOpportunities = useQuery(api.groupBuys.getGroupBuyOpportunitiesForVendor, {});
+  const vendorPerformance = useQuery(api.vendorAnalytics.getVendorPerformance, {});
+  const marketComparison = useQuery(api.vendorAnalytics.getMarketComparison, {});
+  const recentPerformance = useQuery(api.vendorAnalytics.getRecentPerformance, {});
   
   // Add notifications query
   const notifications = useQuery(api.notifications.getMyNotifications, {});
@@ -248,10 +252,13 @@ export default function VendorDashboard() {
         <Tabs defaultValue="products">
           <TabsList className="grid w-full grid-cols-5 max-w-3xl">
             <TabsTrigger value="products">
-              My Products ({myQuotations?.length || 0})
+              <Package className="size-4" /> Products
+            </TabsTrigger>
+            <TabsTrigger value="performance" className="flex items-center gap-2">
+              <BarChart3 className="size-4" /> Performance
             </TabsTrigger>
             <TabsTrigger value="my-rfqs">
-              My RFQs ({pendingRFQs?.length || 0})
+              <MessageCircle className="size-4" /> RFQs
             </TabsTrigger>
             <TabsTrigger value="quotations">
               Sent Quotations
@@ -521,6 +528,259 @@ export default function VendorDashboard() {
                 ))}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="performance" className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Performance Dashboard</h2>
+              <p className="text-muted-foreground">Track your success metrics and compare with market averages</p>
+            </div>
+
+            {/* Key Metrics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Win Rate</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {vendorPerformance?.winRate?.toFixed(1) || "0"}%
+                  </div>
+                  {marketComparison && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Market avg: {marketComparison.marketAverageWinRate.toFixed(1)}%
+                      {vendorPerformance && vendorPerformance.winRate > marketComparison.marketAverageWinRate && (
+                        <span className="text-green-600 ml-1">↑ Above average</span>
+                      )}
+                      {vendorPerformance && vendorPerformance.winRate < marketComparison.marketAverageWinRate && (
+                        <span className="text-red-600 ml-1">↓ Below average</span>
+                      )}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    KES {(vendorPerformance?.totalRevenue || 0).toLocaleString()}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    From {vendorPerformance?.totalWonQuotations || 0} won deals
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Average Rating</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold flex items-center gap-2">
+                    {vendorPerformance?.averageRating?.toFixed(1) || "0"}
+                    <Star className="size-5 fill-yellow-400 text-yellow-400" />
+                  </div>
+                  {marketComparison && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Market avg: {marketComparison.marketAverageRating.toFixed(1)}
+                      {vendorPerformance && vendorPerformance.averageRating > marketComparison.marketAverageRating && (
+                        <span className="text-green-600 ml-1">↑ Above average</span>
+                      )}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">Delivery Rate</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {vendorPerformance?.deliveryRate?.toFixed(1) || "0"}%
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {vendorPerformance?.deliveredOrders || 0} of {vendorPerformance?.totalOrders || 0} orders delivered
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Recent Performance (Last 30 Days) */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="size-5" />
+                  Last 30 Days Performance
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Quotations</p>
+                    <p className="text-2xl font-bold">{recentPerformance?.quotationsLast30Days || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Won Deals</p>
+                    <p className="text-2xl font-bold">{recentPerformance?.wonQuotationsLast30Days || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Orders</p>
+                    <p className="text-2xl font-bold">{recentPerformance?.ordersLast30Days || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Revenue</p>
+                    <p className="text-2xl font-bold">KES {(recentPerformance?.revenueLast30Days || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Detailed Ratings Breakdown */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Ratings Breakdown</CardTitle>
+                <CardDescription>{vendorPerformance?.totalRatings || 0} total ratings</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-sm">Delivery Speed</span>
+                    <span className="text-sm font-medium">{vendorPerformance?.averageDeliveryRating?.toFixed(1) || "0"}/5</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div
+                      className="bg-primary rounded-full h-2"
+                      style={{ width: `${((vendorPerformance?.averageDeliveryRating || 0) / 5) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-sm">Communication</span>
+                    <span className="text-sm font-medium">{vendorPerformance?.averageCommunicationRating?.toFixed(1) || "0"}/5</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div
+                      className="bg-primary rounded-full h-2"
+                      style={{ width: `${((vendorPerformance?.averageCommunicationRating || 0) / 5) * 100}%` }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-sm">Product Quality</span>
+                    <span className="text-sm font-medium">{vendorPerformance?.averageQualityRating?.toFixed(1) || "0"}/5</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div
+                      className="bg-primary rounded-full h-2"
+                      style={{ width: `${((vendorPerformance?.averageQualityRating || 0) / 5) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Response Time */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Average Response Time</CardTitle>
+                <CardDescription>How quickly you respond to RFQs</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">
+                  {vendorPerformance && vendorPerformance.averageResponseTime > 0
+                    ? `${Math.round(vendorPerformance.averageResponseTime / (1000 * 60 * 60))} hours`
+                    : "No data yet"}
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Faster responses increase your chances of winning deals
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Market Position */}
+            {marketComparison && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Market Position</CardTitle>
+                  <CardDescription>How you compare to {marketComparison.totalActiveVendors} active vendors</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 border rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-2">Your Win Rate</p>
+                      <p className="text-2xl font-bold">{marketComparison.myWinRate.toFixed(1)}%</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        vs Market: {marketComparison.marketAverageWinRate.toFixed(1)}%
+                      </p>
+                      {marketComparison.myWinRate > marketComparison.marketAverageWinRate && (
+                        <div className="flex items-center gap-1 text-green-600 mt-2">
+                          <TrendingUp className="size-4" />
+                          <span className="text-sm">You're outperforming the market!</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <p className="text-sm text-muted-foreground mb-2">Your Average Rating</p>
+                      <p className="text-2xl font-bold flex items-center gap-2">
+                        {marketComparison.myAverageRating.toFixed(1)}
+                        <Star className="size-5 fill-yellow-400 text-yellow-400" />
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        vs Market: {marketComparison.marketAverageRating.toFixed(1)}
+                      </p>
+                      {marketComparison.myAverageRating > marketComparison.marketAverageRating && (
+                        <div className="flex items-center gap-1 text-green-600 mt-2">
+                          <TrendingUp className="size-4" />
+                          <span className="text-sm">Higher than market average!</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Action Items */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Recommendations</CardTitle>
+                <CardDescription>Ways to improve your performance</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {vendorPerformance && vendorPerformance.averageResponseTime > (24 * 60 * 60 * 1000) && (
+                    <li className="flex items-start gap-2">
+                      <Clock className="size-4 mt-0.5 text-orange-500" />
+                      <span className="text-sm">Your response time is over 24 hours. Try to respond faster to increase win rate.</span>
+                    </li>
+                  )}
+                  {vendorPerformance && vendorPerformance.averageRating < 4 && vendorPerformance.totalRatings > 0 && (
+                    <li className="flex items-start gap-2">
+                      <Star className="size-4 mt-0.5 text-orange-500" />
+                      <span className="text-sm">Your rating is below 4.0. Focus on improving delivery speed and communication.</span>
+                    </li>
+                  )}
+                  {marketComparison && marketComparison.myWinRate < marketComparison.marketAverageWinRate && (
+                    <li className="flex items-start gap-2">
+                      <TrendingUp className="size-4 mt-0.5 text-orange-500" />
+                      <span className="text-sm">Your win rate is below market average. Consider reviewing your pricing strategy.</span>
+                    </li>
+                  )}
+                  {vendorPerformance && vendorPerformance.totalQuotations < 10 && (
+                    <li className="flex items-start gap-2">
+                      <Package className="size-4 mt-0.5 text-blue-500" />
+                      <span className="text-sm">Submit more quotations to increase your visibility and chances of winning deals.</span>
+                    </li>
+                  )}
+                </ul>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="my-rfqs">
