@@ -19,6 +19,7 @@ import type * as browseAi_integration from "../browseAi/integration.js";
 import type * as categories from "../categories.js";
 import type * as createTestUser from "../createTestUser.js";
 import type * as notifications from "../notifications.js";
+import type * as priceAnalytics from "../priceAnalytics.js";
 import type * as products from "../products.js";
 import type * as ratings from "../ratings.js";
 import type * as rfqs from "../rfqs.js";
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   categories: typeof categories;
   createTestUser: typeof createTestUser;
   notifications: typeof notifications;
+  priceAnalytics: typeof priceAnalytics;
   products: typeof products;
   ratings: typeof ratings;
   rfqs: typeof rfqs;

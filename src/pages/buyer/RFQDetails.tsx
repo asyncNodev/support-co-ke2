@@ -6,21 +6,15 @@ import { Button } from "@/components/ui/button.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
-import { ArrowLeft, Check, Star, MessageCircle } from "lucide-react";
+import { ArrowLeft, Check, Star, MessageCircle, TrendingDown, DollarSign } from "lucide-react";
 import { toast } from "sonner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table.tsx";
+import { PriceComparisonCard } from "./_components/PriceComparisonCard.tsx";
 
 export default function RFQDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
   const rfqDetails = useQuery(api.rfqs.getRFQDetails, id ? { rfqId: id as Id<"rfqs"> } : "skip");
+  const priceAnalytics = useQuery(api.priceAnalytics.getRFQPriceAnalytics, id ? { rfqId: id as Id<"rfqs"> } : "skip");
   const chooseQuotation = useMutation(api.rfqs.chooseQuotation);
 
   const handleChooseQuotation = async (quotationId: Id<"sentQuotations">) => {
@@ -48,15 +42,6 @@ export default function RFQDetails() {
     );
   }
 
-  // Group quotations by product
-  const quotationsByProduct: Record<string, Array<typeof rfqDetails.quotations[0]>> = {};
-  rfqDetails.quotations.forEach((quot) => {
-    if (!quotationsByProduct[quot.productId]) {
-      quotationsByProduct[quot.productId] = [];
-    }
-    quotationsByProduct[quot.productId].push(quot);
-  });
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -81,6 +66,61 @@ export default function RFQDetails() {
 
       {/* Content */}
       <div className="container mx-auto px-4 py-8">
+        {/* Savings Summary */}
+        {priceAnalytics && priceAnalytics.totals.potentialSavings > 0 && (
+          <Card className="mb-8 border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/20">
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className="bg-green-600 text-white p-3 rounded-lg">
+                    <TrendingDown className="size-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-green-900 dark:text-green-100">
+                      Total Potential Savings
+                    </h3>
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      By choosing the best prices
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="text-3xl font-bold text-green-600">
+                    KES {priceAnalytics.totals.potentialSavings.toLocaleString()}
+                  </div>
+                  <p className="text-sm text-green-700 dark:text-green-300">
+                    {priceAnalytics.totals.savingsPercentage.toFixed(1)}% savings possible
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-green-200 dark:border-green-800">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-green-700 dark:text-green-300 block mb-1">Best Total Cost</span>
+                    <span className="text-xl font-semibold text-green-900 dark:text-green-100">
+                      KES {priceAnalytics.totals.lowestCost.toLocaleString()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-green-700 dark:text-green-300 block mb-1">Average Cost</span>
+                    <span className="text-xl font-semibold text-green-900 dark:text-green-100">
+                      KES {Math.round(priceAnalytics.totals.averageCost).toLocaleString()}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-green-700 dark:text-green-300 block mb-1">Highest Cost</span>
+                    <span className="text-xl font-semibold text-green-900 dark:text-green-100">
+                      KES {priceAnalytics.totals.highestCost.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* RFQ Items */}
         <Card className="mb-8">
           <CardHeader>
@@ -102,112 +142,25 @@ export default function RFQDetails() {
           </CardContent>
         </Card>
 
-        {/* Quotations by Product */}
-        {rfqDetails.items.map((item) => {
-          const quotations = quotationsByProduct[item.productId] || [];
-          if (quotations.length === 0) {
-            return (
-              <Card key={item.productId} className="mb-8">
-                <CardHeader>
-                  <CardTitle>{item.product?.name}</CardTitle>
-                  <CardDescription>No quotations available yet</CardDescription>
-                </CardHeader>
-              </Card>
-            );
-          }
+        {/* Price Comparison Cards */}
+        {priceAnalytics && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Price Comparison & Analytics</h2>
+              <p className="text-muted-foreground">
+                Compare quotations and choose the best deal for each product
+              </p>
+            </div>
 
-          return (
-            <Card key={item.productId} className="mb-8">
-              <CardHeader>
-                <CardTitle>{item.product?.name}</CardTitle>
-                <CardDescription>{quotations.length} quotation(s) available</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Vendor</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Price</TableHead>
-                        <TableHead>Quantity</TableHead>
-                        <TableHead>Payment Terms</TableHead>
-                        <TableHead>Delivery Time</TableHead>
-                        <TableHead>Warranty</TableHead>
-                        <TableHead>Country of Origin</TableHead>
-                        <TableHead>Specifications</TableHead>
-                        <TableHead>Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {quotations.map((quot) => (
-                        <TableRow key={quot._id}>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <div>
-                                <span className="font-medium">{quot.vendor?.name}</span>
-                                {quot.vendor?.companyName && (
-                                  <p className="text-xs text-muted-foreground">{quot.vendor.companyName}</p>
-                                )}
-                                {quot.chosen && quot.vendor?.phone && (
-                                  <a
-                                    href={`https://wa.me/${quot.vendor.phone.replace(/\D/g, '')}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 mt-1"
-                                  >
-                                    <MessageCircle className="size-3" />
-                                    WhatsApp: {quot.vendor.phone}
-                                  </a>
-                                )}
-                              </div>
-                              {quot.vendorRating && (
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <Star className="size-3 fill-yellow-400 text-yellow-400" />
-                                  {quot.vendorRating.toFixed(1)}
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={quot.quotationType === "pre-filled" ? "default" : "secondary"}>
-                              {quot.quotationType === "pre-filled" ? "Instant" : "Custom"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="font-semibold">KES {quot.price.toLocaleString()}</TableCell>
-                          <TableCell>{quot.quantity}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{quot.paymentTerms}</Badge>
-                          </TableCell>
-                          <TableCell>{quot.deliveryTime}</TableCell>
-                          <TableCell>{quot.warrantyPeriod}</TableCell>
-                          <TableCell>{quot.countryOfOrigin}</TableCell>
-                          <TableCell className="max-w-xs truncate">
-                            {quot.productSpecifications}
-                          </TableCell>
-                          <TableCell>
-                            {quot.chosen ? (
-                              <Badge variant="default" className="gap-1">
-                                <Check className="size-3" /> Chosen
-                              </Badge>
-                            ) : (
-                              <Button
-                                size="sm"
-                                onClick={() => handleChooseQuotation(quot._id)}
-                              >
-                                Choose
-                              </Button>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+            {Object.values(priceAnalytics.byProduct).map((productAnalytics) => (
+              <PriceComparisonCard
+                key={productAnalytics.productId}
+                analytics={productAnalytics}
+                onChooseQuote={handleChooseQuotation}
+              />
+            ))}
+          </div>
+        )}
 
         {rfqDetails.quotations.length === 0 && (
           <Card>
