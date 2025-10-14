@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { ConvexError } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { api } from "./_generated/api";
 
 // Get active group buys
 export const getActiveGroupBuys = query({
@@ -314,6 +315,18 @@ export const joinGroupBuy = mutation({
       currentQuantity,
     });
 
+    // Check if target reached and auto-convert to RFQ
+    const participantCount = participants.length;
+    if (
+      currentQuantity >= groupBuy.targetQuantity &&
+      participantCount >= groupBuy.minimumParticipants
+    ) {
+      // Trigger conversion to RFQ
+      await ctx.scheduler.runAfter(0, api.groupBuys.checkAndConvertGroupBuy, {
+        groupBuyId: args.groupBuyId,
+      });
+    }
+
     return participantId;
   },
 });
@@ -381,5 +394,230 @@ export const withdrawFromGroupBuy = mutation({
     });
 
     return participation._id;
+  },
+});
+
+// Get group buy opportunities for vendors
+export const getGroupBuyOpportunitiesForVendor = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return [];
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .unique();
+
+    if (!user || user.role !== "vendor") {
+      return [];
+    }
+
+    // Get all open group buys
+    const groupBuys = await ctx.db
+      .query("groupBuys")
+      .withIndex("by_status", (q) => q.eq("status", "open"))
+      .collect();
+
+    // Filter by vendor's categories if they have any
+    const vendorCategories = user.categories || [];
+    
+    const enrichedGroupBuys = await Promise.all(
+      groupBuys.map(async (gb) => {
+        const product = await ctx.db.get(gb.productId);
+        if (!product) return null;
+
+        // If vendor has categories, only show matching products
+        if (vendorCategories.length > 0 && !vendorCategories.includes(product.categoryId)) {
+          return null;
+        }
+
+        const participants = await ctx.db
+          .query("groupBuyParticipants")
+          .withIndex("by_groupBuy", (q) => q.eq("groupBuyId", gb._id))
+          .filter((q) => q.eq(q.field("status"), "active"))
+          .collect();
+
+        const participantCount = participants.length;
+        const currentQuantity = participants.reduce((sum, p) => sum + p.quantity, 0);
+        const progress = gb.targetQuantity > 0 ? (currentQuantity / gb.targetQuantity) * 100 : 0;
+
+        // Calculate potential order value (for vendor's interest)
+        const daysLeft = Math.max(0, Math.ceil((gb.deadline - Date.now()) / (1000 * 60 * 60 * 24)));
+
+        return {
+          ...gb,
+          product,
+          participantCount,
+          currentQuantity,
+          progress,
+          daysLeft,
+        };
+      })
+    );
+
+    return enrichedGroupBuys
+      .filter((gb) => gb !== null)
+      .sort((a, b) => b.currentQuantity - a.currentQuantity); // Show highest quantity first
+  },
+});
+
+// Get detailed info about a specific group buy
+export const getGroupBuyDetails = query({
+  args: { groupBuyId: v.id("groupBuys") },
+  handler: async (ctx, args) => {
+    const groupBuy = await ctx.db.get(args.groupBuyId);
+    if (!groupBuy) return null;
+
+    const product = await ctx.db.get(groupBuy.productId);
+    const creator = await ctx.db.get(groupBuy.createdBy);
+    
+    const participants = await ctx.db
+      .query("groupBuyParticipants")
+      .withIndex("by_groupBuy", (q) => q.eq("groupBuyId", args.groupBuyId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    const participantDetails = await Promise.all(
+      participants.map(async (p) => {
+        const hospital = await ctx.db.get(p.hospitalId);
+        return {
+          ...p,
+          hospital: hospital ? { name: hospital.companyName || hospital.name } : null,
+        };
+      })
+    );
+
+    const participantCount = participants.length;
+    const currentQuantity = participants.reduce((sum, p) => sum + p.quantity, 0);
+    const progress = groupBuy.targetQuantity > 0 ? (currentQuantity / groupBuy.targetQuantity) * 100 : 0;
+    const daysLeft = Math.max(0, Math.ceil((groupBuy.deadline - Date.now()) / (1000 * 60 * 60 * 24)));
+
+    return {
+      ...groupBuy,
+      product,
+      creator,
+      participants: participantDetails,
+      participantCount,
+      currentQuantity,
+      progress,
+      daysLeft,
+    };
+  },
+});
+
+// Check if group buy target reached and convert to RFQ
+export const checkAndConvertGroupBuy = mutation({
+  args: { groupBuyId: v.id("groupBuys") },
+  handler: async (ctx, args) => {
+    const groupBuy = await ctx.db.get(args.groupBuyId);
+    if (!groupBuy) {
+      throw new ConvexError({
+        message: "Group buy not found",
+        code: "NOT_FOUND",
+      });
+    }
+
+    if (groupBuy.status !== "open") {
+      return null;
+    }
+
+    const participants = await ctx.db
+      .query("groupBuyParticipants")
+      .withIndex("by_groupBuy", (q) => q.eq("groupBuyId", args.groupBuyId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    const participantCount = participants.length;
+    const currentQuantity = participants.reduce((sum, p) => sum + p.quantity, 0);
+
+    // Check if target reached and minimum participants met
+    if (
+      currentQuantity >= groupBuy.targetQuantity &&
+      participantCount >= groupBuy.minimumParticipants
+    ) {
+      // Create RFQ for the group buy
+      const rfqId = await ctx.db.insert("rfqs", {
+        buyerId: groupBuy.createdBy,
+        status: "pending",
+        createdAt: Date.now(),
+      });
+
+      // Add RFQ item for the product
+      await ctx.db.insert("rfqItems", {
+        rfqId,
+        productId: groupBuy.productId,
+        quantity: currentQuantity,
+      });
+
+      // Update group buy status
+      await ctx.db.patch(args.groupBuyId, {
+        status: "closed",
+      });
+
+      // Update all participants with the RFQ ID
+      await Promise.all(
+        participants.map(async (p) => {
+          await ctx.db.patch(p._id, {
+            rfqId,
+            status: "completed",
+          });
+        })
+      );
+
+      // Send notifications to all participants
+      const product = await ctx.db.get(groupBuy.productId);
+      await Promise.all(
+        participants.map(async (p) => {
+          await ctx.db.insert("notifications", {
+            userId: p.hospitalId,
+            type: "quotation_sent",
+            title: "Group Buy Target Reached! 🎉",
+            message: `The group buy for ${product?.name || "product"} has reached its target. RFQ has been sent to vendors.`,
+            read: false,
+            relatedId: rfqId,
+            createdAt: Date.now(),
+          });
+        })
+      );
+
+      return rfqId;
+    }
+
+    return null;
+  },
+});
+
+// Get share link for group buy
+export const getGroupBuyShareData = query({
+  args: { groupBuyId: v.id("groupBuys") },
+  handler: async (ctx, args) => {
+    const groupBuy = await ctx.db.get(args.groupBuyId);
+    if (!groupBuy) return null;
+
+    const product = await ctx.db.get(groupBuy.productId);
+    
+    const participants = await ctx.db
+      .query("groupBuyParticipants")
+      .withIndex("by_groupBuy", (q) => q.eq("groupBuyId", args.groupBuyId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    const currentQuantity = participants.reduce((sum, p) => sum + p.quantity, 0);
+    const progress = groupBuy.targetQuantity > 0 ? (currentQuantity / groupBuy.targetQuantity) * 100 : 0;
+    const daysLeft = Math.max(0, Math.ceil((groupBuy.deadline - Date.now()) / (1000 * 60 * 60 * 24)));
+
+    return {
+      title: groupBuy.title,
+      productName: product?.name || "Unknown product",
+      currentQuantity,
+      targetQuantity: groupBuy.targetQuantity,
+      progress: Math.round(progress),
+      daysLeft,
+      participantCount: participants.length,
+      expectedSavings: groupBuy.expectedSavings || 15,
+    };
   },
 });

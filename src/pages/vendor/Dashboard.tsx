@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PhotoUpload } from "@/components/ui/photo-upload";
 import CatalogScanner from "@/components/CatalogScanner.tsx";
 import { EditQuotationDialog } from "@/pages/vendor/_components/EditQuotationDialog";
+import { GroupBuyOpportunities } from "@/pages/vendor/_components/GroupBuyOpportunities";
 import {
   Dialog,
   DialogContent,
@@ -25,7 +26,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { EmptyState, EmptyStateContent, EmptyStateIcon, EmptyStateTitle, EmptyStateDescription } from "@/components/ui/empty-state.tsx";
-import { Package, AlertCircle, Plus, Edit, Trash2, MessageCircle, XCircle, Clock, ScanLine } from "lucide-react";
+import { Package, AlertCircle, Plus, Edit, Trash2, MessageCircle, XCircle, Clock, ScanLine, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-auth.ts";
 import VendorRatingDisplay from "@/components/VendorRatingDisplay.tsx";
@@ -38,9 +39,7 @@ export default function VendorDashboard() {
   const products = useQuery(api.products.getProducts, {});
   const myQuotations = useQuery(api.vendorQuotations.getMyQuotations, {});
   const pendingRFQs = useQuery(api.vendorQuotations.getPendingRFQs, {});
-  const availableProducts = useQuery(api.products.getProducts, {});
   const sentQuotations = useQuery(api.rfqs.getMyVendorQuotationsSent, {});
-  const myRFQs = useQuery(api.rfqs.getMyRFQs, {});
   
   // Add notifications query
   const notifications = useQuery(api.notifications.getMyNotifications, {});
@@ -267,6 +266,10 @@ export default function VendorDashboard() {
             </TabsTrigger>
             <TabsTrigger value="ratings">
               My Ratings
+            </TabsTrigger>
+            <TabsTrigger value="groupbuys" className="flex items-center gap-2">
+              <Users className="size-4" />
+              Group Buys
             </TabsTrigger>
             <TabsTrigger value="settings">
               Settings
@@ -812,6 +815,11 @@ export default function VendorDashboard() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Group Buys Tab */}
+          <TabsContent value="groupbuys">
+            <GroupBuyOpportunities />
           </TabsContent>
 
           {/* Settings Tab */}
