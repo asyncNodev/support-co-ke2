@@ -29,14 +29,23 @@ export const getProducts = query({
       products = await ctx.db.query("products").collect();
     }
     
-    // Get category names
+    // Get category names and quotation counts
     const productsWithCategory = await Promise.all(
       products.map(async (product) => {
         const category = await ctx.db.get(product.categoryId);
+        
+        // Count active vendor quotations for this product
+        const quotations = await ctx.db
+          .query("vendorQuotations")
+          .withIndex("by_product", (q) => q.eq("productId", product._id))
+          .filter((q) => q.eq(q.field("active"), true))
+          .collect();
+        
         return {
           ...product,
           categoryName: category?.name ?? "Unknown",
           categorySlug: category?.slug ?? "unknown",
+          quotationCount: quotations.length,
         };
       })
     );
