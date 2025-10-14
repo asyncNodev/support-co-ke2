@@ -11,10 +11,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog.tsx";
 import { Textarea } from "@/components/ui/textarea.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
-import { Package, FileText, CheckCircle, XCircle, Clock, ShoppingBag, MessageCircle } from "lucide-react";
+import { Package, FileText, CheckCircle, XCircle, Clock, ShoppingBag, MessageCircle, Users } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
+import GroupBuyCard from "./_components/GroupBuyCard.tsx";
+import CreateGroupBuyDialog from "./_components/CreateGroupBuyDialog.tsx";
 
 export default function BuyerDashboard() {
   const navigate = useNavigate();
@@ -22,6 +24,8 @@ export default function BuyerDashboard() {
   const currentUser = useQuery(api.users.getCurrentUser, isAuthenticated ? {} : "skip");
   const myRFQs = useQuery(api.rfqs.getMyRFQs, isAuthenticated ? {} : "skip");
   const myQuotations = useQuery(api.rfqs.getMyQuotationsSent, isAuthenticated ? {} : "skip");
+  const activeGroupBuys = useQuery(api.groupBuys.getActiveGroupBuys, isAuthenticated ? {} : "skip");
+  const myGroupBuys = useQuery(api.groupBuys.getMyGroupBuys, isAuthenticated ? {} : "skip");
   
   const approveQuotation = useMutation(api.rfqs.chooseQuotation);
   const declineQuotation = useMutation(api.rfqs.declineQuotation);
@@ -182,6 +186,13 @@ export default function BuyerDashboard() {
               My RFQs
               {myRFQs && myRFQs.length > 0 && (
                 <Badge variant="secondary">{myRFQs.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="groupbuys" className="gap-2">
+              <Users className="size-4" />
+              Group Buys
+              {activeGroupBuys && activeGroupBuys.length > 0 && (
+                <Badge variant="secondary">{activeGroupBuys.length}</Badge>
               )}
             </TabsTrigger>
           </TabsList>
@@ -385,6 +396,95 @@ export default function BuyerDashboard() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Group Buys Tab */}
+          <TabsContent value="groupbuys">
+            <div className="space-y-6">
+              {/* My Group Buys Section */}
+              {myGroupBuys && myGroupBuys.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">My Group Buys</h3>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {myGroupBuys.map((participation) => (
+                      <Card key={participation._id}>
+                        <CardHeader>
+                          <CardTitle className="text-base">
+                            {participation.product?.name}
+                          </CardTitle>
+                          <CardDescription>
+                            {participation.groupBuy.title}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Your Quantity:</span>
+                              <span className="font-semibold">{participation.quantity} units</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Total Progress:</span>
+                              <span className="font-semibold">
+                                {participation.currentQuantity}/{participation.groupBuy.targetQuantity}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Participants:</span>
+                              <span className="font-semibold">{participation.participantCount}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Deadline:</span>
+                              <span className="font-semibold">
+                                {participation.daysLeft === 0 ? "Today" : `${participation.daysLeft} days`}
+                              </span>
+                            </div>
+                            <Badge variant={participation.status === "active" ? "default" : "secondary"}>
+                              {participation.status}
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Available Group Buys Section */}
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold">Available Group Buys</h3>
+                  <Badge variant="outline">
+                    {activeGroupBuys?.length || 0} Active
+                  </Badge>
+                </div>
+
+                {!activeGroupBuys || activeGroupBuys.length === 0 ? (
+                  <Card>
+                    <CardContent className="text-center py-12">
+                      <Users className="size-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-4">
+                        No active group buys at the moment
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Start one when you find a product you need!
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {activeGroupBuys.map((groupBuy) => (
+                      <GroupBuyCard
+                        key={groupBuy._id}
+                        groupBuy={groupBuy}
+                        onJoin={() => {
+                          // Refresh data
+                        }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

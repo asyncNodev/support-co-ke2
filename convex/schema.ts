@@ -31,6 +31,45 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_role", ["role"]),
 
+  // Group buying opportunities
+  groupBuys: defineTable({
+    productId: v.id("products"),
+    title: v.string(),
+    description: v.optional(v.string()),
+    targetQuantity: v.number(),
+    currentQuantity: v.number(),
+    status: v.union(
+      v.literal("open"),
+      v.literal("closed"),
+      v.literal("completed")
+    ),
+    deadline: v.number(),
+    createdBy: v.id("users"),
+    minimumParticipants: v.number(),
+    expectedSavings: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_product", ["productId"])
+    .index("by_status", ["status"])
+    .index("by_deadline", ["deadline"]),
+
+  // Group buy participants
+  groupBuyParticipants: defineTable({
+    groupBuyId: v.id("groupBuys"),
+    hospitalId: v.id("users"),
+    rfqId: v.optional(v.id("rfqs")),
+    quantity: v.number(),
+    joinedAt: v.number(),
+    status: v.union(
+      v.literal("active"),
+      v.literal("withdrawn"),
+      v.literal("completed")
+    ),
+  })
+    .index("by_groupBuy", ["groupBuyId"])
+    .index("by_hospital", ["hospitalId"])
+    .index("by_rfq", ["rfqId"]),
+
   // Categories (admin only)
   categories: defineTable({
     name: v.string(),

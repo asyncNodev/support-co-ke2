@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import AppHeader from "@/components/AppHeader";
 import GuestRFQDialog from "@/pages/_components/GuestRFQDialog";
+import GroupBuyCard from "@/pages/buyer/_components/GroupBuyCard.tsx";
+import CreateGroupBuyDialog from "@/pages/buyer/_components/CreateGroupBuyDialog.tsx";
 import {
   Select,
   SelectContent,
@@ -56,6 +58,12 @@ export default function ProductDetail() {
   const displayProduct = productBySlug || productById;
   
   const submitRFQ = useMutation(api.rfqs.submitRFQ);
+
+  // Get group buys for this product
+  const groupBuysForProduct = useQuery(
+    api.groupBuys.getGroupBuysForProduct,
+    displayProduct ? { productId: displayProduct._id } : "skip"
+  );
 
   const [quantity, setQuantity] = useState("");
   const [expectedDelivery, setExpectedDelivery] = useState("");
@@ -318,6 +326,50 @@ export default function ProductDetail() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Group Buy Opportunities Section */}
+          {groupBuysForProduct && groupBuysForProduct.length > 0 && (
+            <div className="mt-8">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-2xl font-bold">Active Group Buys</h3>
+                  <p className="text-muted-foreground">Join other hospitals and save money</p>
+                </div>
+                {isAuthenticated && currentUser && displayProduct && (
+                  <CreateGroupBuyDialog
+                    productId={displayProduct._id}
+                    productName={displayProduct.name}
+                  />
+                )}
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                {groupBuysForProduct.map((groupBuy) => (
+                  <GroupBuyCard key={groupBuy._id} groupBuy={{ ...groupBuy, product: displayProduct }} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Start Group Buy CTA */}
+          {isAuthenticated && currentUser && displayProduct && (!groupBuysForProduct || groupBuysForProduct.length === 0) && (
+            <Card className="mt-8 border-2 border-dashed">
+              <CardContent className="text-center py-12">
+                <h3 className="text-xl font-bold mb-2">Want to Save More?</h3>
+                <p className="text-muted-foreground mb-4">
+                  Start a group buy and invite other hospitals to join for better bulk pricing
+                </p>
+                <CreateGroupBuyDialog
+                  productId={displayProduct._id}
+                  productName={displayProduct.name}
+                  trigger={
+                    <Button size="lg">
+                      Start Group Buy
+                    </Button>
+                  }
+                />
+              </CardContent>
+            </Card>
+          )}
         </div>
       </main>
       
