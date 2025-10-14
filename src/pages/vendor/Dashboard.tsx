@@ -26,7 +26,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
 import { EmptyState, EmptyStateContent, EmptyStateIcon, EmptyStateTitle, EmptyStateDescription } from "@/components/ui/empty-state.tsx";
-import { Package, AlertCircle, Plus, Edit, Trash2, MessageCircle, XCircle, Clock, ScanLine, Users, BarChart3, TrendingUp, Star } from "lucide-react";
+import { Package, AlertCircle, Plus, Edit, Trash2, MessageCircle, XCircle, Clock, ScanLine, Users, BarChart3, TrendingUp, Star, Lightbulb, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useUser } from "@/hooks/use-auth.ts";
 import VendorRatingDisplay from "@/components/VendorRatingDisplay.tsx";
@@ -43,6 +43,7 @@ export default function VendorDashboard() {
   const groupBuyOpportunities = useQuery(api.groupBuys.getGroupBuyOpportunitiesForVendor, {});
   const vendorPerformance = useQuery(api.vendorAnalytics.getVendorPerformance, {});
   const marketComparison = useQuery(api.vendorAnalytics.getMarketComparison, {});
+  const vendorAdvisory = useQuery(api.vendorAdvisory.getVendorAdvisory, {});
   const recentPerformance = useQuery(api.vendorAnalytics.getRecentPerformance, {});
   
   // Add notifications query
@@ -256,6 +257,9 @@ export default function VendorDashboard() {
             </TabsTrigger>
             <TabsTrigger value="performance" className="flex items-center gap-2">
               <BarChart3 className="size-4" /> Performance
+            </TabsTrigger>
+            <TabsTrigger value="advisory" className="flex items-center gap-2">
+              <Lightbulb className="size-4" /> Sales Advisory
             </TabsTrigger>
             <TabsTrigger value="my-rfqs">
               <MessageCircle className="size-4" /> RFQs
@@ -781,6 +785,222 @@ export default function VendorDashboard() {
                 </ul>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Sales Advisory Tab */}
+          <TabsContent value="advisory" className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Sales Advisory</h2>
+              <p className="text-muted-foreground">Personalized recommendations to help you win more deals</p>
+            </div>
+
+            {!vendorAdvisory && (
+              <div className="grid gap-4">
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full" />
+              </div>
+            )}
+
+            {vendorAdvisory && vendorAdvisory.advice && vendorAdvisory.advice.length > 0 && (
+              <div className="space-y-4">
+                {/* Urgent Advice */}
+                {vendorAdvisory.advice.filter((a) => a.priority === "urgent").map((advice) => (
+                  <Card key={advice.id} className="border-red-200 dark:border-red-900">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="destructive">URGENT</Badge>
+                            <Badge variant="outline">{advice.category}</Badge>
+                          </div>
+                          <CardTitle className="text-lg">{advice.title}</CardTitle>
+                        </div>
+                      </div>
+                      <CardDescription>{advice.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-sm font-medium mb-1">Impact:</p>
+                        <p className="text-sm text-muted-foreground">{advice.impact}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium mb-2">Action Steps:</p>
+                        <ul className="space-y-2">
+                          {advice.actions.map((action, idx) => (
+                            <li key={idx} className="flex items-start gap-2 text-sm">
+                              <CheckCircle className="size-4 mt-0.5 text-green-600 shrink-0" />
+                              <span>{action}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-900">
+                        <p className="text-sm font-medium text-green-900 dark:text-green-100 mb-1">Expected Result:</p>
+                        <p className="text-sm text-green-800 dark:text-green-200">{advice.expectedResult}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+
+                {/* High Priority Advice */}
+                {vendorAdvisory.advice.filter((a) => a.priority === "high").map((advice) => (
+                  <Card key={advice.id} className="border-orange-200 dark:border-orange-900">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge className="bg-orange-500">HIGH PRIORITY</Badge>
+                            <Badge variant="outline">{advice.category}</Badge>
+                          </div>
+                          <CardTitle className="text-lg">{advice.title}</CardTitle>
+                        </div>
+                      </div>
+                      <CardDescription>{advice.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-sm font-medium mb-1">Impact:</p>
+                        <p className="text-sm text-muted-foreground">{advice.impact}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium mb-2">Action Steps:</p>
+                        <ul className="space-y-2">
+                          {advice.actions.map((action, idx) => (
+                            <li key={idx} className="flex items-start gap-2 text-sm">
+                              <CheckCircle className="size-4 mt-0.5 text-blue-600 shrink-0" />
+                              <span>{action}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-900">
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Expected Result:</p>
+                        <p className="text-sm text-blue-800 dark:text-blue-200">{advice.expectedResult}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+
+                {/* Medium Priority Advice */}
+                {vendorAdvisory.advice.filter((a) => a.priority === "medium").map((advice) => (
+                  <Card key={advice.id}>
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="secondary">RECOMMENDED</Badge>
+                            <Badge variant="outline">{advice.category}</Badge>
+                          </div>
+                          <CardTitle className="text-lg">{advice.title}</CardTitle>
+                        </div>
+                      </div>
+                      <CardDescription>{advice.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-sm font-medium mb-1">Impact:</p>
+                        <p className="text-sm text-muted-foreground">{advice.impact}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium mb-2">Action Steps:</p>
+                        <ul className="space-y-2">
+                          {advice.actions.map((action, idx) => (
+                            <li key={idx} className="flex items-start gap-2 text-sm">
+                              <CheckCircle className="size-4 mt-0.5 text-primary shrink-0" />
+                              <span>{action}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+                        <p className="text-sm font-medium mb-1">Expected Result:</p>
+                        <p className="text-sm text-muted-foreground">{advice.expectedResult}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+
+                {/* Low Priority Advice */}
+                {vendorAdvisory.advice.filter((a) => a.priority === "low").map((advice) => (
+                  <Card key={advice.id} className="border-muted">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge variant="outline">OPTIMIZATION</Badge>
+                            <Badge variant="outline">{advice.category}</Badge>
+                          </div>
+                          <CardTitle className="text-lg">{advice.title}</CardTitle>
+                        </div>
+                      </div>
+                      <CardDescription>{advice.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-sm font-medium mb-1">Impact:</p>
+                        <p className="text-sm text-muted-foreground">{advice.impact}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium mb-2">Action Steps:</p>
+                        <ul className="space-y-2">
+                          {advice.actions.map((action, idx) => (
+                            <li key={idx} className="flex items-start gap-2 text-sm">
+                              <CheckCircle className="size-4 mt-0.5 text-muted-foreground shrink-0" />
+                              <span>{action}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-sm font-medium mb-1">Expected Result:</p>
+                        <p className="text-sm text-muted-foreground">{advice.expectedResult}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            {/* Best Practices Section */}
+            {vendorAdvisory && vendorAdvisory.bestPractices && vendorAdvisory.bestPractices.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Best Practices from Top Vendors</CardTitle>
+                  <CardDescription>Learn from the strategies that drive success</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {vendorAdvisory.bestPractices.map((practice, idx) => (
+                      <div key={idx} className="p-4 border rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold">{practice.title}</h4>
+                          <Badge variant={
+                            practice.difficulty === "Easy" ? "default" :
+                            practice.difficulty === "Medium" ? "secondary" : "outline"
+                          }>
+                            {practice.difficulty}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{practice.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {vendorAdvisory && vendorAdvisory.advice && vendorAdvisory.advice.length === 0 && (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <Lightbulb className="size-16 mx-auto text-green-600 mb-4" />
+                  <CardTitle className="mb-2">You're Doing Great!</CardTitle>
+                  <CardDescription>
+                    No critical issues found. Keep up the excellent work! Check the Performance tab for detailed metrics.
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="my-rfqs">
