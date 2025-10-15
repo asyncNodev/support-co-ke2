@@ -1,188 +1,48 @@
-import { Link, useNavigate } from "react-router-dom";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Button } from "@/components/ui/button";
-import { Bell, LayoutDashboard, ChevronDown, ChevronUp, X, ArrowRight } from "lucide-react";
-import { SignInButton } from "@/components/ui/signin";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
-import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import { Authenticated, Unauthenticated, AuthLoading } from "convex/react";
-import { Skeleton } from "@/components/ui/skeleton.tsx";
+import { SignInButton } from "@/components/ui/signin";
+import { Authenticated, Unauthenticated } from "convex/react";
 
 export default function AppHeader() {
-  const navigate = useNavigate();
-  const currentUser = useQuery(api.users.getCurrentUser, {});
-  const siteSettings = useQuery(api.siteSettings.getSiteSettings, {});
-  const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
-
-  // Don't show logo until settings are loaded to prevent flash
-  const isLoadingSettings = siteSettings === undefined;
-
-  const logoUrl = siteSettings?.logoUrl || "https://cdn.hercules.app/file_bqE3zk4Ry0XmWJeiuCRNP3vv";
-  const logoSize = siteSettings?.logoSize || "h-28";
-  const siteName = siteSettings?.siteName || "Medical Supplies Kenya";
-  const tagline = siteSettings?.tagline || "Find Medical Equipment & Supplies";
-  const workflowTextSize = siteSettings?.workflowTextSize || "text-sm";
-  const workflowBgColor = siteSettings?.workflowBgColor || "bg-blue-50";
-
-  const hospitalSteps = [
-    siteSettings?.hospitalStep1 || "Search Products",
-    siteSettings?.hospitalStep2 || "Create RFQ",
-    siteSettings?.hospitalStep3 || "Receive Quotations",
-    siteSettings?.hospitalStep4 || "Choose Best Vendor",
-  ];
-
-  const vendorSteps = [
-    siteSettings?.vendorStep1 || "Upload Products",
-    siteSettings?.vendorStep2 || "Receive RFQ Alerts",
-    siteSettings?.vendorStep3 || "Submit Quotations",
-    siteSettings?.vendorStep4 || "Win Orders",
-  ];
+  const { user } = useAuth();
 
   return (
-    <div className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      {/* Top Bar */}
-      <div className="border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            {isLoadingSettings ? (
-              <Skeleton className={`${logoSize} w-32`} />
-            ) : (
-              <motion.img
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                src={logoUrl} 
-                alt={siteName} 
-                className={`${logoSize} w-auto`}
-              />
-            )}
-            <div>
-              <h1 className="text-xl font-bold">{siteName}</h1>
-              <p className="text-xs text-muted-foreground">{tagline}</p>
-            </div>
+    <header className="border-b bg-background sticky top-0 z-50">
+      <div className="container mx-auto px-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-3">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2 shrink-0">
+            <img
+              src="/supply-co-ke-logo.png"
+              alt="supply.co.ke"
+              className="h-10 w-auto"
+            />
           </Link>
-          
-          <div className="flex items-center gap-4">
+
+          {/* Navigation Links */}
+          <nav className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-sm">
+            <Link to="/browse" className="text-foreground hover:text-primary whitespace-nowrap">
+              Browse
+            </Link>
+            <Link to="/vendors" className="text-foreground hover:text-primary whitespace-nowrap">
+              Vendors
+            </Link>
+            <a href="#how-it-works" className="text-foreground hover:text-primary whitespace-nowrap">
+              How It Works
+            </a>
+          </nav>
+
+          {/* Auth Buttons */}
+          <div className="flex items-center gap-2 shrink-0">
             <Authenticated>
-              <Button 
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate("/settings/notifications")}
-                title="Notification Settings"
-              >
-                <Bell className="size-5" />
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  if (currentUser?.role === "admin") {
-                    navigate("/admin");
-                  } else if (currentUser?.role === "vendor") {
-                    navigate("/vendor");
-                  } else if (currentUser?.role === "buyer") {
-                    navigate("/buyer");
-                  }
-                }}
-              >
-                <LayoutDashboard className="size-4 mr-2" />
-                Dashboard
-              </Button>
+              <SignInButton />
             </Authenticated>
-            <SignInButton />
+            <Unauthenticated>
+              <SignInButton />
+            </Unauthenticated>
           </div>
         </div>
       </div>
-
-      {/* How It Works - Collapsible */}
-      <div className="border-b bg-muted/20">
-        <div className="container mx-auto px-4">
-          <button
-            onClick={() => setIsHowItWorksOpen(!isHowItWorksOpen)}
-            className="w-full py-3 flex items-center justify-center gap-2 hover:bg-muted/50 transition-colors"
-          >
-            <span className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-              How It Works
-            </span>
-            {isHowItWorksOpen ? (
-              <ChevronUp className="size-4 text-muted-foreground" />
-            ) : (
-              <ChevronDown className="size-4 text-muted-foreground" />
-            )}
-          </button>
-
-          <AnimatePresence>
-            {isHowItWorksOpen && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="overflow-hidden"
-              >
-                <div className="pb-6 pt-2">
-                  <div className="grid md:grid-cols-2 gap-8">
-                    {/* For Hospitals */}
-                    <div>
-                      <h3 className="font-semibold text-primary mb-3 flex items-center gap-2">
-                        <span className="bg-primary text-primary-foreground rounded-full size-6 flex items-center justify-center text-xs">
-                          1
-                        </span>
-                        For Hospitals
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-2 text-sm">
-                        <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                          {hospitalSteps[0]}
-                        </span>
-                        <ArrowRight className="size-4 text-muted-foreground" />
-                        <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                          {hospitalSteps[1]}
-                        </span>
-                        <ArrowRight className="size-4 text-muted-foreground" />
-                        <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                          {hospitalSteps[2]}
-                        </span>
-                        <ArrowRight className="size-4 text-muted-foreground" />
-                        <span className="bg-primary text-primary-foreground px-3 py-2 rounded-lg font-medium">
-                          {hospitalSteps[3]}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* For Vendors */}
-                    <div>
-                      <h3 className="font-semibold text-primary mb-3 flex items-center gap-2">
-                        <span className="bg-primary text-primary-foreground rounded-full size-6 flex items-center justify-center text-xs">
-                          2
-                        </span>
-                        For Vendors
-                      </h3>
-                      <div className="flex flex-wrap items-center gap-2 text-sm">
-                        <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                          {vendorSteps[0]}
-                        </span>
-                        <ArrowRight className="size-4 text-muted-foreground" />
-                        <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                          {vendorSteps[1]}
-                        </span>
-                        <ArrowRight className="size-4 text-muted-foreground" />
-                        <span className="bg-background px-3 py-2 rounded-lg border font-medium">
-                          {vendorSteps[2]}
-                        </span>
-                        <ArrowRight className="size-4 text-muted-foreground" />
-                        <span className="bg-primary text-primary-foreground px-3 py-2 rounded-lg font-medium">
-                          {vendorSteps[3]}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-    </div>
+    </header>
   );
 }

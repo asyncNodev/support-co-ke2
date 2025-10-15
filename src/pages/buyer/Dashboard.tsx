@@ -55,6 +55,7 @@ export default function BuyerDashboard() {
   const [declineReason, setDeclineReason] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState("quotations");
 
   // Handle redirects in useEffect
   useEffect(() => {
@@ -191,39 +192,29 @@ export default function BuyerDashboard() {
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Buyer Dashboard</h1>
 
-        <Tabs defaultValue="quotations" className="space-y-6">
-          <TabsList className="grid grid-cols-5 lg:grid-cols-6">
-            <TabsTrigger value="quotations" className="gap-2">
-              <FileText className="size-4" />
-              Quotations
-              {myQuotations && myQuotations.length > 0 && (
-                <Badge variant="secondary">{myQuotations.length}</Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="rfqs">
-              <FileText className="size-4 mr-2" />
-              <span className="hidden sm:inline">My RFQs</span>
-              <span className="sm:hidden">RFQs</span>
-            </TabsTrigger>
-            <TabsTrigger value="groupbuys">
-              <Users className="size-4 mr-2" />
-              <span className="hidden sm:inline">Group Buys</span>
-              <span className="sm:hidden">Groups</span>
-            </TabsTrigger>
-            <TabsTrigger value="approvals">
-              <CheckCircle2 className="size-4 mr-2" />
-              <span className="hidden sm:inline">Approvals</span>
-              <span className="sm:hidden">Approve</span>
-            </TabsTrigger>
-            <TabsTrigger value="orders">
-              <Package className="size-4 mr-2" />
-              <span className="hidden sm:inline">Orders</span>
-              <span className="sm:hidden">Orders</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Tabs */}
+        <div className="border-b">
+          <div className="flex overflow-x-auto gap-1 pb-px">
+            {["quotations", "rfqs", "group-buys", "approvals", "orders"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                  activeTab === tab
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                {tab.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}
+              </button>
+            ))}
+          </div>
+        </div>
 
+        {/* Tab Content */}
+        <div className="space-y-6">
           {/* Quotations Tab */}
-          <TabsContent value="quotations">
+          {activeTab === "quotations" && (
             <Card>
               <CardHeader>
                 <CardTitle>Received Quotations</CardTitle>
@@ -349,10 +340,10 @@ export default function BuyerDashboard() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+          )}
 
           {/* RFQs Tab */}
-          <TabsContent value="rfqs">
+          {activeTab === "rfqs" && (
             <Card>
               <CardHeader>
                 <CardTitle>My RFQs</CardTitle>
@@ -421,10 +412,10 @@ export default function BuyerDashboard() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+          )}
 
           {/* Group Buys Tab */}
-          <TabsContent value="groupbuys">
+          {activeTab === "group-buys" && (
             <div className="space-y-6">
               {/* Available Group Buys Section */}
               <div>
@@ -462,10 +453,10 @@ export default function BuyerDashboard() {
                 )}
               </div>
             </div>
-          </TabsContent>
+          )}
 
           {/* Approvals Tab */}
-          <TabsContent value="approvals" className="space-y-6">
+          {activeTab === "approvals" && (
             <div className="space-y-6">
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -600,10 +591,10 @@ export default function BuyerDashboard() {
                 )}
               </div>
             </div>
-          </TabsContent>
+          )}
 
           {/* Orders Tab */}
-          <TabsContent value="orders" className="space-y-6">
+          {activeTab === "orders" && (
             <div className="space-y-6">
               {/* Order Statistics */}
               {orderStats && (
@@ -798,8 +789,8 @@ export default function BuyerDashboard() {
                 )}
               </div>
             </div>
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
       </div>
 
       {/* Decline Dialog */}

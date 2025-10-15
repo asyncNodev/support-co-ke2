@@ -81,6 +81,7 @@ export default function VendorDashboard() {
   } | null>(null);
   const [editQuotationOpen, setEditQuotationOpen] = useState(false);
   const [catalogScannerOpen, setCatalogScannerOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("products");
 
   const createQuotation = useMutation(api.vendorQuotations.createQuotation);
   const deleteQuotation = useMutation(api.vendorQuotations.deleteQuotation);
@@ -250,48 +251,26 @@ export default function VendorDashboard() {
       </header>
 
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="products">
-          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
-            <TabsTrigger value="products">
-              <Package className="size-4" /> Products
-            </TabsTrigger>
-            <TabsTrigger value="performance" className="flex items-center gap-2">
-              <BarChart3 className="size-4" /> Performance
-            </TabsTrigger>
-            <TabsTrigger value="advisory" className="flex items-center gap-2">
-              <Lightbulb className="size-4" /> Sales Advisory
-            </TabsTrigger>
-            <TabsTrigger value="my-rfqs">
-              <MessageCircle className="size-4" /> RFQs
-            </TabsTrigger>
-            <TabsTrigger value="quotations">
-              Sent Quotations
-            </TabsTrigger>
-            <TabsTrigger value="notifications">
-              Notifications
-              {notifications && notifications.filter(n => !n.read).length > 0 && (
-                <Badge variant="destructive" className="ml-2">
-                  {notifications.filter(n => !n.read).length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="ratings">
-              My Ratings
-            </TabsTrigger>
-            <TabsTrigger value="groupbuys" className="flex items-center gap-2">
-              <Users className="size-4" />
-              Group Buys
-            </TabsTrigger>
-            <TabsTrigger value="orders" className="flex items-center gap-2">
-              <Package className="size-4" />
-              Orders
-            </TabsTrigger>
-            <TabsTrigger value="settings">
-              Settings
-            </TabsTrigger>
-          </TabsList>
+        <div className="border-b">
+          <div className="flex overflow-x-auto gap-1 pb-px">
+            {["products", "performance", "rfqs", "group-buys"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                  activeTab === tab
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                {tab.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}
+              </button>
+            ))}
+          </div>
+        </div>
 
-          <TabsContent value="products" className="space-y-4">
+        <div className="space-y-4">
+          {activeTab === "products" && (
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">My Product Quotations</h2>
               <div className="flex gap-2">
@@ -455,965 +434,488 @@ export default function VendorDashboard() {
                 </Dialog>
               </div>
             </div>
+          )}
 
-            {!myQuotations || myQuotations.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <Package className="size-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No product quotations yet</p>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Add your first product quotation to start receiving RFQs
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4">
-                {myQuotations.map((quotation) => (
-                  <Card key={quotation._id}>
-                    <CardContent className="p-4">
-                      <div className="flex gap-4">
-                        {quotation.productPhoto && (
-                          <img
-                            src={quotation.productPhoto}
-                            alt="Product"
-                            className="size-24 object-cover rounded-md"
-                          />
-                        )}
-                        <div className="flex-1">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h3 className="font-semibold">{quotation.product?.name}</h3>
-                              {quotation.brand && (
-                                <p className="text-sm text-muted-foreground">Brand: {quotation.brand}</p>
-                              )}
-                              <p className="text-lg font-bold text-primary mt-2">
-                                KES {quotation.price.toLocaleString()}
-                              </p>
-                              <div className="flex gap-2 mt-2 flex-wrap">
-                                <Badge variant={quotation.paymentTerms === "cash" ? "default" : "secondary"}>
-                                  {quotation.paymentTerms}
-                                </Badge>
-                                <Badge variant="outline">{quotation.deliveryTime}</Badge>
-                                <Badge variant="outline">{quotation.warrantyPeriod}</Badge>
-                                {quotation.countryOfOrigin && (
-                                  <Badge variant="outline">{quotation.countryOfOrigin}</Badge>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                              <Badge variant={quotation.active ? "default" : "secondary"}>
-                                {quotation.active ? "Active" : "Inactive"}
-                              </Badge>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    setEditQuotationData(quotation);
-                                    setEditQuotationOpen(true);
-                                  }}
-                                >
-                                  <Edit className="size-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => handleDeleteQuotation(quotation._id)}
-                                >
-                                  <Trash2 className="size-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="performance" className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Performance Dashboard</h2>
-              <p className="text-muted-foreground">Track your success metrics and compare with market averages</p>
-            </div>
-
-            {/* Key Metrics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Win Rate</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {vendorPerformance?.winRate?.toFixed(1) || "0"}%
-                  </div>
-                  {marketComparison && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Market avg: {marketComparison.marketAverageWinRate.toFixed(1)}%
-                      {vendorPerformance && vendorPerformance.winRate > marketComparison.marketAverageWinRate && (
-                        <span className="text-green-600 ml-1">↑ Above average</span>
-                      )}
-                      {vendorPerformance && vendorPerformance.winRate < marketComparison.marketAverageWinRate && (
-                        <span className="text-red-600 ml-1">↓ Below average</span>
-                      )}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    KES {(vendorPerformance?.totalRevenue || 0).toLocaleString()}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    From {vendorPerformance?.totalWonQuotations || 0} won deals
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Average Rating</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold flex items-center gap-2">
-                    {vendorPerformance?.averageRating?.toFixed(1) || "0"}
-                    <Star className="size-5 fill-yellow-400 text-yellow-400" />
-                  </div>
-                  {marketComparison && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Market avg: {marketComparison.marketAverageRating.toFixed(1)}
-                      {vendorPerformance && vendorPerformance.averageRating > marketComparison.marketAverageRating && (
-                        <span className="text-green-600 ml-1">↑ Above average</span>
-                      )}
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Delivery Rate</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {vendorPerformance?.deliveryRate?.toFixed(1) || "0"}%
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {vendorPerformance?.deliveredOrders || 0} of {vendorPerformance?.totalOrders || 0} orders delivered
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Recent Performance (Last 30 Days) */}
+          {!myQuotations || myQuotations.length === 0 ? (
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Clock className="size-5" />
-                  Last 30 Days Performance
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Quotations</p>
-                    <p className="text-2xl font-bold">{recentPerformance?.quotationsLast30Days || 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Won Deals</p>
-                    <p className="text-2xl font-bold">{recentPerformance?.wonQuotationsLast30Days || 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Orders</p>
-                    <p className="text-2xl font-bold">{recentPerformance?.ordersLast30Days || 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Revenue</p>
-                    <p className="text-2xl font-bold">KES {(recentPerformance?.revenueLast30Days || 0).toLocaleString()}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Detailed Ratings Breakdown */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Ratings Breakdown</CardTitle>
-                <CardDescription>{vendorPerformance?.totalRatings || 0} total ratings</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm">Delivery Speed</span>
-                    <span className="text-sm font-medium">{vendorPerformance?.averageDeliveryRating?.toFixed(1) || "0"}/5</span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className="bg-primary rounded-full h-2"
-                      style={{ width: `${((vendorPerformance?.averageDeliveryRating || 0) / 5) * 100}%` }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm">Communication</span>
-                    <span className="text-sm font-medium">{vendorPerformance?.averageCommunicationRating?.toFixed(1) || "0"}/5</span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className="bg-primary rounded-full h-2"
-                      style={{ width: `${((vendorPerformance?.averageCommunicationRating || 0) / 5) * 100}%` }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm">Product Quality</span>
-                    <span className="text-sm font-medium">{vendorPerformance?.averageQualityRating?.toFixed(1) || "0"}/5</span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className="bg-primary rounded-full h-2"
-                      style={{ width: `${((vendorPerformance?.averageQualityRating || 0) / 5) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Response Time */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Average Response Time</CardTitle>
-                <CardDescription>How quickly you respond to RFQs</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">
-                  {vendorPerformance && vendorPerformance.averageResponseTime > 0
-                    ? `${Math.round(vendorPerformance.averageResponseTime / (1000 * 60 * 60))} hours`
-                    : "No data yet"}
-                </div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Faster responses increase your chances of winning deals
+              <CardContent className="flex flex-col items-center justify-center py-12">
+                <Package className="size-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No product quotations yet</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Add your first product quotation to start receiving RFQs
                 </p>
               </CardContent>
             </Card>
-
-            {/* Market Position */}
-            {marketComparison && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Market Position</CardTitle>
-                  <CardDescription>How you compare to {marketComparison.totalActiveVendors} active vendors</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 border rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-2">Your Win Rate</p>
-                      <p className="text-2xl font-bold">{marketComparison.myWinRate.toFixed(1)}%</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        vs Market: {marketComparison.marketAverageWinRate.toFixed(1)}%
-                      </p>
-                      {marketComparison.myWinRate > marketComparison.marketAverageWinRate && (
-                        <div className="flex items-center gap-1 text-green-600 mt-2">
-                          <TrendingUp className="size-4" />
-                          <span className="text-sm">You're outperforming the market!</span>
-                        </div>
+          ) : (
+            <div className="grid gap-4">
+              {myQuotations.map((quotation) => (
+                <Card key={quotation._id}>
+                  <CardContent className="p-4">
+                    <div className="flex gap-4">
+                      {quotation.productPhoto && (
+                        <img
+                          src={quotation.productPhoto}
+                          alt="Product"
+                          className="size-24 object-cover rounded-md"
+                        />
                       )}
-                    </div>
-                    <div className="p-4 border rounded-lg">
-                      <p className="text-sm text-muted-foreground mb-2">Your Average Rating</p>
-                      <p className="text-2xl font-bold flex items-center gap-2">
-                        {marketComparison.myAverageRating.toFixed(1)}
-                        <Star className="size-5 fill-yellow-400 text-yellow-400" />
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        vs Market: {marketComparison.marketAverageRating.toFixed(1)}
-                      </p>
-                      {marketComparison.myAverageRating > marketComparison.marketAverageRating && (
-                        <div className="flex items-center gap-1 text-green-600 mt-2">
-                          <TrendingUp className="size-4" />
-                          <span className="text-sm">Higher than market average!</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Action Items */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recommendations</CardTitle>
-                <CardDescription>Ways to improve your performance</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2">
-                  {vendorPerformance && vendorPerformance.averageResponseTime > (24 * 60 * 60 * 1000) && (
-                    <li className="flex items-start gap-2">
-                      <Clock className="size-4 mt-0.5 text-orange-500" />
-                      <span className="text-sm">Your response time is over 24 hours. Try to respond faster to increase win rate.</span>
-                    </li>
-                  )}
-                  {vendorPerformance && vendorPerformance.averageRating < 4 && vendorPerformance.totalRatings > 0 && (
-                    <li className="flex items-start gap-2">
-                      <Star className="size-4 mt-0.5 text-orange-500" />
-                      <span className="text-sm">Your rating is below 4.0. Focus on improving delivery speed and communication.</span>
-                    </li>
-                  )}
-                  {marketComparison && marketComparison.myWinRate < marketComparison.marketAverageWinRate && (
-                    <li className="flex items-start gap-2">
-                      <TrendingUp className="size-4 mt-0.5 text-orange-500" />
-                      <span className="text-sm">Your win rate is below market average. Consider reviewing your pricing strategy.</span>
-                    </li>
-                  )}
-                  {vendorPerformance && vendorPerformance.totalQuotations < 10 && (
-                    <li className="flex items-start gap-2">
-                      <Package className="size-4 mt-0.5 text-blue-500" />
-                      <span className="text-sm">Submit more quotations to increase your visibility and chances of winning deals.</span>
-                    </li>
-                  )}
-                </ul>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Sales Advisory Tab */}
-          <TabsContent value="advisory" className="space-y-6">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Sales Advisory</h2>
-              <p className="text-muted-foreground">Personalized recommendations to help you win more deals</p>
-            </div>
-
-            {!vendorAdvisory && (
-              <div className="grid gap-4">
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
-              </div>
-            )}
-
-            {vendorAdvisory && vendorAdvisory.advice && vendorAdvisory.advice.length > 0 && (
-              <div className="space-y-4">
-                {/* Urgent Advice */}
-                {vendorAdvisory.advice.filter((a) => a.priority === "urgent").map((advice) => (
-                  <Card key={advice.id} className="border-red-200 dark:border-red-900">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="destructive">URGENT</Badge>
-                            <Badge variant="outline">{advice.category}</Badge>
-                          </div>
-                          <CardTitle className="text-lg">{advice.title}</CardTitle>
-                        </div>
-                      </div>
-                      <CardDescription>{advice.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="p-3 bg-muted rounded-lg">
-                        <p className="text-sm font-medium mb-1">Impact:</p>
-                        <p className="text-sm text-muted-foreground">{advice.impact}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium mb-2">Action Steps:</p>
-                        <ul className="space-y-2">
-                          {advice.actions.map((action, idx) => (
-                            <li key={idx} className="flex items-start gap-2 text-sm">
-                              <CheckCircle className="size-4 mt-0.5 text-green-600 shrink-0" />
-                              <span>{action}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div className="p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-900">
-                        <p className="text-sm font-medium text-green-900 dark:text-green-100 mb-1">Expected Result:</p>
-                        <p className="text-sm text-green-800 dark:text-green-200">{advice.expectedResult}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {/* High Priority Advice */}
-                {vendorAdvisory.advice.filter((a) => a.priority === "high").map((advice) => (
-                  <Card key={advice.id} className="border-orange-200 dark:border-orange-900">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge className="bg-orange-500">HIGH PRIORITY</Badge>
-                            <Badge variant="outline">{advice.category}</Badge>
-                          </div>
-                          <CardTitle className="text-lg">{advice.title}</CardTitle>
-                        </div>
-                      </div>
-                      <CardDescription>{advice.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="p-3 bg-muted rounded-lg">
-                        <p className="text-sm font-medium mb-1">Impact:</p>
-                        <p className="text-sm text-muted-foreground">{advice.impact}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium mb-2">Action Steps:</p>
-                        <ul className="space-y-2">
-                          {advice.actions.map((action, idx) => (
-                            <li key={idx} className="flex items-start gap-2 text-sm">
-                              <CheckCircle className="size-4 mt-0.5 text-blue-600 shrink-0" />
-                              <span>{action}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-900">
-                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1">Expected Result:</p>
-                        <p className="text-sm text-blue-800 dark:text-blue-200">{advice.expectedResult}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {/* Medium Priority Advice */}
-                {vendorAdvisory.advice.filter((a) => a.priority === "medium").map((advice) => (
-                  <Card key={advice.id}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="secondary">RECOMMENDED</Badge>
-                            <Badge variant="outline">{advice.category}</Badge>
-                          </div>
-                          <CardTitle className="text-lg">{advice.title}</CardTitle>
-                        </div>
-                      </div>
-                      <CardDescription>{advice.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="p-3 bg-muted rounded-lg">
-                        <p className="text-sm font-medium mb-1">Impact:</p>
-                        <p className="text-sm text-muted-foreground">{advice.impact}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium mb-2">Action Steps:</p>
-                        <ul className="space-y-2">
-                          {advice.actions.map((action, idx) => (
-                            <li key={idx} className="flex items-start gap-2 text-sm">
-                              <CheckCircle className="size-4 mt-0.5 text-primary shrink-0" />
-                              <span>{action}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
-                        <p className="text-sm font-medium mb-1">Expected Result:</p>
-                        <p className="text-sm text-muted-foreground">{advice.expectedResult}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {/* Low Priority Advice */}
-                {vendorAdvisory.advice.filter((a) => a.priority === "low").map((advice) => (
-                  <Card key={advice.id} className="border-muted">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge variant="outline">OPTIMIZATION</Badge>
-                            <Badge variant="outline">{advice.category}</Badge>
-                          </div>
-                          <CardTitle className="text-lg">{advice.title}</CardTitle>
-                        </div>
-                      </div>
-                      <CardDescription>{advice.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="p-3 bg-muted rounded-lg">
-                        <p className="text-sm font-medium mb-1">Impact:</p>
-                        <p className="text-sm text-muted-foreground">{advice.impact}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium mb-2">Action Steps:</p>
-                        <ul className="space-y-2">
-                          {advice.actions.map((action, idx) => (
-                            <li key={idx} className="flex items-start gap-2 text-sm">
-                              <CheckCircle className="size-4 mt-0.5 text-muted-foreground shrink-0" />
-                              <span>{action}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <div className="p-3 bg-muted rounded-lg">
-                        <p className="text-sm font-medium mb-1">Expected Result:</p>
-                        <p className="text-sm text-muted-foreground">{advice.expectedResult}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-
-            {/* Best Practices Section */}
-            {vendorAdvisory && vendorAdvisory.bestPractices && vendorAdvisory.bestPractices.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Best Practices from Top Vendors</CardTitle>
-                  <CardDescription>Learn from the strategies that drive success</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {vendorAdvisory.bestPractices.map((practice, idx) => (
-                      <div key={idx} className="p-4 border rounded-lg">
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-semibold">{practice.title}</h4>
-                          <Badge variant={
-                            practice.difficulty === "Easy" ? "default" :
-                            practice.difficulty === "Medium" ? "secondary" : "outline"
-                          }>
-                            {practice.difficulty}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">{practice.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {vendorAdvisory && vendorAdvisory.advice && vendorAdvisory.advice.length === 0 && (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <Lightbulb className="size-16 mx-auto text-green-600 mb-4" />
-                  <CardTitle className="mb-2">You're Doing Great!</CardTitle>
-                  <CardDescription>
-                    No critical issues found. Keep up the excellent work! Check the Performance tab for detailed metrics.
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="my-rfqs">
-            <Card>
-              <CardHeader>
-                <CardTitle>My RFQs (as Broker)</CardTitle>
-                <CardDescription>
-                  Track RFQs you've submitted to other vendors
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {!pendingRFQs && (
-                  <div className="space-y-2">
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                  </div>
-                )}
-                {pendingRFQs && pendingRFQs.length === 0 && (
-                  <EmptyState>
-                    <EmptyStateContent>
-                      <EmptyStateIcon>
-                        <Package className="size-8" />
-                      </EmptyStateIcon>
-                      <EmptyStateTitle>No RFQs submitted yet</EmptyStateTitle>
-                      <EmptyStateDescription>
-                        Browse products and submit RFQs to get quotations from other vendors
-                      </EmptyStateDescription>
-                    </EmptyStateContent>
-                  </EmptyState>
-                )}
-                {pendingRFQs && pendingRFQs.length > 0 && (
-                  <div className="grid gap-4">
-                    {pendingRFQs.map((rfq) => (
-                      <Card key={rfq._id}>
-                        <CardContent className="p-4">
-                          <div className="flex justify-between items-start mb-4">
-                            <div>
-                              <h3 className="font-semibold">RFQ #{rfq._id.slice(-6)}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                Submitted {new Date(rfq.createdAt).toLocaleDateString()}
-                              </p>
-                            </div>
-                            <Badge variant={
-                              rfq.status === "completed" ? "default" :
-                              rfq.status === "quoted" ? "secondary" : "outline"
-                            }>
-                              {rfq.status === "completed" ? "Completed" :
-                               rfq.status === "quoted" ? "Quoted" :
-                               "Pending"}
-                            </Badge>
-                          </div>
-                          <div className="space-y-2">
-                            {rfq.items?.map((item, idx) => (
-                              <div key={idx} className="flex items-center gap-2">
-                                <Package className="size-4" />
-                                <span>{item.productName} - {item.quantity} units</span>
-                              </div>
-                            ))}
-                          </div>
-                          {rfq.expectedDeliveryTime && (
-                            <p className="text-sm text-muted-foreground">
-                              Expected by: {rfq.expectedDeliveryTime}
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-semibold">{quotation.product?.name}</h3>
+                            {quotation.brand && (
+                              <p className="text-sm text-muted-foreground">Brand: {quotation.brand}</p>
+                            )}
+                            <p className="text-lg font-bold text-primary mt-2">
+                              KES {quotation.price.toLocaleString()}
                             </p>
-                          )}
-                          <Button 
-                            className="w-full mt-4" 
-                            size="sm"
-                            onClick={() => {
-                              toast.info("Quote this RFQ from the Pending RFQs tab");
-                            }}
-                          >
-                            Submit Quotation
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="quotations">
-            <Card>
-              <CardHeader>
-                <CardTitle>Sent Quotations</CardTitle>
-                <CardDescription>
-                  Track quotations sent to buyers and see approval status
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {!sentQuotations && (
-                  <div className="space-y-2">
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                  </div>
-                )}
-                {sentQuotations && sentQuotations.length === 0 && (
-                  <EmptyState>
-                    <EmptyStateContent>
-                      <EmptyStateIcon>
-                        <Package className="size-8" />
-                      </EmptyStateIcon>
-                      <EmptyStateTitle>No quotations sent yet</EmptyStateTitle>
-                      <EmptyStateDescription>
-                        Your quotations will appear here when buyers request products you've added
-                      </EmptyStateDescription>
-                    </EmptyStateContent>
-                  </EmptyState>
-                )}
-                {sentQuotations && sentQuotations.length > 0 && (
-                  <div className="border rounded-lg">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Product</TableHead>
-                          <TableHead>Client Type</TableHead>
-                          <TableHead>Client Name</TableHead>
-                          <TableHead>Price</TableHead>
-                          <TableHead>Delivery</TableHead>
-                          <TableHead>Sent Date</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {sentQuotations.map((quot: {
-                          _id: string;
-                          productName?: string;
-                          buyerType?: string;
-                          buyerName?: string;
-                          buyerEmail?: string;
-                          buyerPhone?: string;
-                          price: number;
-                          deliveryTime: string;
-                          sentAt: number;
-                          chosen: boolean;
-                          opened: boolean;
-                        }) => (
-                          <TableRow key={quot._id}>
-                            <TableCell className="font-medium">
-                              {quot.productName || "Unknown Product"}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={quot.buyerType === "Broker" ? "secondary" : "default"}>
-                                {quot.buyerType || "Buyer"}
+                            <div className="flex gap-2 mt-2 flex-wrap">
+                              <Badge variant={quotation.paymentTerms === "cash" ? "default" : "secondary"}>
+                                {quotation.paymentTerms}
                               </Badge>
-                            </TableCell>
-                            <TableCell>
-                              {quot.chosen && quot.buyerName && !quot.buyerName.startsWith("Anonymous") ? (
-                                <div>
-                                  <div className="font-medium">{quot.buyerName}</div>
-                                  <div className="text-sm text-muted-foreground">
-                                    {quot.buyerEmail}
-                                  </div>
-                                  {quot.buyerPhone && (
-                                    <a
-                                      href={`https://wa.me/${quot.buyerPhone.replace(/\D/g, '')}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="flex items-center gap-1 text-xs text-green-600 hover:text-green-700 mt-1"
-                                    >
-                                      <MessageCircle className="size-3" />
-                                      WhatsApp: {quot.buyerPhone}
-                                    </a>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">{quot.buyerName || "Anonymous"}</span>
+                              <Badge variant="outline">{quotation.deliveryTime}</Badge>
+                              <Badge variant="outline">{quotation.warrantyPeriod}</Badge>
+                              {quotation.countryOfOrigin && (
+                                <Badge variant="outline">{quotation.countryOfOrigin}</Badge>
                               )}
-                            </TableCell>
-                            <TableCell>KES {quot.price.toLocaleString()}</TableCell>
-                            <TableCell>{quot.deliveryTime}</TableCell>
-                            <TableCell>
-                              {new Date(quot.sentAt).toLocaleDateString()}
-                            </TableCell>
-                            <TableCell>
-                              {quot.chosen ? (
-                                <Badge variant="default" className="bg-green-500">
-                                  ✓ Approved
-                                </Badge>
-                              ) : quot.opened ? (
-                                <Badge variant="secondary">Opened</Badge>
-                              ) : (
-                                <Badge variant="outline">Sent</Badge>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Notifications Tab */}
-          <TabsContent value="notifications">
-            <Card>
-              <CardHeader>
-                <CardTitle>Notifications</CardTitle>
-                <CardDescription>
-                  RFQ notifications and quotation updates
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {!notifications && (
-                  <div className="space-y-2">
-                    <Skeleton className="h-16 w-full" />
-                    <Skeleton className="h-16 w-full" />
-                    <Skeleton className="h-16 w-full" />
-                  </div>
-                )}
-                {notifications && notifications.length === 0 && (
-                  <EmptyState>
-                    <EmptyStateContent>
-                      <EmptyStateIcon>
-                        <AlertCircle />
-                      </EmptyStateIcon>
-                      <EmptyStateTitle>No notifications</EmptyStateTitle>
-                      <EmptyStateDescription>
-                        You'll receive notifications when buyers submit RFQs in your categories
-                      </EmptyStateDescription>
-                    </EmptyStateContent>
-                  </EmptyState>
-                )}
-                {notifications && notifications.length > 0 && (
-                  <div className="space-y-3">
-                    {notifications.map((notif) => (
-                      <Card 
-                        key={notif._id}
-                        className={`${!notif.read ? 'bg-blue-50 dark:bg-blue-950 border-blue-200' : ''} ${notif.type === 'rfq_needs_quotation' ? 'cursor-pointer hover:border-primary transition-colors' : ''}`}
-                        onClick={() => {
-                          if (notif.type === 'rfq_needs_quotation' && notif.relatedId) {
-                            setSelectedRFQ(notif.relatedId);
-                            setOpenRFQDialog(true);
-                          }
-                        }}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="space-y-1 flex-1">
-                              <div className="flex items-center gap-2">
-                                <h4 className="font-semibold">{notif.title}</h4>
-                                {!notif.read && (
-                                  <Badge variant="default" className="text-xs">New</Badge>
-                                )}
-                                {notif.type === 'rfq_needs_quotation' && (
-                                  <Badge variant="outline" className="text-xs">Click to respond</Badge>
-                                )}
-                              </div>
-                              <p className="text-sm text-muted-foreground">{notif.message}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(notif.createdAt).toLocaleString()}
-                              </p>
                             </div>
-                            {!notif.read && (
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <Badge variant={quotation.active ? "default" : "secondary"}>
+                              {quotation.active ? "Active" : "Inactive"}
+                            </Badge>
+                            <div className="flex gap-2">
                               <Button
                                 size="sm"
-                                variant="ghost"
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  await markAsRead({ notificationId: notif._id });
-                                  toast.success("Marked as read");
+                                variant="outline"
+                                onClick={() => {
+                                  setEditQuotationData(quotation);
+                                  setEditQuotationOpen(true);
                                 }}
                               >
-                                Mark Read
+                                <Edit className="size-4" />
                               </Button>
-                            )}
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDeleteQuotation(quotation._id)}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {activeTab === "performance" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Performance Dashboard</h2>
+                <p className="text-muted-foreground">Track your success metrics and compare with market averages</p>
+              </div>
+
+              {/* Key Metrics Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Win Rate</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {vendorPerformance?.winRate?.toFixed(1) || "0"}%
+                    </div>
+                    {marketComparison && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Market avg: {marketComparison.marketAverageWinRate.toFixed(1)}%
+                        {vendorPerformance && vendorPerformance.winRate > marketComparison.marketAverageWinRate && (
+                          <span className="text-green-600 ml-1">↑ Above average</span>
+                        )}
+                        {vendorPerformance && vendorPerformance.winRate < marketComparison.marketAverageWinRate && (
+                          <span className="text-red-600 ml-1">↓ Below average</span>
+                        )}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      KES {(vendorPerformance?.totalRevenue || 0).toLocaleString()}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      From {vendorPerformance?.totalWonQuotations || 0} won deals
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Average Rating</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold flex items-center gap-2">
+                      {vendorPerformance?.averageRating?.toFixed(1) || "0"}
+                      <Star className="size-5 fill-yellow-400 text-yellow-400" />
+                    </div>
+                    {marketComparison && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Market avg: {marketComparison.marketAverageRating.toFixed(1)}
+                        {vendorPerformance && vendorPerformance.averageRating > marketComparison.marketAverageRating && (
+                          <span className="text-green-600 ml-1">↑ Above average</span>
+                        )}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Delivery Rate</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {vendorPerformance?.deliveryRate?.toFixed(1) || "0"}%
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {vendorPerformance?.deliveredOrders || 0} of {vendorPerformance?.totalOrders || 0} orders delivered
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Performance (Last 30 Days) */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Clock className="size-5" />
+                    Last 30 Days Performance
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Quotations</p>
+                      <p className="text-2xl font-bold">{recentPerformance?.quotationsLast30Days || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Won Deals</p>
+                      <p className="text-2xl font-bold">{recentPerformance?.wonQuotationsLast30Days || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Orders</p>
+                      <p className="text-2xl font-bold">{recentPerformance?.ordersLast30Days || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Revenue</p>
+                      <p className="text-2xl font-bold">KES {(recentPerformance?.revenueLast30Days || 0).toLocaleString()}</p>
+                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
 
-          {/* My Ratings Tab */}
-          <TabsContent value="ratings">
-            <Card>
-              <CardHeader>
-                <CardTitle>My Ratings & Reviews</CardTitle>
-                <CardDescription>
-                  See what hospitals are saying about your service
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {currentUser && (
-                  <VendorRatingDisplay vendorId={currentUser._id} />
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+              {/* Detailed Ratings Breakdown */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Ratings Breakdown</CardTitle>
+                  <CardDescription>{vendorPerformance?.totalRatings || 0} total ratings</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm">Delivery Speed</span>
+                      <span className="text-sm font-medium">{vendorPerformance?.averageDeliveryRating?.toFixed(1) || "0"}/5</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div
+                        className="bg-primary rounded-full h-2"
+                        style={{ width: `${((vendorPerformance?.averageDeliveryRating || 0) / 5) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm">Communication</span>
+                      <span className="text-sm font-medium">{vendorPerformance?.averageCommunicationRating?.toFixed(1) || "0"}/5</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div
+                        className="bg-primary rounded-full h-2"
+                        style={{ width: `${((vendorPerformance?.averageCommunicationRating || 0) / 5) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm">Product Quality</span>
+                      <span className="text-sm font-medium">{vendorPerformance?.averageQualityRating?.toFixed(1) || "0"}/5</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div
+                        className="bg-primary rounded-full h-2"
+                        style={{ width: `${((vendorPerformance?.averageQualityRating || 0) / 5) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          {/* Group Buys Tab */}
-          <TabsContent value="groupbuys">
-            <GroupBuyOpportunities />
-          </TabsContent>
+              {/* Response Time */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Average Response Time</CardTitle>
+                  <CardDescription>How quickly you respond to RFQs</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">
+                    {vendorPerformance && vendorPerformance.averageResponseTime > 0
+                      ? `${Math.round(vendorPerformance.averageResponseTime / (1000 * 60 * 60))} hours`
+                      : "No data yet"}
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Faster responses increase your chances of winning deals
+                  </p>
+                </CardContent>
+              </Card>
 
-          {/* Orders Tab */}
-          <TabsContent value="orders">
-            <Card>
-              <CardHeader>
-                <CardTitle>Orders</CardTitle>
-                <CardDescription>
-                  Track your orders and order status
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+              {/* Market Position */}
+              {marketComparison && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Market Position</CardTitle>
+                    <CardDescription>How you compare to {marketComparison.totalActiveVendors} active vendors</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="p-4 border rounded-lg">
+                        <p className="text-sm text-muted-foreground mb-2">Your Win Rate</p>
+                        <p className="text-2xl font-bold">{marketComparison.myWinRate.toFixed(1)}%</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          vs Market: {marketComparison.marketAverageWinRate.toFixed(1)}%
+                        </p>
+                        {marketComparison.myWinRate > marketComparison.marketAverageWinRate && (
+                          <div className="flex items-center gap-1 text-green-600 mt-2">
+                            <TrendingUp className="size-4" />
+                            <span className="text-sm">You're outperforming the market!</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4 border rounded-lg">
+                        <p className="text-sm text-muted-foreground mb-2">Your Average Rating</p>
+                        <p className="text-2xl font-bold flex items-center gap-2">
+                          {marketComparison.myAverageRating.toFixed(1)}
+                          <Star className="size-5 fill-yellow-400 text-yellow-400" />
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          vs Market: {marketComparison.marketAverageRating.toFixed(1)}
+                        </p>
+                        {marketComparison.myAverageRating > marketComparison.marketAverageRating && (
+                          <div className="flex items-center gap-1 text-green-600 mt-2">
+                            <TrendingUp className="size-4" />
+                            <span className="text-sm">Higher than market average!</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Action Items */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recommendations</CardTitle>
+                  <CardDescription>Ways to improve your performance</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ul className="space-y-2">
+                    {vendorPerformance && vendorPerformance.averageResponseTime > (24 * 60 * 60 * 1000) && (
+                      <li className="flex items-start gap-2">
+                        <Clock className="size-4 mt-0.5 text-orange-500" />
+                        <span className="text-sm">Your response time is over 24 hours. Try to respond faster to increase win rate.</span>
+                      </li>
+                    )}
+                    {vendorPerformance && vendorPerformance.averageRating < 4 && vendorPerformance.totalRatings > 0 && (
+                      <li className="flex items-start gap-2">
+                        <Star className="size-4 mt-0.5 text-orange-500" />
+                        <span className="text-sm">Your rating is below 4.0. Focus on improving delivery speed and communication.</span>
+                      </li>
+                    )}
+                    {marketComparison && marketComparison.myWinRate < marketComparison.marketAverageWinRate && (
+                      <li className="flex items-start gap-2">
+                        <TrendingUp className="size-4 mt-0.5 text-orange-500" />
+                        <span className="text-sm">Your win rate is below market average. Consider reviewing your pricing strategy.</span>
+                      </li>
+                    )}
+                    {vendorPerformance && vendorPerformance.totalQuotations < 10 && (
+                      <li className="flex items-start gap-2">
+                        <Package className="size-4 mt-0.5 text-blue-500" />
+                        <span className="text-sm">Submit more quotations to increase your visibility and chances of winning deals.</span>
+                      </li>
+                    )}
+                  </ul>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {activeTab === "rfqs" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">RFQs (as Broker)</h2>
+                <p className="text-muted-foreground">Track RFQs you've submitted to other vendors</p>
+              </div>
+
+              {!pendingRFQs && (
+                <div className="space-y-2">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+              )}
+              {pendingRFQs && pendingRFQs.length === 0 && (
                 <EmptyState>
                   <EmptyStateContent>
                     <EmptyStateIcon>
                       <Package className="size-8" />
                     </EmptyStateIcon>
-                    <EmptyStateTitle>No orders yet</EmptyStateTitle>
+                    <EmptyStateTitle>No RFQs submitted yet</EmptyStateTitle>
                     <EmptyStateDescription>
-                      Your orders will appear here when buyers place orders for your products
+                      Browse products and submit RFQs to get quotations from other vendors
                     </EmptyStateDescription>
                   </EmptyStateContent>
                 </EmptyState>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Settings Tab */}
-          <TabsContent value="settings">
-            <Card>
-              <CardHeader>
-                <CardTitle>Vendor Settings</CardTitle>
-                <CardDescription>
-                  Manage your quotation preferences and account settings
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-2">RFQ Acceptance Preference</h3>
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Choose which types of buyers you want to send quotations to
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div className="flex items-start space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50"
-                         onClick={() => {
-                           updateQuotationPreference({ preference: "registered_hospitals_only" });
-                           toast.success("Preference updated");
-                         }}
-                    >
-                      <input
-                        type="radio"
-                        checked={currentUser?.quotationPreference === "registered_hospitals_only"}
-                        onChange={() => {}}
-                        className="mt-1"
-                      />
-                      <div>
-                        <p className="font-medium">Registered Hospitals Only</p>
-                        <p className="text-sm text-muted-foreground">
-                          Only send quotations to verified hospitals with registered accounts
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50"
-                         onClick={() => {
-                           updateQuotationPreference({ preference: "registered_all" });
-                           toast.success("Preference updated");
-                         }}
-                    >
-                      <input
-                        type="radio"
-                        checked={currentUser?.quotationPreference === "registered_all"}
-                        onChange={() => {}}
-                        className="mt-1"
-                      />
-                      <div>
-                        <p className="font-medium">All Registered Buyers</p>
-                        <p className="text-sm text-muted-foreground">
-                          Send to both registered hospitals and other verified vendors/brokers
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start space-x-3 p-4 border rounded-lg cursor-pointer hover:bg-muted/50"
-                         onClick={() => {
-                           updateQuotationPreference({ preference: "all_including_guests" });
-                           toast.success("Preference updated");
-                         }}
-                    >
-                      <input
-                        type="radio"
-                        checked={(currentUser?.quotationPreference ?? "all_including_guests") === "all_including_guests"}
-                        onChange={() => {}}
-                        className="mt-1"
-                      />
-                      <div>
-                        <p className="font-medium">All Including Guest Submissions</p>
-                        <p className="text-sm text-muted-foreground">
-                          Send to registered buyers AND guest submissions (unregistered users)
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+              )}
+              {pendingRFQs && pendingRFQs.length > 0 && (
+                <div className="grid gap-4">
+                  {pendingRFQs.map((rfq) => (
+                    <Card key={rfq._id}>
+                      <CardContent className="p-4">
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <h3 className="font-semibold">RFQ #{rfq._id.slice(-6)}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Submitted {new Date(rfq.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Badge variant={
+                            rfq.status === "completed" ? "default" :
+                            rfq.status === "quoted" ? "secondary" : "outline"
+                          }>
+                            {rfq.status === "completed" ? "Completed" :
+                             rfq.status === "quoted" ? "Quoted" :
+                             "Pending"}
+                          </Badge>
+                        </div>
+                        <div className="space-y-2">
+                          {rfq.items?.map((item, idx) => (
+                            <div key={idx} className="flex items-center gap-2">
+                              <Package className="size-4" />
+                              <span>{item.productName} - {item.quantity} units</span>
+                            </div>
+                          ))}
+                        </div>
+                        {rfq.expectedDeliveryTime && (
+                          <p className="text-sm text-muted-foreground">
+                            Expected by: {rfq.expectedDeliveryTime}
+                          </p>
+                        )}
+                        <Button 
+                          className="w-full mt-4" 
+                          size="sm"
+                          onClick={() => {
+                            toast.info("Quote this RFQ from the Pending RFQs tab");
+                          }}
+                        >
+                          Submit Quotation
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              )}
+            </div>
+          )}
 
-        </Tabs>
+          {activeTab === "group-buys" && (
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Group Buys</h2>
+                <p className="text-muted-foreground">Track group buy opportunities and participate</p>
+              </div>
+
+              {!groupBuyOpportunities && (
+                <div className="space-y-2">
+                  <Skeleton className="h-32 w-full" />
+                  <Skeleton className="h-32 w-full" />
+                  <Skeleton className="h-32 w-full" />
+                </div>
+              )}
+              {groupBuyOpportunities && groupBuyOpportunities.length === 0 && (
+                <EmptyState>
+                  <EmptyStateContent>
+                    <EmptyStateIcon>
+                      <Users className="size-8" />
+                    </EmptyStateIcon>
+                    <EmptyStateTitle>No group buys available</EmptyStateTitle>
+                    <EmptyStateDescription>
+                      You'll see group buy opportunities here when they're available
+                    </EmptyStateDescription>
+                  </EmptyStateContent>
+                </EmptyState>
+              )}
+              {groupBuyOpportunities && groupBuyOpportunities.length > 0 && (
+                <div className="grid gap-4">
+                  {groupBuyOpportunities.map((opportunity) => (
+                    <Card key={opportunity._id}>
+                      <CardHeader>
+                        <CardTitle>{opportunity.title}</CardTitle>
+                        <CardDescription>{opportunity.description}</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Group Size:</span>
+                            <span className="font-medium">{opportunity.groupSize} units</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Price per unit:</span>
+                            <span className="font-medium">KES {opportunity.pricePerUnit.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Total price:</span>
+                            <span className="font-medium">KES {opportunity.totalPrice.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-sm text-muted-foreground">Deadline:</span>
+                            <span className="font-medium">{opportunity.deadline}</span>
+                          </div>
+                        </div>
+                        <Button 
+                          className="w-full mt-4" 
+                          onClick={() => {
+                            toast.info("Join this group buy opportunity");
+                          }}
+                        >
+                          Join Group Buy
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* RFQ Response Dialog */}
