@@ -8,6 +8,7 @@ import BrowseProducts from "./pages/BrowseProducts.tsx";
 import ProductDetail from "./pages/ProductDetail.tsx";
 import Register from "./pages/Register.tsx";
 import AdminDashboard from "./pages/admin/Dashboard.tsx";
+import AdminUsersPage from "./pages/admin/UsersPage.tsx";
 import VendorDashboard from "./pages/vendor/Dashboard.tsx";
 import BuyerDashboard from "./pages/buyer/Dashboard.tsx";
 import RFQDetails from "./pages/buyer/RFQDetails.tsx";
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/register" element={<Register />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/vendor" element={<VendorDashboard />} />
           <Route path="/buyer" element={<BuyerDashboard />} />
           <Route path="/buyer/rfq/:id" element={<RFQDetails />} />
