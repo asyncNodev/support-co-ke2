@@ -10,6 +10,13 @@ export default defineSchema({
     role: v.union(v.literal("admin"), v.literal("vendor"), v.literal("buyer")),
     verified: v.boolean(),
     status: v.optional(v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"))),
+    // Referral system fields
+    referralCode: v.optional(v.string()),
+    referredBy: v.optional(v.string()),
+    totalReferrals: v.optional(v.number()),
+    successfulReferrals: v.optional(v.number()),
+    totalRewardsEarned: v.optional(v.number()),
+    availableRewardBalance: v.optional(v.number()),
     // New verification fields
     verificationLevel: v.optional(v.union(
       v.literal("none"),          // Not verified
