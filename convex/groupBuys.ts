@@ -1,22 +1,21 @@
-import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import { ConvexError } from "convex/values";
-import type { Id } from "./_generated/dataModel";
+import { ConvexError, v } from "convex/values";
+
 import { api } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
+import { mutation, query } from "./_generated/server";
 
 // Get active group buys
 export const getActiveGroupBuys = query({
   args: {},
-  handler: async (ctx) => {
-    const groupBuys = await ctx.db
-      .query("groupBuys")
-      .withIndex("by_status", (q) => q.eq("status", "open"))
-      .collect();
+  handler: async (ctx, args) => {
+    const groupBuys = await ctx.db.query("groupBuys").collect();
 
-    const enrichedGroupBuys = await Promise.all(
+    return await Promise.all(
       groupBuys.map(async (gb) => {
-        const product = await ctx.db.get(gb.productId);
-        const creator = await ctx.db.get(gb.createdBy);
+        // Fetch product (ensure price is included in schema)
+        const product = gb.productId ? await ctx.db.get(gb.productId) : null;
+
+        // Fetch active participants
         const participants = await ctx.db
           .query("groupBuyParticipants")
           .withIndex("by_groupBuy", (q) => q.eq("groupBuyId", gb._id))
@@ -24,22 +23,39 @@ export const getActiveGroupBuys = query({
           .collect();
 
         const participantCount = participants.length;
-        const currentQuantity = participants.reduce((sum, p) => sum + p.quantity, 0);
-        const progress = gb.targetQuantity > 0 ? (currentQuantity / gb.targetQuantity) * 100 : 0;
+        const currentQuantity = gb.currentQuantity ?? 0;
+        const targetQuantity = gb.targetQuantity ?? 1;
+        const progress =
+          targetQuantity > 0 ? (currentQuantity / targetQuantity) * 100 : 0;
+
+        // Calculate days left
+        let daysLeft = 0;
+        if (gb.deadline) {
+          const deadlineDate = new Date(gb.deadline);
+          const now = new Date();
+          daysLeft = Math.max(
+            0,
+            Math.ceil(
+              (deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+            ),
+          );
+        }
+
+        // Ensure product.price is present (set to 0 if missing)
+        const productWithPrice = product
+          ? { ...product, price: product.price ?? 0 }
+          : null;
 
         return {
           ...gb,
-          product,
-          creator,
+          product: productWithPrice,
+          participants,
           participantCount,
-          currentQuantity,
           progress,
-          daysLeft: Math.max(0, Math.ceil((gb.deadline - Date.now()) / (1000 * 60 * 60 * 24))),
+          daysLeft,
         };
-      })
+      }),
     );
-
-    return enrichedGroupBuys;
   },
 });
 
@@ -62,17 +78,26 @@ export const getGroupBuysForProduct = query({
           .collect();
 
         const participantCount = participants.length;
-        const currentQuantity = participants.reduce((sum, p) => sum + p.quantity, 0);
-        const progress = gb.targetQuantity > 0 ? (currentQuantity / gb.targetQuantity) * 100 : 0;
+        const currentQuantity = participants.reduce(
+          (sum, p) => sum + p.quantity,
+          0,
+        );
+        const progress =
+          gb.targetQuantity > 0
+            ? (currentQuantity / gb.targetQuantity) * 100
+            : 0;
 
         return {
           ...gb,
           participantCount,
           currentQuantity,
           progress,
-          daysLeft: Math.max(0, Math.ceil((gb.deadline - Date.now()) / (1000 * 60 * 60 * 24))),
+          daysLeft: Math.max(
+            0,
+            Math.ceil((gb.deadline - Date.now()) / (1000 * 60 * 60 * 24)),
+          ),
         };
-      })
+      }),
     );
 
     return enrichedGroupBuys;
@@ -121,8 +146,14 @@ export const getMyGroupBuys = query({
           .collect();
 
         const participantCount = allParticipants.length;
-        const currentQuantity = allParticipants.reduce((sum, p) => sum + p.quantity, 0);
-        const progress = groupBuy.targetQuantity > 0 ? (currentQuantity / groupBuy.targetQuantity) * 100 : 0;
+        const currentQuantity = allParticipants.reduce(
+          (sum, p) => sum + p.quantity,
+          0,
+        );
+        const progress =
+          groupBuy.targetQuantity > 0
+            ? (currentQuantity / groupBuy.targetQuantity) * 100
+            : 0;
 
         return {
           ...p,
@@ -131,9 +162,12 @@ export const getMyGroupBuys = query({
           participantCount,
           currentQuantity,
           progress,
-          daysLeft: Math.max(0, Math.ceil((groupBuy.deadline - Date.now()) / (1000 * 60 * 60 * 24))),
+          daysLeft: Math.max(
+            0,
+            Math.ceil((groupBuy.deadline - Date.now()) / (1000 * 60 * 60 * 24)),
+          ),
         };
-      })
+      }),
     );
 
     return enrichedParticipations.filter((p) => p !== null);
@@ -277,11 +311,11 @@ export const joinGroupBuy = mutation({
     const existing = await ctx.db
       .query("groupBuyParticipants")
       .withIndex("by_groupBuy", (q) => q.eq("groupBuyId", args.groupBuyId))
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.eq(q.field("hospitalId"), user._id),
-          q.eq(q.field("status"), "active")
-        )
+          q.eq(q.field("status"), "active"),
+        ),
       )
       .first();
 
@@ -309,7 +343,10 @@ export const joinGroupBuy = mutation({
       .filter((q) => q.eq(q.field("status"), "active"))
       .collect();
 
-    const currentQuantity = participants.reduce((sum, p) => sum + p.quantity, 0);
+    const currentQuantity = participants.reduce(
+      (sum, p) => sum + p.quantity,
+      0,
+    );
 
     await ctx.db.patch(args.groupBuyId, {
       currentQuantity,
@@ -360,11 +397,11 @@ export const withdrawFromGroupBuy = mutation({
     const participation = await ctx.db
       .query("groupBuyParticipants")
       .withIndex("by_groupBuy", (q) => q.eq("groupBuyId", args.groupBuyId))
-      .filter((q) => 
+      .filter((q) =>
         q.and(
           q.eq(q.field("hospitalId"), user._id),
-          q.eq(q.field("status"), "active")
-        )
+          q.eq(q.field("status"), "active"),
+        ),
       )
       .first();
 
@@ -387,7 +424,10 @@ export const withdrawFromGroupBuy = mutation({
       .filter((q) => q.eq(q.field("status"), "active"))
       .collect();
 
-    const currentQuantity = activeParticipants.reduce((sum, p) => sum + p.quantity, 0);
+    const currentQuantity = activeParticipants.reduce(
+      (sum, p) => sum + p.quantity,
+      0,
+    );
 
     await ctx.db.patch(args.groupBuyId, {
       currentQuantity,
@@ -400,39 +440,12 @@ export const withdrawFromGroupBuy = mutation({
 // Get group buy opportunities for vendors
 export const getGroupBuyOpportunitiesForVendor = query({
   args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return [];
-    }
+  handler: async (ctx, args) => {
+    const groupBuys = await ctx.db.query("groupBuys").collect();
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
-
-    if (!user || user.role !== "vendor") {
-      return [];
-    }
-
-    // Get all open group buys
-    const groupBuys = await ctx.db
-      .query("groupBuys")
-      .withIndex("by_status", (q) => q.eq("status", "open"))
-      .collect();
-
-    // Filter by vendor's categories if they have any
-    const vendorCategories = user.categories || [];
-    
-    const enrichedGroupBuys = await Promise.all(
+    return await Promise.all(
       groupBuys.map(async (gb) => {
-        const product = await ctx.db.get(gb.productId);
-        if (!product) return null;
-
-        // If vendor has categories, only show matching products
-        if (vendorCategories.length > 0 && !vendorCategories.includes(product.categoryId)) {
-          return null;
-        }
+        const product = gb.productId ? await ctx.db.get(gb.productId) : null;
 
         const participants = await ctx.db
           .query("groupBuyParticipants")
@@ -441,26 +454,37 @@ export const getGroupBuyOpportunitiesForVendor = query({
           .collect();
 
         const participantCount = participants.length;
-        const currentQuantity = participants.reduce((sum, p) => sum + p.quantity, 0);
-        const progress = gb.targetQuantity > 0 ? (currentQuantity / gb.targetQuantity) * 100 : 0;
+        const currentQuantity = gb.currentQuantity ?? 0;
+        const targetQuantity = gb.targetQuantity ?? 1;
+        const progress =
+          targetQuantity > 0 ? (currentQuantity / targetQuantity) * 100 : 0;
 
-        // Calculate potential order value (for vendor's interest)
-        const daysLeft = Math.max(0, Math.ceil((gb.deadline - Date.now()) / (1000 * 60 * 60 * 24)));
+        let daysLeft = 0;
+        if (gb.deadline) {
+          const deadlineDate = new Date(gb.deadline);
+          const now = new Date();
+          daysLeft = Math.max(
+            0,
+            Math.ceil(
+              (deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+            ),
+          );
+        }
+
+        const productWithPrice = product
+          ? { ...product, price: product.price ?? 0 }
+          : null;
 
         return {
           ...gb,
-          product,
+          product: productWithPrice,
+          participants,
           participantCount,
-          currentQuantity,
           progress,
           daysLeft,
         };
-      })
+      }),
     );
-
-    return enrichedGroupBuys
-      .filter((gb) => gb !== null)
-      .sort((a, b) => b.currentQuantity - a.currentQuantity); // Show highest quantity first
   },
 });
 
@@ -473,7 +497,7 @@ export const getGroupBuyDetails = query({
 
     const product = await ctx.db.get(groupBuy.productId);
     const creator = await ctx.db.get(groupBuy.createdBy);
-    
+
     const participants = await ctx.db
       .query("groupBuyParticipants")
       .withIndex("by_groupBuy", (q) => q.eq("groupBuyId", args.groupBuyId))
@@ -485,15 +509,26 @@ export const getGroupBuyDetails = query({
         const hospital = await ctx.db.get(p.hospitalId);
         return {
           ...p,
-          hospital: hospital ? { name: hospital.companyName || hospital.name } : null,
+          hospital: hospital
+            ? { name: hospital.companyName || hospital.name }
+            : null,
         };
-      })
+      }),
     );
 
     const participantCount = participants.length;
-    const currentQuantity = participants.reduce((sum, p) => sum + p.quantity, 0);
-    const progress = groupBuy.targetQuantity > 0 ? (currentQuantity / groupBuy.targetQuantity) * 100 : 0;
-    const daysLeft = Math.max(0, Math.ceil((groupBuy.deadline - Date.now()) / (1000 * 60 * 60 * 24)));
+    const currentQuantity = participants.reduce(
+      (sum, p) => sum + p.quantity,
+      0,
+    );
+    const progress =
+      groupBuy.targetQuantity > 0
+        ? (currentQuantity / groupBuy.targetQuantity) * 100
+        : 0;
+    const daysLeft = Math.max(
+      0,
+      Math.ceil((groupBuy.deadline - Date.now()) / (1000 * 60 * 60 * 24)),
+    );
 
     return {
       ...groupBuy,
@@ -531,7 +566,10 @@ export const checkAndConvertGroupBuy = mutation({
       .collect();
 
     const participantCount = participants.length;
-    const currentQuantity = participants.reduce((sum, p) => sum + p.quantity, 0);
+    const currentQuantity = participants.reduce(
+      (sum, p) => sum + p.quantity,
+      0,
+    );
 
     // Check if target reached and minimum participants met
     if (
@@ -564,7 +602,7 @@ export const checkAndConvertGroupBuy = mutation({
             rfqId,
             status: "completed",
           });
-        })
+        }),
       );
 
       // Send notifications to all participants
@@ -580,7 +618,7 @@ export const checkAndConvertGroupBuy = mutation({
             relatedId: rfqId,
             createdAt: Date.now(),
           });
-        })
+        }),
       );
 
       return rfqId;
@@ -598,16 +636,25 @@ export const getGroupBuyShareData = query({
     if (!groupBuy) return null;
 
     const product = await ctx.db.get(groupBuy.productId);
-    
+
     const participants = await ctx.db
       .query("groupBuyParticipants")
       .withIndex("by_groupBuy", (q) => q.eq("groupBuyId", args.groupBuyId))
       .filter((q) => q.eq(q.field("status"), "active"))
       .collect();
 
-    const currentQuantity = participants.reduce((sum, p) => sum + p.quantity, 0);
-    const progress = groupBuy.targetQuantity > 0 ? (currentQuantity / groupBuy.targetQuantity) * 100 : 0;
-    const daysLeft = Math.max(0, Math.ceil((groupBuy.deadline - Date.now()) / (1000 * 60 * 60 * 24)));
+    const currentQuantity = participants.reduce(
+      (sum, p) => sum + p.quantity,
+      0,
+    );
+    const progress =
+      groupBuy.targetQuantity > 0
+        ? (currentQuantity / groupBuy.targetQuantity) * 100
+        : 0;
+    const daysLeft = Math.max(
+      0,
+      Math.ceil((groupBuy.deadline - Date.now()) / (1000 * 60 * 60 * 24)),
+    );
 
     return {
       title: groupBuy.title,

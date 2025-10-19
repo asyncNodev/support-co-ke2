@@ -1,15 +1,16 @@
-import { query, mutation, internalMutation } from "./_generated/server";
-import type { Id } from "./_generated/dataModel.d.ts";
 import { ConvexError, v } from "convex/values";
+
+import type { Id } from "./_generated/dataModel.d.ts";
+import { internalMutation, mutation, query } from "./_generated/server";
 
 // Helper function to generate URL-friendly slugs
 function generateSlug(text: string): string {
   return text
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, '') // Remove non-word chars except spaces and hyphens
-    .replace(/[\s_-]+/g, '-') // Replace spaces, underscores, hyphens with single hyphen
-    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+    .replace(/[^\w\s-]/g, "") // Remove non-word chars except spaces and hyphens
+    .replace(/[\s_-]+/g, "-") // Replace spaces, underscores, hyphens with single hyphen
+    .replace(/^-+|-+$/g, ""); // Remove leading/trailing hyphens
 }
 
 export const getProducts = query({
@@ -18,7 +19,7 @@ export const getProducts = query({
   },
   handler: async (ctx, args) => {
     let products;
-    
+
     if (args.categoryId !== undefined) {
       const categoryId: Id<"categories"> = args.categoryId;
       products = await ctx.db
@@ -28,28 +29,28 @@ export const getProducts = query({
     } else {
       products = await ctx.db.query("products").collect();
     }
-    
+
     // Get category names and quotation counts
     const productsWithCategory = await Promise.all(
       products.map(async (product) => {
         const category = await ctx.db.get(product.categoryId);
-        
+
         // Count active vendor quotations for this product
         const quotations = await ctx.db
           .query("vendorQuotations")
           .withIndex("by_product", (q) => q.eq("productId", product._id))
           .filter((q) => q.eq(q.field("active"), true))
           .collect();
-        
+
         return {
           ...product,
           categoryName: category?.name ?? "Unknown",
           categorySlug: category?.slug ?? "unknown",
           quotationCount: quotations.length,
         };
-      })
+      }),
     );
-    
+
     return productsWithCategory;
   },
 });
@@ -102,6 +103,7 @@ export const createProduct = mutation({
     image: v.optional(v.string()),
     sku: v.optional(v.string()),
     specifications: v.optional(v.string()),
+    price: v.number(), // <-- Require price
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -128,7 +130,7 @@ export const createProduct = mutation({
     const normalizedName = args.name.trim().toLowerCase();
     const allProducts = await ctx.db.query("products").collect();
     const duplicate = allProducts.find(
-      (p) => p.name.trim().toLowerCase() === normalizedName
+      (p) => p.name.trim().toLowerCase() === normalizedName,
     );
 
     if (duplicate) {
@@ -149,6 +151,7 @@ export const createProduct = mutation({
       image: args.image,
       sku: args.sku,
       specifications: args.specifications,
+      price: args.price, // <-- Add price
       createdAt: Date.now(),
     });
 
@@ -167,7 +170,8 @@ export const bulkCreateProducts = mutation({
         image: v.optional(v.string()),
         sku: v.optional(v.string()),
         specifications: v.optional(v.string()),
-      })
+        price: v.number(), // <-- Require price for each product
+      }),
     ),
   },
   handler: async (ctx, args) => {
@@ -194,27 +198,30 @@ export const bulkCreateProducts = mutation({
     // Get all existing products for duplicate checking
     const existingProducts = await ctx.db.query("products").collect();
     const existingNames = new Set(
-      existingProducts.map((p) => p.name.trim().toLowerCase())
+      existingProducts.map((p) => p.name.trim().toLowerCase()),
     );
 
     const productIds: Array<Id<"products">> = [];
     const skipped: string[] = [];
     const duplicatesInBatch = new Set<string>();
-    
+
     for (const product of args.products) {
       const normalizedName = product.name.trim().toLowerCase();
-      
+
       // Skip if already exists in database or already processed in this batch
-      if (existingNames.has(normalizedName) || duplicatesInBatch.has(normalizedName)) {
+      if (
+        existingNames.has(normalizedName) ||
+        duplicatesInBatch.has(normalizedName)
+      ) {
         skipped.push(product.name);
         continue;
       }
-      
+
       duplicatesInBatch.add(normalizedName);
-      
+
       // Generate slug from name
       const slug = generateSlug(product.name);
-      
+
       const productId = await ctx.db.insert("products", {
         name: product.name,
         slug,
@@ -223,16 +230,17 @@ export const bulkCreateProducts = mutation({
         image: product.image,
         sku: product.sku,
         specifications: product.specifications,
+        price: product.price, // <-- Add price
         createdAt: Date.now(),
       });
       productIds.push(productId);
     }
 
-    return { 
-      created: productIds.length, 
+    return {
+      created: productIds.length,
       skipped: skipped.length,
       skippedProducts: skipped,
-      productIds 
+      productIds,
     };
   },
 });
@@ -247,6 +255,7 @@ export const updateProduct = mutation({
     image: v.optional(v.string()),
     sku: v.optional(v.string()),
     specifications: v.optional(v.string()),
+    price: v.number(), // <-- Require price
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -280,6 +289,7 @@ export const updateProduct = mutation({
       image: args.image,
       sku: args.sku,
       specifications: args.specifications,
+      price: args.price, // <-- Add price
     });
 
     return null;
@@ -335,7 +345,10 @@ export const generateUploadUrl = mutation({
       .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
       .first();
 
-    if (!currentUser || (currentUser.role !== "admin" && currentUser.role !== "vendor")) {
+    if (
+      !currentUser ||
+      (currentUser.role !== "admin" && currentUser.role !== "vendor")
+    ) {
       throw new ConvexError({
         message: "Only admins and vendors can upload photos",
         code: "FORBIDDEN",
@@ -371,10 +384,10 @@ export const findDuplicateProducts = query({
     }
 
     const allProducts = await ctx.db.query("products").collect();
-    
+
     // Group products by normalized name
     const productsByName = new Map<string, typeof allProducts>();
-    
+
     for (const product of allProducts) {
       const normalizedName = product.name.trim().toLowerCase();
       if (!productsByName.has(normalizedName)) {
@@ -382,14 +395,14 @@ export const findDuplicateProducts = query({
       }
       productsByName.get(normalizedName)!.push(product);
     }
-    
+
     // Find groups with more than one product
     const duplicates: Array<{
       name: string;
       count: number;
       products: typeof allProducts;
     }> = [];
-    
+
     for (const [normalizedName, products] of productsByName.entries()) {
       if (products.length > 1) {
         duplicates.push({
@@ -399,7 +412,7 @@ export const findDuplicateProducts = query({
         });
       }
     }
-    
+
     return {
       totalDuplicates: duplicates.length,
       duplicates,
@@ -432,10 +445,10 @@ export const removeDuplicateProducts = mutation({
     }
 
     const allProducts = await ctx.db.query("products").collect();
-    
+
     // Group products by normalized name
     const productsByName = new Map<string, typeof allProducts>();
-    
+
     for (const product of allProducts) {
       const normalizedName = product.name.trim().toLowerCase();
       if (!productsByName.has(normalizedName)) {
@@ -443,16 +456,16 @@ export const removeDuplicateProducts = mutation({
       }
       productsByName.get(normalizedName)!.push(product);
     }
-    
+
     let removedCount = 0;
     const removedProducts: Array<{ name: string; id: Id<"products"> }> = [];
-    
+
     // For each duplicate group, keep the oldest and delete the rest
     for (const products of productsByName.values()) {
       if (products.length > 1) {
         // Sort by creation time (oldest first)
         products.sort((a, b) => a.createdAt - b.createdAt);
-        
+
         // Keep the first (oldest), delete the rest
         for (let i = 1; i < products.length; i++) {
           await ctx.db.delete(products[i]._id);
@@ -464,7 +477,7 @@ export const removeDuplicateProducts = mutation({
         }
       }
     }
-    
+
     return {
       removedCount,
       removedProducts,
@@ -499,7 +512,7 @@ export const generateAllSlugs = mutation({
     // Generate slugs for all categories
     const categories = await ctx.db.query("categories").collect();
     let categoriesUpdated = 0;
-    
+
     for (const category of categories) {
       if (!category.slug) {
         const slug = generateSlug(category.name);
@@ -511,7 +524,7 @@ export const generateAllSlugs = mutation({
     // Generate slugs for all products
     const products = await ctx.db.query("products").collect();
     let productsUpdated = 0;
-    
+
     for (const product of products) {
       if (!product.slug) {
         const slug = generateSlug(product.name);

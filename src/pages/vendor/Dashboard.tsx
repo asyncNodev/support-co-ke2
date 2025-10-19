@@ -1,55 +1,116 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel.d.ts";
-import { useNavigate, Link } from "react-router-dom";
-import { Button } from "@/components/ui/button.tsx";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card.tsx";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
-import { Badge } from "@/components/ui/badge.tsx";
-import { Input } from "@/components/ui/input.tsx";
-import { Label } from "@/components/ui/label.tsx";
-import { Textarea } from "@/components/ui/textarea.tsx";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select.tsx";
-import { PhotoUpload } from "@/components/ui/photo-upload";
-import CatalogScanner from "@/components/CatalogScanner.tsx";
 import { EditQuotationDialog } from "@/pages/vendor/_components/EditQuotationDialog";
 import { GroupBuyOpportunities } from "@/pages/vendor/_components/GroupBuyOpportunities";
+import { useMutation, useQuery } from "convex/react";
+import {
+  AlertCircle,
+  BarChart3,
+  CheckCircle,
+  Clock,
+  Edit,
+  Lightbulb,
+  MessageCircle,
+  Package,
+  Plus,
+  ScanLine,
+  Star,
+  Trash2,
+  TrendingUp,
+  Users,
+  XCircle,
+} from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+
+import { useAuth } from "@/hooks/use-auth.ts";
+import { Badge } from "@/components/ui/badge.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card.tsx";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog.tsx";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table.tsx";
+import {
+  EmptyState,
+  EmptyStateContent,
+  EmptyStateDescription,
+  EmptyStateIcon,
+  EmptyStateTitle,
+} from "@/components/ui/empty-state.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import { PhotoUpload } from "@/components/ui/photo-upload";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select.tsx";
 import { Skeleton } from "@/components/ui/skeleton.tsx";
-import { EmptyState, EmptyStateContent, EmptyStateIcon, EmptyStateTitle, EmptyStateDescription } from "@/components/ui/empty-state.tsx";
-import { Package, AlertCircle, Plus, Edit, Trash2, MessageCircle, XCircle, Clock, ScanLine, Users, BarChart3, TrendingUp, Star, Lightbulb, CheckCircle } from "lucide-react";
-import { toast } from "sonner";
-import { useUser } from "@/hooks/use-auth.ts";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table.tsx";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs.tsx";
+import { Textarea } from "@/components/ui/textarea.tsx";
+import CatalogScanner from "@/components/CatalogScanner.tsx";
 import VendorRatingDisplay from "@/components/VendorRatingDisplay.tsx";
 
 export default function VendorDashboard() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useUser();
+  const { isAuthenticated } = useAuth();
   const currentUser = useQuery(api.users.getCurrentUser, {});
   const categories = useQuery(api.categories.getCategories, {});
   const products = useQuery(api.products.getProducts, {});
   const myQuotations = useQuery(api.vendorQuotations.getMyQuotations, {});
   const pendingRFQs = useQuery(api.vendorQuotations.getPendingRFQs, {});
   const sentQuotations = useQuery(api.rfqs.getMyVendorQuotationsSent, {});
-  const groupBuyOpportunities = useQuery(api.groupBuys.getGroupBuyOpportunitiesForVendor, {});
-  const vendorPerformance = useQuery(api.vendorAnalytics.getVendorPerformance, {});
-  const marketComparison = useQuery(api.vendorAnalytics.getMarketComparison, {});
+  const groupBuyOpportunities = useQuery(
+    api.groupBuys.getGroupBuyOpportunitiesForVendor,
+    {},
+  );
+  const vendorPerformance = useQuery(
+    api.vendorAnalytics.getVendorPerformance,
+    {},
+  );
+  const marketComparison = useQuery(
+    api.vendorAnalytics.getMarketComparison,
+    {},
+  );
   const vendorAdvisory = useQuery(api.vendorAdvisory.getVendorAdvisory, {});
-  const recentPerformance = useQuery(api.vendorAnalytics.getRecentPerformance, {});
-  
+  const recentPerformance = useQuery(
+    api.vendorAnalytics.getRecentPerformance,
+    {},
+  );
+
   // Add notifications query
   const notifications = useQuery(api.notifications.getMyNotifications, {});
   const markAsRead = useMutation(api.notifications.markAsRead);
-  const updateQuotationPreference = useMutation(api.users.updateQuotationPreference);
+  const updateQuotationPreference = useMutation(
+    api.users.updateQuotationPreference,
+  );
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -116,7 +177,8 @@ export default function VendorDashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">
-              Your account application has been rejected. Please contact support for more information.
+              Your account application has been rejected. Please contact support
+              for more information.
             </p>
           </CardContent>
         </Card>
@@ -136,7 +198,8 @@ export default function VendorDashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">
-              Your account is pending admin approval. You will be notified once your account is approved.
+              Your account is pending admin approval. You will be notified once
+              your account is approved.
             </p>
           </CardContent>
         </Card>
@@ -157,7 +220,8 @@ export default function VendorDashboard() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">
-              Your vendor account is pending admin verification. You'll be able to submit quotations once verified.
+              Your vendor account is pending admin verification. You'll be able
+              to submit quotations once verified.
             </p>
             <Button variant="outline" onClick={() => navigate("/")}>
               Go to Home
@@ -263,7 +327,10 @@ export default function VendorDashboard() {
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                 }`}
               >
-                {tab.split("-").map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(" ")}
+                {tab
+                  .split("-")
+                  .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                  .join(" ")}
               </button>
             ))}
           </div>
@@ -274,11 +341,17 @@ export default function VendorDashboard() {
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold">My Product Quotations</h2>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setCatalogScannerOpen(true)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setCatalogScannerOpen(true)}
+                >
                   <ScanLine className="size-4 mr-2" />
                   Scan Catalog
                 </Button>
-                <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <Dialog
+                  open={isAddDialogOpen}
+                  onOpenChange={setIsAddDialogOpen}
+                >
                   <DialogTrigger asChild>
                     <Button>
                       <Plus className="size-4 mr-2" />
@@ -292,7 +365,10 @@ export default function VendorDashboard() {
                     <div className="space-y-4 py-4">
                       <div className="space-y-2">
                         <Label>Category *</Label>
-                        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                        <Select
+                          value={selectedCategory}
+                          onValueChange={setSelectedCategory}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Select category" />
                           </SelectTrigger>
@@ -309,13 +385,19 @@ export default function VendorDashboard() {
                       {selectedCategory && (
                         <div className="space-y-2">
                           <Label>Product *</Label>
-                          <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                          <Select
+                            value={selectedProductId}
+                            onValueChange={setSelectedProductId}
+                          >
                             <SelectTrigger>
                               <SelectValue placeholder="Select product" />
                             </SelectTrigger>
                             <SelectContent>
                               {filteredProducts?.map((product) => (
-                                <SelectItem key={product._id} value={product._id}>
+                                <SelectItem
+                                  key={product._id}
+                                  value={product._id}
+                                >
                                   {product.name}
                                 </SelectItem>
                               ))}
@@ -358,7 +440,12 @@ export default function VendorDashboard() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>Payment Terms *</Label>
-                          <Select value={paymentTerms} onValueChange={(v: "cash" | "credit") => setPaymentTerms(v)}>
+                          <Select
+                            value={paymentTerms}
+                            onValueChange={(v: "cash" | "credit") =>
+                              setPaymentTerms(v)
+                            }
+                          >
                             <SelectTrigger>
                               <SelectValue />
                             </SelectTrigger>
@@ -403,7 +490,9 @@ export default function VendorDashboard() {
                         <Label>Product Description</Label>
                         <Textarea
                           value={productDescription}
-                          onChange={(e) => setProductDescription(e.target.value)}
+                          onChange={(e) =>
+                            setProductDescription(e.target.value)
+                          }
                           placeholder="Detailed product description and specifications"
                           rows={3}
                         />
@@ -413,14 +502,18 @@ export default function VendorDashboard() {
                         value={productPhoto}
                         onChange={(url) => setProductPhoto(url)}
                         label="Product Photo"
-                        uploadUrlMutation={api.vendorQuotations.generateUploadUrl}
+                        uploadUrlMutation={
+                          api.vendorQuotations.generateUploadUrl
+                        }
                       />
 
                       <div className="space-y-2">
                         <Label>Product Specifications</Label>
                         <Textarea
                           value={productSpecifications}
-                          onChange={(e) => setProductSpecifications(e.target.value)}
+                          onChange={(e) =>
+                            setProductSpecifications(e.target.value)
+                          }
                           placeholder="Technical specifications"
                           rows={3}
                         />
@@ -440,7 +533,9 @@ export default function VendorDashboard() {
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <Package className="size-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">No product quotations yet</p>
+                <p className="text-muted-foreground">
+                  No product quotations yet
+                </p>
                 <p className="text-sm text-muted-foreground mb-4">
                   Add your first product quotation to start receiving RFQs
                 </p>
@@ -462,26 +557,46 @@ export default function VendorDashboard() {
                       <div className="flex-1">
                         <div className="flex justify-between items-start">
                           <div>
-                            <h3 className="font-semibold">{quotation.product?.name}</h3>
+                            <h3 className="font-semibold">
+                              {quotation.product?.name}
+                            </h3>
                             {quotation.brand && (
-                              <p className="text-sm text-muted-foreground">Brand: {quotation.brand}</p>
+                              <p className="text-sm text-muted-foreground">
+                                Brand: {quotation.brand}
+                              </p>
                             )}
                             <p className="text-lg font-bold text-primary mt-2">
                               KES {quotation.price.toLocaleString()}
                             </p>
                             <div className="flex gap-2 mt-2 flex-wrap">
-                              <Badge variant={quotation.paymentTerms === "cash" ? "default" : "secondary"}>
+                              <Badge
+                                variant={
+                                  quotation.paymentTerms === "cash"
+                                    ? "default"
+                                    : "secondary"
+                                }
+                              >
                                 {quotation.paymentTerms}
                               </Badge>
-                              <Badge variant="outline">{quotation.deliveryTime}</Badge>
-                              <Badge variant="outline">{quotation.warrantyPeriod}</Badge>
+                              <Badge variant="outline">
+                                {quotation.deliveryTime}
+                              </Badge>
+                              <Badge variant="outline">
+                                {quotation.warrantyPeriod}
+                              </Badge>
                               {quotation.countryOfOrigin && (
-                                <Badge variant="outline">{quotation.countryOfOrigin}</Badge>
+                                <Badge variant="outline">
+                                  {quotation.countryOfOrigin}
+                                </Badge>
                               )}
                             </div>
                           </div>
                           <div className="flex flex-col gap-2">
-                            <Badge variant={quotation.active ? "default" : "secondary"}>
+                            <Badge
+                              variant={
+                                quotation.active ? "default" : "secondary"
+                              }
+                            >
                               {quotation.active ? "Active" : "Inactive"}
                             </Badge>
                             <div className="flex gap-2">
@@ -498,7 +613,9 @@ export default function VendorDashboard() {
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={() => handleDeleteQuotation(quotation._id)}
+                                onClick={() =>
+                                  handleDeleteQuotation(quotation._id)
+                                }
                               >
                                 <Trash2 className="size-4" />
                               </Button>
@@ -516,15 +633,21 @@ export default function VendorDashboard() {
           {activeTab === "performance" && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-2xl font-bold mb-2">Performance Dashboard</h2>
-                <p className="text-muted-foreground">Track your success metrics and compare with market averages</p>
+                <h2 className="text-2xl font-bold mb-2">
+                  Performance Dashboard
+                </h2>
+                <p className="text-muted-foreground">
+                  Track your success metrics and compare with market averages
+                </p>
               </div>
 
               {/* Key Metrics Cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Win Rate</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Win Rate
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
@@ -532,13 +655,22 @@ export default function VendorDashboard() {
                     </div>
                     {marketComparison && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Market avg: {marketComparison.marketAverageWinRate.toFixed(1)}%
-                        {vendorPerformance && vendorPerformance.winRate > marketComparison.marketAverageWinRate && (
-                          <span className="text-green-600 ml-1">↑ Above average</span>
-                        )}
-                        {vendorPerformance && vendorPerformance.winRate < marketComparison.marketAverageWinRate && (
-                          <span className="text-red-600 ml-1">↓ Below average</span>
-                        )}
+                        Market avg:{" "}
+                        {marketComparison.marketAverageWinRate.toFixed(1)}%
+                        {vendorPerformance &&
+                          vendorPerformance.winRate >
+                            marketComparison.marketAverageWinRate && (
+                            <span className="text-green-600 ml-1">
+                              ↑ Above average
+                            </span>
+                          )}
+                        {vendorPerformance &&
+                          vendorPerformance.winRate <
+                            marketComparison.marketAverageWinRate && (
+                            <span className="text-red-600 ml-1">
+                              ↓ Below average
+                            </span>
+                          )}
                       </p>
                     )}
                   </CardContent>
@@ -546,21 +678,27 @@ export default function VendorDashboard() {
 
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Total Revenue
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
-                      KES {(vendorPerformance?.totalRevenue || 0).toLocaleString()}
+                      KES{" "}
+                      {(vendorPerformance?.totalRevenue || 0).toLocaleString()}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      From {vendorPerformance?.totalWonQuotations || 0} won deals
+                      From {vendorPerformance?.totalWonQuotations || 0} won
+                      deals
                     </p>
                   </CardContent>
                 </Card>
 
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Average Rating</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Average Rating
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold flex items-center gap-2">
@@ -569,10 +707,15 @@ export default function VendorDashboard() {
                     </div>
                     {marketComparison && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Market avg: {marketComparison.marketAverageRating.toFixed(1)}
-                        {vendorPerformance && vendorPerformance.averageRating > marketComparison.marketAverageRating && (
-                          <span className="text-green-600 ml-1">↑ Above average</span>
-                        )}
+                        Market avg:{" "}
+                        {marketComparison.marketAverageRating.toFixed(1)}
+                        {vendorPerformance &&
+                          vendorPerformance.averageRating >
+                            marketComparison.marketAverageRating && (
+                            <span className="text-green-600 ml-1">
+                              ↑ Above average
+                            </span>
+                          )}
                       </p>
                     )}
                   </CardContent>
@@ -580,14 +723,17 @@ export default function VendorDashboard() {
 
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Delivery Rate</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Delivery Rate
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">
                       {vendorPerformance?.deliveryRate?.toFixed(1) || "0"}%
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {vendorPerformance?.deliveredOrders || 0} of {vendorPerformance?.totalOrders || 0} orders delivered
+                      {vendorPerformance?.deliveredOrders || 0} of{" "}
+                      {vendorPerformance?.totalOrders || 0} orders delivered
                     </p>
                   </CardContent>
                 </Card>
@@ -604,20 +750,33 @@ export default function VendorDashboard() {
                 <CardContent>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
-                      <p className="text-sm text-muted-foreground">Quotations</p>
-                      <p className="text-2xl font-bold">{recentPerformance?.quotationsLast30Days || 0}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Quotations
+                      </p>
+                      <p className="text-2xl font-bold">
+                        {recentPerformance?.quotationsLast30Days || 0}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Won Deals</p>
-                      <p className="text-2xl font-bold">{recentPerformance?.wonQuotationsLast30Days || 0}</p>
+                      <p className="text-2xl font-bold">
+                        {recentPerformance?.wonQuotationsLast30Days || 0}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Orders</p>
-                      <p className="text-2xl font-bold">{recentPerformance?.ordersLast30Days || 0}</p>
+                      <p className="text-2xl font-bold">
+                        {recentPerformance?.ordersLast30Days || 0}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Revenue</p>
-                      <p className="text-2xl font-bold">KES {(recentPerformance?.revenueLast30Days || 0).toLocaleString()}</p>
+                      <p className="text-2xl font-bold">
+                        KES{" "}
+                        {(
+                          recentPerformance?.revenueLast30Days || 0
+                        ).toLocaleString()}
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -627,42 +786,63 @@ export default function VendorDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle>Ratings Breakdown</CardTitle>
-                  <CardDescription>{vendorPerformance?.totalRatings || 0} total ratings</CardDescription>
+                  <CardDescription>
+                    {vendorPerformance?.totalRatings || 0} total ratings
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
                     <div className="flex justify-between mb-1">
                       <span className="text-sm">Delivery Speed</span>
-                      <span className="text-sm font-medium">{vendorPerformance?.averageDeliveryRating?.toFixed(1) || "0"}/5</span>
+                      <span className="text-sm font-medium">
+                        {vendorPerformance?.averageDeliveryRating?.toFixed(1) ||
+                          "0"}
+                        /5
+                      </span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-2">
                       <div
                         className="bg-primary rounded-full h-2"
-                        style={{ width: `${((vendorPerformance?.averageDeliveryRating || 0) / 5) * 100}%` }}
+                        style={{
+                          width: `${((vendorPerformance?.averageDeliveryRating || 0) / 5) * 100}%`,
+                        }}
                       />
                     </div>
                   </div>
                   <div>
                     <div className="flex justify-between mb-1">
                       <span className="text-sm">Communication</span>
-                      <span className="text-sm font-medium">{vendorPerformance?.averageCommunicationRating?.toFixed(1) || "0"}/5</span>
+                      <span className="text-sm font-medium">
+                        {vendorPerformance?.averageCommunicationRating?.toFixed(
+                          1,
+                        ) || "0"}
+                        /5
+                      </span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-2">
                       <div
                         className="bg-primary rounded-full h-2"
-                        style={{ width: `${((vendorPerformance?.averageCommunicationRating || 0) / 5) * 100}%` }}
+                        style={{
+                          width: `${((vendorPerformance?.averageCommunicationRating || 0) / 5) * 100}%`,
+                        }}
                       />
                     </div>
                   </div>
                   <div>
                     <div className="flex justify-between mb-1">
                       <span className="text-sm">Product Quality</span>
-                      <span className="text-sm font-medium">{vendorPerformance?.averageQualityRating?.toFixed(1) || "0"}/5</span>
+                      <span className="text-sm font-medium">
+                        {vendorPerformance?.averageQualityRating?.toFixed(1) ||
+                          "0"}
+                        /5
+                      </span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-2">
                       <div
                         className="bg-primary rounded-full h-2"
-                        style={{ width: `${((vendorPerformance?.averageQualityRating || 0) / 5) * 100}%` }}
+                        style={{
+                          width: `${((vendorPerformance?.averageQualityRating || 0) / 5) * 100}%`,
+                        }}
                       />
                     </div>
                   </div>
@@ -673,11 +853,14 @@ export default function VendorDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle>Average Response Time</CardTitle>
-                  <CardDescription>How quickly you respond to RFQs</CardDescription>
+                  <CardDescription>
+                    How quickly you respond to RFQs
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold">
-                    {vendorPerformance && vendorPerformance.averageResponseTime > 0
+                    {vendorPerformance &&
+                    vendorPerformance.averageResponseTime > 0
                       ? `${Math.round(vendorPerformance.averageResponseTime / (1000 * 60 * 60))} hours`
                       : "No data yet"}
                   </div>
@@ -692,36 +875,53 @@ export default function VendorDashboard() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Market Position</CardTitle>
-                    <CardDescription>How you compare to {marketComparison.totalActiveVendors} active vendors</CardDescription>
+                    <CardDescription>
+                      How you compare to {marketComparison.totalActiveVendors}{" "}
+                      active vendors
+                    </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="p-4 border rounded-lg">
-                        <p className="text-sm text-muted-foreground mb-2">Your Win Rate</p>
-                        <p className="text-2xl font-bold">{marketComparison.myWinRate.toFixed(1)}%</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          vs Market: {marketComparison.marketAverageWinRate.toFixed(1)}%
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Your Win Rate
                         </p>
-                        {marketComparison.myWinRate > marketComparison.marketAverageWinRate && (
+                        <p className="text-2xl font-bold">
+                          {marketComparison.myWinRate.toFixed(1)}%
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          vs Market:{" "}
+                          {marketComparison.marketAverageWinRate.toFixed(1)}%
+                        </p>
+                        {marketComparison.myWinRate >
+                          marketComparison.marketAverageWinRate && (
                           <div className="flex items-center gap-1 text-green-600 mt-2">
                             <TrendingUp className="size-4" />
-                            <span className="text-sm">You're outperforming the market!</span>
+                            <span className="text-sm">
+                              You're outperforming the market!
+                            </span>
                           </div>
                         )}
                       </div>
                       <div className="p-4 border rounded-lg">
-                        <p className="text-sm text-muted-foreground mb-2">Your Average Rating</p>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Your Average Rating
+                        </p>
                         <p className="text-2xl font-bold flex items-center gap-2">
                           {marketComparison.myAverageRating.toFixed(1)}
                           <Star className="size-5 fill-yellow-400 text-yellow-400" />
                         </p>
                         <p className="text-sm text-muted-foreground mt-1">
-                          vs Market: {marketComparison.marketAverageRating.toFixed(1)}
+                          vs Market:{" "}
+                          {marketComparison.marketAverageRating.toFixed(1)}
                         </p>
-                        {marketComparison.myAverageRating > marketComparison.marketAverageRating && (
+                        {marketComparison.myAverageRating >
+                          marketComparison.marketAverageRating && (
                           <div className="flex items-center gap-1 text-green-600 mt-2">
                             <TrendingUp className="size-4" />
-                            <span className="text-sm">Higher than market average!</span>
+                            <span className="text-sm">
+                              Higher than market average!
+                            </span>
                           </div>
                         )}
                       </div>
@@ -734,34 +934,55 @@ export default function VendorDashboard() {
               <Card>
                 <CardHeader>
                   <CardTitle>Recommendations</CardTitle>
-                  <CardDescription>Ways to improve your performance</CardDescription>
+                  <CardDescription>
+                    Ways to improve your performance
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2">
-                    {vendorPerformance && vendorPerformance.averageResponseTime > (24 * 60 * 60 * 1000) && (
-                      <li className="flex items-start gap-2">
-                        <Clock className="size-4 mt-0.5 text-orange-500" />
-                        <span className="text-sm">Your response time is over 24 hours. Try to respond faster to increase win rate.</span>
-                      </li>
-                    )}
-                    {vendorPerformance && vendorPerformance.averageRating < 4 && vendorPerformance.totalRatings > 0 && (
-                      <li className="flex items-start gap-2">
-                        <Star className="size-4 mt-0.5 text-orange-500" />
-                        <span className="text-sm">Your rating is below 4.0. Focus on improving delivery speed and communication.</span>
-                      </li>
-                    )}
-                    {marketComparison && marketComparison.myWinRate < marketComparison.marketAverageWinRate && (
-                      <li className="flex items-start gap-2">
-                        <TrendingUp className="size-4 mt-0.5 text-orange-500" />
-                        <span className="text-sm">Your win rate is below market average. Consider reviewing your pricing strategy.</span>
-                      </li>
-                    )}
-                    {vendorPerformance && vendorPerformance.totalQuotations < 10 && (
-                      <li className="flex items-start gap-2">
-                        <Package className="size-4 mt-0.5 text-blue-500" />
-                        <span className="text-sm">Submit more quotations to increase your visibility and chances of winning deals.</span>
-                      </li>
-                    )}
+                    {vendorPerformance &&
+                      vendorPerformance.averageResponseTime >
+                        24 * 60 * 60 * 1000 && (
+                        <li className="flex items-start gap-2">
+                          <Clock className="size-4 mt-0.5 text-orange-500" />
+                          <span className="text-sm">
+                            Your response time is over 24 hours. Try to respond
+                            faster to increase win rate.
+                          </span>
+                        </li>
+                      )}
+                    {vendorPerformance &&
+                      vendorPerformance.averageRating < 4 &&
+                      vendorPerformance.totalRatings > 0 && (
+                        <li className="flex items-start gap-2">
+                          <Star className="size-4 mt-0.5 text-orange-500" />
+                          <span className="text-sm">
+                            Your rating is below 4.0. Focus on improving
+                            delivery speed and communication.
+                          </span>
+                        </li>
+                      )}
+                    {marketComparison &&
+                      marketComparison.myWinRate <
+                        marketComparison.marketAverageWinRate && (
+                        <li className="flex items-start gap-2">
+                          <TrendingUp className="size-4 mt-0.5 text-orange-500" />
+                          <span className="text-sm">
+                            Your win rate is below market average. Consider
+                            reviewing your pricing strategy.
+                          </span>
+                        </li>
+                      )}
+                    {vendorPerformance &&
+                      vendorPerformance.totalQuotations < 10 && (
+                        <li className="flex items-start gap-2">
+                          <Package className="size-4 mt-0.5 text-blue-500" />
+                          <span className="text-sm">
+                            Submit more quotations to increase your visibility
+                            and chances of winning deals.
+                          </span>
+                        </li>
+                      )}
                   </ul>
                 </CardContent>
               </Card>
@@ -772,7 +993,9 @@ export default function VendorDashboard() {
             <div className="space-y-6">
               <div>
                 <h2 className="text-2xl font-bold mb-2">RFQs (as Broker)</h2>
-                <p className="text-muted-foreground">Track RFQs you've submitted to other vendors</p>
+                <p className="text-muted-foreground">
+                  Track RFQs you've submitted to other vendors
+                </p>
               </div>
 
               {!pendingRFQs && (
@@ -790,7 +1013,8 @@ export default function VendorDashboard() {
                     </EmptyStateIcon>
                     <EmptyStateTitle>No RFQs submitted yet</EmptyStateTitle>
                     <EmptyStateDescription>
-                      Browse products and submit RFQs to get quotations from other vendors
+                      Browse products and submit RFQs to get quotations from
+                      other vendors
                     </EmptyStateDescription>
                   </EmptyStateContent>
                 </EmptyState>
@@ -802,25 +1026,37 @@ export default function VendorDashboard() {
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start mb-4">
                           <div>
-                            <h3 className="font-semibold">RFQ #{rfq._id.slice(-6)}</h3>
+                            <h3 className="font-semibold">
+                              RFQ #{rfq._id.slice(-6)}
+                            </h3>
                             <p className="text-sm text-muted-foreground">
-                              Submitted {new Date(rfq.createdAt).toLocaleDateString()}
+                              Submitted{" "}
+                              {new Date(rfq.createdAt).toLocaleDateString()}
                             </p>
                           </div>
-                          <Badge variant={
-                            rfq.status === "completed" ? "default" :
-                            rfq.status === "quoted" ? "secondary" : "outline"
-                          }>
-                            {rfq.status === "completed" ? "Completed" :
-                             rfq.status === "quoted" ? "Quoted" :
-                             "Pending"}
+                          <Badge
+                            variant={
+                              rfq.status === "completed"
+                                ? "default"
+                                : rfq.status === "quoted"
+                                  ? "secondary"
+                                  : "outline"
+                            }
+                          >
+                            {rfq.status === "completed"
+                              ? "Completed"
+                              : rfq.status === "quoted"
+                                ? "Quoted"
+                                : "Pending"}
                           </Badge>
                         </div>
                         <div className="space-y-2">
                           {rfq.items?.map((item, idx) => (
                             <div key={idx} className="flex items-center gap-2">
                               <Package className="size-4" />
-                              <span>{item.productName} - {item.quantity} units</span>
+                              <span>
+                                {item.productName} - {item.quantity} units
+                              </span>
                             </div>
                           ))}
                         </div>
@@ -829,11 +1065,13 @@ export default function VendorDashboard() {
                             Expected by: {rfq.expectedDeliveryTime}
                           </p>
                         )}
-                        <Button 
-                          className="w-full mt-4" 
+                        <Button
+                          className="w-full mt-4"
                           size="sm"
                           onClick={() => {
-                            toast.info("Quote this RFQ from the Pending RFQs tab");
+                            toast.info(
+                              "Quote this RFQ from the Pending RFQs tab",
+                            );
                           }}
                         >
                           Submit Quotation
@@ -850,7 +1088,9 @@ export default function VendorDashboard() {
             <div className="space-y-6">
               <div>
                 <h2 className="text-2xl font-bold mb-2">Group Buys</h2>
-                <p className="text-muted-foreground">Track group buy opportunities and participate</p>
+                <p className="text-muted-foreground">
+                  Track group buy opportunities and participate
+                </p>
               </div>
 
               {!groupBuyOpportunities && (
@@ -868,49 +1108,61 @@ export default function VendorDashboard() {
                     </EmptyStateIcon>
                     <EmptyStateTitle>No group buys available</EmptyStateTitle>
                     <EmptyStateDescription>
-                      You'll see group buy opportunities here when they're available
+                      You'll see group buy opportunities here when they're
+                      available
                     </EmptyStateDescription>
                   </EmptyStateContent>
                 </EmptyState>
               )}
               {groupBuyOpportunities && groupBuyOpportunities.length > 0 && (
                 <div className="grid gap-4">
-                  {groupBuyOpportunities.map((opportunity) => (
-                    <Card key={opportunity._id}>
-                      <CardHeader>
-                        <CardTitle>{opportunity.title}</CardTitle>
-                        <CardDescription>{opportunity.description}</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Group Size:</span>
-                            <span className="font-medium">{opportunity.groupSize} units</span>
+                  {groupBuyOpportunities.map((opportunity) => {
+                    // Compute values from available properties
+                    const groupSize = opportunity.participants?.length ?? 0;
+                    const pricePerUnit = opportunity.product?.price ?? 0;
+                    const totalPrice = groupSize * pricePerUnit;
+
+                    return (
+                      <Card key={opportunity._id}>
+                        <CardContent>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-sm text-muted-foreground">
+                                Group Size:
+                              </span>
+                              <span className="font-medium">
+                                {groupSize} units
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm text-muted-foreground">
+                                Price per unit:
+                              </span>
+                              <span className="font-medium">
+                                KES {pricePerUnit.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm text-muted-foreground">
+                                Total price:
+                              </span>
+                              <span className="font-medium">
+                                KES {totalPrice.toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm text-muted-foreground">
+                                Deadline:
+                              </span>
+                              <span className="font-medium">
+                                {opportunity.deadline}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Price per unit:</span>
-                            <span className="font-medium">KES {opportunity.pricePerUnit.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Total price:</span>
-                            <span className="font-medium">KES {opportunity.totalPrice.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-sm text-muted-foreground">Deadline:</span>
-                            <span className="font-medium">{opportunity.deadline}</span>
-                          </div>
-                        </div>
-                        <Button 
-                          className="w-full mt-4" 
-                          onClick={() => {
-                            toast.info("Join this group buy opportunity");
-                          }}
-                        >
-                          Join Group Buy
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -935,9 +1187,10 @@ export default function VendorDashboard() {
                   onClick={() => {
                     // Switch to pending RFQs tab
                     setOpenRFQDialog(false);
-                    const tabTriggers = document.querySelectorAll('[role="tab"]');
-                    const pendingRFQTab = Array.from(tabTriggers).find(tab => 
-                      tab.textContent?.includes('Pending RFQs')
+                    const tabTriggers =
+                      document.querySelectorAll('[role="tab"]');
+                    const pendingRFQTab = Array.from(tabTriggers).find((tab) =>
+                      tab.textContent?.includes("Pending RFQs"),
                     );
                     if (pendingRFQTab instanceof HTMLElement) {
                       pendingRFQTab.click();
@@ -952,7 +1205,9 @@ export default function VendorDashboard() {
                   onClick={async () => {
                     // TODO: Add decline product mutation
                     setOpenRFQDialog(false);
-                    toast.success("You won't receive notifications for this product again");
+                    toast.success(
+                      "You won't receive notifications for this product again",
+                    );
                   }}
                 >
                   I Don't Supply This Product

@@ -1,5 +1,5 @@
 import { ConvexReactClient } from "convex/react";
 
 export const convexUrl =
-  import.meta.env.VITE_CONVEX_URL ?? "http://localhost:3000";
+  import.meta.env.VITE_CONVEX_URL ?? "http://localhost:3210";
 export const convex = new ConvexReactClient(convexUrl);

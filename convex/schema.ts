@@ -6,10 +6,19 @@ export default defineSchema({
   users: defineTable({
     authId: v.string(),
     email: v.string(),
+    passwordHash: v.string(),
     name: v.string(),
-    role: v.union(v.literal("admin"), v.literal("vendor"), v.literal("buyer")),
+    role: v.optional(
+      v.union(v.literal("admin"), v.literal("vendor"), v.literal("buyer")),
+    ),
     verified: v.boolean(),
-    status: v.optional(v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"))),
+    status: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("approved"),
+        v.literal("rejected"),
+      ),
+    ),
     // Referral system fields
     referralCode: v.optional(v.string()),
     referredBy: v.optional(v.string()),
@@ -18,12 +27,14 @@ export default defineSchema({
     totalRewardsEarned: v.optional(v.number()),
     availableRewardBalance: v.optional(v.number()),
     // New verification fields
-    verificationLevel: v.optional(v.union(
-      v.literal("none"),          // Not verified
-      v.literal("email"),          // Email verified only
-      v.literal("business"),       // Business documents verified
-      v.literal("full")            // Full verification including background check
-    )),
+    verificationLevel: v.optional(
+      v.union(
+        v.literal("none"), // Not verified
+        v.literal("email"), // Email verified only
+        v.literal("business"), // Business documents verified
+        v.literal("full"), // Full verification including background check
+      ),
+    ),
     verifiedAt: v.optional(v.number()),
     verifiedBy: v.optional(v.id("users")),
     businessLicense: v.optional(v.string()),
@@ -47,27 +58,38 @@ export default defineSchema({
     longitude: v.optional(v.number()),
     categories: v.optional(v.array(v.id("categories"))),
     registeredAt: v.number(),
-    quotationPreference: v.optional(v.union(
-      v.literal("registered_hospitals_only"),
-      v.literal("registered_all"),
-      v.literal("all_including_guests")
-    )),
+    quotationPreference: v.optional(
+      v.union(
+        v.literal("registered_hospitals_only"),
+        v.literal("registered_all"),
+        v.literal("all_including_guests"),
+      ),
+    ),
     whatsappNotifications: v.optional(v.boolean()),
     emailNotifications: v.optional(v.boolean()),
     // Approval workflow settings
-    organizationRole: v.optional(v.union(
-      v.literal("procurement_officer"),
-      v.literal("department_head"),
-      v.literal("finance_director"),
-      v.literal("ceo"),
-      v.literal("none")
-    )),
+    organizationRole: v.optional(
+      v.union(
+        v.literal("procurement_officer"),
+        v.literal("department_head"),
+        v.literal("finance_director"),
+        v.literal("ceo"),
+        v.literal("none"),
+      ),
+    ),
     approvalLevel: v.optional(v.number()),
     canApproveUpTo: v.optional(v.number()),
   })
     .index("by_authId", ["authId"])
     .index("by_email", ["email"])
     .index("by_role", ["role"]),
+
+  verificationCodes: defineTable({
+    userId: v.id("users"),
+    code: v.string(),
+    expiresAt: v.number(),
+    verified: v.boolean(),
+  }).index("by_userId", ["userId"]),
 
   // Orders (created when quotation is chosen)
   orders: defineTable({
@@ -84,7 +106,7 @@ export default defineSchema({
       v.literal("processing"),
       v.literal("shipped"),
       v.literal("delivered"),
-      v.literal("cancelled")
+      v.literal("cancelled"),
     ),
     trackingNumber: v.optional(v.string()),
     estimatedDeliveryDate: v.optional(v.number()),
@@ -110,7 +132,7 @@ export default defineSchema({
     status: v.union(
       v.literal("open"),
       v.literal("closed"),
-      v.literal("completed")
+      v.literal("completed"),
     ),
     deadline: v.number(),
     createdBy: v.id("users"),
@@ -132,7 +154,7 @@ export default defineSchema({
     status: v.union(
       v.literal("active"),
       v.literal("withdrawn"),
-      v.literal("completed")
+      v.literal("completed"),
     ),
   })
     .index("by_groupBuy", ["groupBuyId"])
@@ -157,15 +179,21 @@ export default defineSchema({
     image: v.optional(v.string()),
     sku: v.optional(v.string()),
     specifications: v.optional(v.string()),
+    price: v.optional(v.number()),
     createdAt: v.number(),
-  }).index("by_category", ["categoryId"]).index("by_name", ["name"]).index("by_slug", ["slug"]),
+  })
+    .index("by_category", ["categoryId"])
+    .index("by_name", ["name"])
+    .index("by_slug", ["slug"]),
 
   // Vendor quotations
   vendorQuotations: defineTable({
     vendorId: v.id("users"),
     productId: v.id("products"),
     rfqId: v.optional(v.id("rfqs")),
-    quotationType: v.optional(v.union(v.literal("pre-filled"), v.literal("on-demand"))),
+    quotationType: v.optional(
+      v.union(v.literal("pre-filled"), v.literal("on-demand")),
+    ),
     source: v.optional(v.union(v.literal("manual"), v.literal("auto-scraped"))),
     price: v.number(),
     quantity: v.number(),
@@ -197,18 +225,20 @@ export default defineSchema({
     status: v.union(
       v.literal("pending"),
       v.literal("quoted"),
-      v.literal("completed")
+      v.literal("completed"),
     ),
     isBroker: v.optional(v.boolean()),
     expectedDeliveryTime: v.optional(v.string()),
     createdAt: v.number(),
     // Approval workflow
-    approvalStatus: v.optional(v.union(
-      v.literal("draft"),
-      v.literal("pending_approval"),
-      v.literal("approved"),
-      v.literal("rejected")
-    )),
+    approvalStatus: v.optional(
+      v.union(
+        v.literal("draft"),
+        v.literal("pending_approval"),
+        v.literal("approved"),
+        v.literal("rejected"),
+      ),
+    ),
     requiresApproval: v.optional(v.boolean()),
     estimatedValue: v.optional(v.number()),
     submittedBy: v.optional(v.id("users")),
@@ -224,7 +254,7 @@ export default defineSchema({
     status: v.union(
       v.literal("pending"),
       v.literal("approved"),
-      v.literal("rejected")
+      v.literal("rejected"),
     ),
     comments: v.optional(v.string()),
     createdAt: v.number(),
@@ -296,7 +326,7 @@ export default defineSchema({
       v.literal("vendor_approved"),
       v.literal("buyer_approved"),
       v.literal("rfq_needs_quotation"),
-      v.literal("quotation_chosen")
+      v.literal("quotation_chosen"),
     ),
     title: v.string(),
     message: v.string(),
@@ -310,7 +340,7 @@ export default defineSchema({
     type: v.union(
       v.literal("visitor"),
       v.literal("rfq_sent"),
-      v.literal("quotation_sent")
+      v.literal("quotation_sent"),
     ),
     metadata: v.optional(v.string()),
     timestamp: v.number(),

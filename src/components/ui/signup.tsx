@@ -8,25 +8,25 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { LoginForm } from "@/components/LoginForm";
+import { SignupForm } from "@/components/SignupForm";
 
-export function SignInButton() {
+export function SignUpButton() {
   const { user, logout } = useAuth();
 
   if (user) {
-    return <Button onClick={logout}>Sign Out</Button>;
+    return <></>;
   }
 
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button>Sign In</Button>
+        <Button variant="outline">Sign Up</Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Sign In</DialogTitle>
+          <DialogTitle>Sign Up</DialogTitle>
         </DialogHeader>
-        <LoginForm />
+        <SignupForm />
       </DialogContent>
     </Dialog>
   );

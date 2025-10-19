@@ -1,7 +1,8 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import type { Id } from "./_generated/dataModel.d.ts";
+
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel.d.ts";
+import { mutation, query } from "./_generated/server";
 
 // Submit RFQ as guest (unauthenticated user)
 export const submitGuestRFQ = mutation({
@@ -19,7 +20,14 @@ export const submitGuestRFQ = mutation({
     guestEmail: v.string(),
   },
   handler: async (ctx, args) => {
-    const { items, expectedDeliveryTime, guestName, guestCompanyName, guestPhone, guestEmail } = args;
+    const {
+      items,
+      expectedDeliveryTime,
+      guestName,
+      guestCompanyName,
+      guestPhone,
+      guestEmail,
+    } = args;
 
     // Create the RFQ as a guest submission
     const rfqId = await ctx.db.insert("rfqs", {
@@ -52,7 +60,7 @@ export const submitGuestRFQ = mutation({
     for (const vendor of vendors) {
       // Check vendor's quotation preference
       const preference = vendor.quotationPreference ?? "all_including_guests";
-      
+
       // Only notify if vendor accepts guest RFQs
       if (preference === "all_including_guests") {
         await ctx.db.insert("notifications", {
@@ -101,6 +109,7 @@ export const submitRFQ = mutation({
       const userId = await ctx.db.insert("users", {
         authId: identity.tokenIdentifier,
         email: identity.email ?? "unknown@example.com",
+        passwordHash: "", // No password for OAuth users
         name: identity.name ?? "Unknown User",
         role: "buyer",
         verified: true,
@@ -154,7 +163,10 @@ export const submitRFQ = mutation({
 
     // Auto-match with pre-filled vendor quotations and notify vendors without quotations
     let matchedCount = 0;
-    const vendorNotifications = new Map<Id<"users">, Array<{ productId: Id<"products">; productName: string }>>();
+    const vendorNotifications = new Map<
+      Id<"users">,
+      Array<{ productId: Id<"products">; productName: string }>
+    >();
 
     // Process each item in the RFQ
     for (const item of args.items) {
@@ -221,7 +233,8 @@ export const submitRFQ = mutation({
 
       for (const vendor of allVerifiedVendors) {
         const hasQuotation = quotations.some((q) => q.vendorId === vendor._id);
-        const isAssignedToCategory = product.categoryId && vendor.categories?.includes(product.categoryId);
+        const isAssignedToCategory =
+          product.categoryId && vendor.categories?.includes(product.categoryId);
 
         if (!hasQuotation && isAssignedToCategory) {
           // Track this product for this vendor
@@ -306,7 +319,7 @@ export const getMyRFQs = query({
           items.map(async (item) => {
             const product = await ctx.db.get(item.productId);
             return { ...item, product };
-          })
+          }),
         );
 
         const quotations = await ctx.db
@@ -319,7 +332,7 @@ export const getMyRFQs = query({
           items: itemsWithProducts,
           quotationCount: quotations.length,
         };
-      })
+      }),
     );
   },
 });
@@ -374,7 +387,7 @@ export const getRFQDetails = query({
       items.map(async (item) => {
         const product = await ctx.db.get(item.productId);
         return { ...item, product };
-      })
+      }),
     );
 
     // Get all quotations for this RFQ
@@ -402,17 +415,19 @@ export const getRFQDetails = query({
 
         return {
           ...quot,
-          vendor: vendor ? {
-            _id: vendor._id,
-            name: vendor.name,
-            companyName: vendor.companyName,
-            email: quot.chosen ? vendor.email : undefined,
-            phone: quot.chosen ? vendor.phone : undefined,
-          } : null,
+          vendor: vendor
+            ? {
+                _id: vendor._id,
+                name: vendor.name,
+                companyName: vendor.companyName,
+                email: quot.chosen ? vendor.email : undefined,
+                phone: quot.chosen ? vendor.phone : undefined,
+              }
+            : null,
           product,
           vendorRating: avgRating,
         };
-      })
+      }),
     );
 
     return {
@@ -494,19 +509,20 @@ export const getMyQuotationsReceived = query({
         return {
           ...quotation,
           product,
-          vendor: quotation.chosen && vendor
-            ? {
-                _id: vendor._id,
-                name: vendor.name,
-                companyName: vendor.companyName,
-                email: vendor.email,
-                phone: vendor.phone,
-              }
-            : vendor
-            ? { _id: vendor._id, name: vendor.name }
-            : null,
+          vendor:
+            quotation.chosen && vendor
+              ? {
+                  _id: vendor._id,
+                  name: vendor.name,
+                  companyName: vendor.companyName,
+                  email: vendor.email,
+                  phone: vendor.phone,
+                }
+              : vendor
+                ? { _id: vendor._id, name: vendor.name }
+                : null,
         };
-      })
+      }),
     );
 
     return enrichedQuotations;
@@ -552,19 +568,20 @@ export const getMyQuotationsSent = query({
         return {
           ...quotation,
           product,
-          vendor: quotation.chosen && vendor
-            ? {
-                _id: vendor._id,
-                name: vendor.name,
-                companyName: vendor.companyName,
-                email: vendor.email,
-                phone: vendor.phone,
-              }
-            : vendor
-            ? { _id: vendor._id, name: vendor.name }
-            : null,
+          vendor:
+            quotation.chosen && vendor
+              ? {
+                  _id: vendor._id,
+                  name: vendor.name,
+                  companyName: vendor.companyName,
+                  email: vendor.email,
+                  phone: vendor.phone,
+                }
+              : vendor
+                ? { _id: vendor._id, name: vendor.name }
+                : null,
         };
-      })
+      }),
     );
   },
 });
@@ -615,7 +632,12 @@ export const getMyVendorQuotationsSent = query({
           _id: quot._id,
           productName: product?.name,
           buyerType,
-          buyerName: quot.chosen && buyer ? buyer.name : (isBroker ? "Anonymous Broker" : "Anonymous Buyer"),
+          buyerName:
+            quot.chosen && buyer
+              ? buyer.name
+              : isBroker
+                ? "Anonymous Broker"
+                : "Anonymous Buyer",
           buyerEmail: quot.chosen && buyer ? buyer.email : undefined,
           buyerPhone: quot.chosen && buyer ? buyer.phone : undefined,
           price: quot.price,
@@ -624,7 +646,7 @@ export const getMyVendorQuotationsSent = query({
           chosen: quot.chosen,
           opened: quot.opened,
         };
-      })
+      }),
     );
 
     return enrichedQuotations;
@@ -701,7 +723,8 @@ export const getPendingRFQs = query({
           pendingRFQs.push({
             rfqId,
             createdAt: rfq.createdAt,
-            buyerInfo: rfq.isBroker === true ? "Anonymous Broker" : "Anonymous Buyer",
+            buyerInfo:
+              rfq.isBroker === true ? "Anonymous Broker" : "Anonymous Buyer",
             buyerType: rfq.isBroker === true ? "Broker" : "Buyer",
             items: itemsWithProducts,
           });
@@ -787,13 +810,17 @@ export const chooseQuotation = mutation({
     });
 
     // Send WhatsApp notification to vendor
-    await ctx.scheduler.runAfter(0, internal.whatsapp.notifyVendorQuotationChosen, {
-      vendorId: quotation.vendorId,
-      productName: product?.name ?? "Product",
-      buyerName: user.name,
-      buyerPhone: user.phone ?? "Not provided",
-      buyerEmail: user.email,
-    });
+    await ctx.scheduler.runAfter(
+      0,
+      internal.whatsapp.notifyVendorQuotationChosen,
+      {
+        vendorId: quotation.vendorId,
+        productName: product?.name ?? "Product",
+        buyerName: user.name,
+        buyerPhone: user.phone ?? "Not provided",
+        buyerEmail: user.email,
+      },
+    );
 
     return { success: true };
   },
@@ -918,7 +945,7 @@ export const getAllRFQsForAdmin = query({
               ...item,
               product: product || null,
             };
-          })
+          }),
         );
 
         // Get sent quotations for this RFQ
@@ -932,33 +959,39 @@ export const getAllRFQsForAdmin = query({
           sentQuotations.map(async (quote) => {
             const vendor = await ctx.db.get(quote.vendorId);
             const product = await ctx.db.get(quote.productId);
-            
+
             // Get vendor rating
             const vendorRatings = await ctx.db
               .query("ratings")
               .withIndex("by_vendor", (q) => q.eq("vendorId", quote.vendorId))
               .collect();
-            
-            const avgRating = vendorRatings.length > 0
-              ? vendorRatings.reduce((sum, r) => sum + r.rating, 0) / vendorRatings.length
-              : 0;
+
+            const avgRating =
+              vendorRatings.length > 0
+                ? vendorRatings.reduce((sum, r) => sum + r.rating, 0) /
+                  vendorRatings.length
+                : 0;
 
             return {
               ...quote,
-              vendor: vendor ? {
-                name: vendor.name,
-                email: vendor.email,
-                companyName: vendor.companyName || "N/A",
-                phone: vendor.phone || "N/A",
-                averageRating: avgRating,
-                totalRatings: vendorRatings.length,
-              } : null,
-              product: product ? {
-                name: product.name,
-                image: product.image,
-              } : null,
+              vendor: vendor
+                ? {
+                    name: vendor.name,
+                    email: vendor.email,
+                    companyName: vendor.companyName || "N/A",
+                    phone: vendor.phone || "N/A",
+                    averageRating: avgRating,
+                    totalRatings: vendorRatings.length,
+                  }
+                : null,
+              product: product
+                ? {
+                    name: product.name,
+                    image: product.image,
+                  }
+                : null,
             };
-          })
+          }),
         );
 
         return {
@@ -968,7 +1001,7 @@ export const getAllRFQsForAdmin = query({
           sentQuotations: quotationsWithDetails,
           quotationCount: quotationsWithDetails.length,
         };
-      })
+      }),
     );
   },
 });

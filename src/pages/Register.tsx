@@ -1,15 +1,22 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { useMutation } from "convex/react";
+import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMutation } from "convex/react";
+import { Building2, Loader2, MapPin, ShoppingCart, Upload } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+
+import { useAuth } from "@/hooks/use-auth.ts";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { toast } from "sonner";
-import { useAuth } from "@/hooks/use-auth.ts";
-import { Loader2, Building2, ShoppingCart, MapPin, Upload } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 
 export default function Register() {
@@ -17,7 +24,9 @@ export default function Register() {
   const { user, isAuthenticated } = useAuth();
   const createUser = useMutation(api.users.createUser);
 
-  const [selectedRole, setSelectedRole] = useState<"buyer" | "vendor" | null>(null);
+  const [selectedRole, setSelectedRole] = useState<"buyer" | "vendor" | null>(
+    null,
+  );
   const [name, setName] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [phone, setPhone] = useState("");
@@ -51,7 +60,7 @@ export default function Register() {
         // Reverse geocode to get address
         try {
           const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
           );
           const data = await response.json();
           setAddress(data.display_name || `${lat}, ${lng}`);
@@ -65,7 +74,7 @@ export default function Register() {
       (error) => {
         toast.error("Failed to get location: " + error.message);
         setIsLoadingLocation(false);
-      }
+      },
     );
   };
 
@@ -91,8 +100,9 @@ export default function Register() {
 
     try {
       await createUser({
-        name: name || user?.profile.name || "Unknown",
-        email: user?.profile.email || "unknown@example.com",
+        authId: "test-authId", // Add this line to include authId
+        name: name || user?.name || "Unknown",
+        email: user?.email || "unknown@example.com",
         role: selectedRole,
         companyName: companyName || undefined,
         phone: phone || undefined,
@@ -128,9 +138,11 @@ export default function Register() {
       <div className="flex items-center justify-center p-4 py-12">
         <Card className="w-full max-w-2xl">
           <CardHeader>
-            <CardTitle className="text-2xl">Complete Your Registration</CardTitle>
+            <CardTitle className="text-2xl">
+              Complete Your Registration
+            </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Signed in as: {user.profile?.email}
+              Signed in as: {user?.email}
             </p>
           </CardHeader>
           <CardContent>
@@ -171,7 +183,7 @@ export default function Register() {
                   <Label htmlFor="name">Full Name *</Label>
                   <Input
                     id="name"
-                    value={name || user.profile?.name || ""}
+                    value={name || user?.name || ""}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="John Doe"
                     required
@@ -215,7 +227,8 @@ export default function Register() {
                         </Button>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Upload your CR-12 certificate to Files & Media tab, then paste the URL here
+                        Upload your CR-12 certificate to Files & Media tab, then
+                        paste the URL here
                       </p>
                     </div>
 
@@ -247,7 +260,8 @@ export default function Register() {
                 {selectedRole === "vendor" && (
                   <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
                     <p className="text-sm text-amber-900 dark:text-amber-100">
-                      <strong>Note:</strong> Your vendor account requires admin verification before you can submit quotations.
+                      <strong>Note:</strong> Your vendor account requires admin
+                      verification before you can submit quotations.
                     </p>
                   </div>
                 )}
@@ -261,8 +275,14 @@ export default function Register() {
                   >
                     Back
                   </Button>
-                  <Button type="submit" disabled={isSubmitting} className="w-full">
-                    {isSubmitting ? "Creating Account..." : "Complete Registration"}
+                  <Button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full"
+                  >
+                    {isSubmitting
+                      ? "Creating Account..."
+                      : "Complete Registration"}
                   </Button>
                 </div>
               </form>

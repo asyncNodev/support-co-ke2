@@ -1,7 +1,9 @@
+import { Authenticated, Unauthenticated } from "convex/react";
 import { Link } from "react-router-dom";
+
 import { useAuth } from "@/hooks/use-auth";
 import { SignInButton } from "@/components/ui/signin";
-import { Authenticated, Unauthenticated } from "convex/react";
+import { SignUpButton } from "@/components/ui/signup";
 
 export default function AppHeader() {
   const { user } = useAuth();
@@ -21,19 +23,34 @@ export default function AppHeader() {
 
           {/* Navigation Links */}
           <nav className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-sm">
-            <Link to="/browse" className="text-foreground hover:text-primary whitespace-nowrap">
+            <Link
+              to="/browse"
+              className="text-foreground hover:text-primary whitespace-nowrap"
+            >
               Browse
             </Link>
-            <Link to="/vendors" className="text-foreground hover:text-primary whitespace-nowrap">
+            <Link
+              to="/vendors"
+              className="text-foreground hover:text-primary whitespace-nowrap"
+            >
               Vendors
             </Link>
-            <a href="#how-it-works" className="text-foreground hover:text-primary whitespace-nowrap">
+            <a
+              href="#how-it-works"
+              className="text-foreground hover:text-primary whitespace-nowrap"
+            >
               How It Works
             </a>
           </nav>
 
           {/* Auth Buttons */}
           <div className="flex items-center gap-2 shrink-0">
+            <Authenticated>
+              <SignUpButton />
+            </Authenticated>
+            <Unauthenticated>
+              <SignUpButton />
+            </Unauthenticated>
             <Authenticated>
               <SignInButton />
             </Authenticated>

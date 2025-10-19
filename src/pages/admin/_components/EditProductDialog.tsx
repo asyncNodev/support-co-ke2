@@ -1,15 +1,28 @@
-import { useState, useEffect } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useMutation, useQuery } from "convex/react";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PhotoUpload } from "@/components/ui/photo-upload";
-import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 type EditProductDialogProps = {
   productId: Id<"products"> | null;
@@ -17,10 +30,14 @@ type EditProductDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-export function EditProductDialog({ productId, open, onOpenChange }: EditProductDialogProps) {
+export function EditProductDialog({
+  productId,
+  open,
+  onOpenChange,
+}: EditProductDialogProps) {
   const product = useQuery(
     api.products.getProduct,
-    productId ? { productId } : "skip"
+    productId ? { productId } : "skip",
   );
   const categories = useQuery(api.categories.getCategories, {});
   const updateProduct = useMutation(api.products.updateProduct);
@@ -32,6 +49,7 @@ export function EditProductDialog({ productId, open, onOpenChange }: EditProduct
     image: "",
     sku: "",
     specifications: "",
+    price: "",
   });
 
   useEffect(() => {
@@ -43,6 +61,7 @@ export function EditProductDialog({ productId, open, onOpenChange }: EditProduct
         image: product.image || "",
         sku: product.sku || "",
         specifications: product.specifications || "",
+        price: product.price?.toString() || "",
       });
     }
   }, [product]);
@@ -53,6 +72,9 @@ export function EditProductDialog({ productId, open, onOpenChange }: EditProduct
       return;
     }
 
+    // Convert price to number, fallback to 0 if invalid
+    const price = isNaN(Number(formData.price)) ? 0 : Number(formData.price);
+
     try {
       await updateProduct({
         productId,
@@ -62,6 +84,7 @@ export function EditProductDialog({ productId, open, onOpenChange }: EditProduct
         image: formData.image || undefined,
         sku: formData.sku || undefined,
         specifications: formData.specifications || undefined,
+        price,
       });
       toast.success("Product updated successfully");
       onOpenChange(false);
@@ -80,9 +103,7 @@ export function EditProductDialog({ productId, open, onOpenChange }: EditProduct
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Product</DialogTitle>
-          <DialogDescription>
-            Update product information
-          </DialogDescription>
+          <DialogDescription>Update product information</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -90,7 +111,9 @@ export function EditProductDialog({ productId, open, onOpenChange }: EditProduct
             <Label>Name *</Label>
             <Input
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               placeholder="Hospital Bed"
             />
           </div>
@@ -99,7 +122,9 @@ export function EditProductDialog({ productId, open, onOpenChange }: EditProduct
             <Label>Category *</Label>
             <Select
               value={formData.categoryId}
-              onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
+              onValueChange={(value) =>
+                setFormData({ ...formData, categoryId: value })
+              }
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select category" />
@@ -118,7 +143,9 @@ export function EditProductDialog({ productId, open, onOpenChange }: EditProduct
             <Label>Description *</Label>
             <Textarea
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               placeholder="Product description"
               rows={3}
             />
@@ -135,7 +162,9 @@ export function EditProductDialog({ productId, open, onOpenChange }: EditProduct
             <Label>SKU</Label>
             <Input
               value={formData.sku}
-              onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, sku: e.target.value })
+              }
               placeholder="PROD-001"
             />
           </div>
@@ -144,9 +173,25 @@ export function EditProductDialog({ productId, open, onOpenChange }: EditProduct
             <Label>Specifications</Label>
             <Textarea
               value={formData.specifications}
-              onChange={(e) => setFormData({ ...formData, specifications: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, specifications: e.target.value })
+              }
               placeholder="Technical specifications"
               rows={3}
+            />
+          </div>
+
+          <div>
+            <Label>Price (KES)</Label>
+            <Input
+              type="number"
+              value={formData.price}
+              onChange={(e) =>
+                setFormData({ ...formData, price: e.target.value })
+              }
+              placeholder="1000"
+              min="0"
+              step="0.01"
             />
           </div>
 

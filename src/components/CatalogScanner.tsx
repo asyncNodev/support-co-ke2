@@ -1,18 +1,44 @@
 import { useState } from "react";
-import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+import { useAction, useMutation, useQuery } from "convex/react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Loader2,
+  ScanLine,
+  Upload,
+  XCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Upload, Loader2, ScanLine, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
-import type { Id } from "@/convex/_generated/dataModel";
 
 type ExtractedProduct = {
   name: string;
@@ -34,11 +60,18 @@ type CatalogScannerProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-export default function CatalogScanner({ userRole = "admin", vendorId, open, onOpenChange }: CatalogScannerProps) {
+export default function CatalogScanner({
+  userRole = "admin",
+  vendorId,
+  open,
+  onOpenChange,
+}: CatalogScannerProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
-  const [extractedProducts, setExtractedProducts] = useState<ExtractedProduct[]>([]);
+  const [extractedProducts, setExtractedProducts] = useState<
+    ExtractedProduct[]
+  >([]);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
 
   const categories = useQuery(api.categories.getCategories, {});
@@ -89,10 +122,14 @@ export default function CatalogScanner({ userRole = "admin", vendorId, open, onO
       }
 
       setExtractedProducts(allProducts);
-      toast.success(`Extracted ${allProducts.length} products from ${selectedFiles.length} file(s)`);
+      toast.success(
+        `Extracted ${allProducts.length} products from ${selectedFiles.length} file(s)`,
+      );
     } catch (error) {
       console.error("Scan error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to scan catalog");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to scan catalog",
+      );
     } finally {
       setIsScanning(false);
     }
@@ -100,13 +137,15 @@ export default function CatalogScanner({ userRole = "admin", vendorId, open, onO
 
   const handleCategoryChange = (index: number, categoryId: string) => {
     setExtractedProducts((prev) =>
-      prev.map((p, i) => (i === index ? { ...p, categoryId: categoryId as Id<"categories"> } : p))
+      prev.map((p, i) =>
+        i === index ? { ...p, categoryId: categoryId as Id<"categories"> } : p,
+      ),
     );
   };
 
   const handleToggleProduct = (index: number) => {
     setExtractedProducts((prev) =>
-      prev.map((p, i) => (i === index ? { ...p, selected: !p.selected } : p))
+      prev.map((p, i) => (i === index ? { ...p, selected: !p.selected } : p)),
     );
   };
 
@@ -130,7 +169,7 @@ export default function CatalogScanner({ userRole = "admin", vendorId, open, onO
           let categoryId = product.categoryId;
           if (!categoryId) {
             const matchedCategory = categories?.find(
-              (c) => c.name.toLowerCase() === product.category.toLowerCase()
+              (c) => c.name.toLowerCase() === product.category.toLowerCase(),
             );
             categoryId = matchedCategory?._id;
           }
@@ -149,6 +188,7 @@ export default function CatalogScanner({ userRole = "admin", vendorId, open, onO
               description: product.description,
               specifications: product.specifications || "",
               sku: product.sku,
+              price: product.price ?? 0,
             });
             successCount++;
           } else if (userRole === "vendor" && vendorId) {
@@ -159,6 +199,7 @@ export default function CatalogScanner({ userRole = "admin", vendorId, open, onO
               description: product.description,
               specifications: product.specifications || "",
               sku: product.sku,
+              price: product.price ?? 0,
             });
 
             // Create pre-filled quotation
@@ -182,7 +223,7 @@ export default function CatalogScanner({ userRole = "admin", vendorId, open, onO
       if (successCount > 0) {
         toast.success(
           `Successfully imported ${successCount} product${successCount > 1 ? "s" : ""}` +
-            (errorCount > 0 ? `. ${errorCount} failed.` : "")
+            (errorCount > 0 ? `. ${errorCount} failed.` : ""),
         );
         setExtractedProducts([]);
         setSelectedFiles(null);
@@ -206,7 +247,8 @@ export default function CatalogScanner({ userRole = "admin", vendorId, open, onO
             Scan Product Catalog
           </DialogTitle>
           <DialogDescription>
-            Upload catalog images or PDFs. AI will automatically extract product information.
+            Upload catalog images or PDFs. AI will automatically extract product
+            information.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-6">
@@ -218,7 +260,8 @@ export default function CatalogScanner({ userRole = "admin", vendorId, open, onO
                 Scan Catalog
               </CardTitle>
               <CardDescription>
-                Upload product catalog images or PDFs. AI will extract product information automatically.
+                Upload product catalog images or PDFs. AI will extract product
+                information automatically.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -237,7 +280,11 @@ export default function CatalogScanner({ userRole = "admin", vendorId, open, onO
                 </p>
               </div>
 
-              <Button onClick={handleScanCatalog} disabled={!selectedFiles || isScanning} className="w-full">
+              <Button
+                onClick={handleScanCatalog}
+                disabled={!selectedFiles || isScanning}
+                className="w-full"
+              >
                 {isScanning ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -257,8 +304,13 @@ export default function CatalogScanner({ userRole = "admin", vendorId, open, onO
           {extractedProducts.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle>Extracted Products ({extractedProducts.length})</CardTitle>
-                <CardDescription>Review and select products to import. Match categories if needed.</CardDescription>
+                <CardTitle>
+                  Extracted Products ({extractedProducts.length})
+                </CardTitle>
+                <CardDescription>
+                  Review and select products to import. Match categories if
+                  needed.
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {extractedProducts.map((product, index) => (
@@ -273,25 +325,37 @@ export default function CatalogScanner({ userRole = "admin", vendorId, open, onO
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <h4 className="font-semibold">{product.name}</h4>
-                            {product.sku && <Badge variant="outline">{product.sku}</Badge>}
-                            {product.brand && <Badge variant="secondary">{product.brand}</Badge>}
+                            {product.sku && (
+                              <Badge variant="outline">{product.sku}</Badge>
+                            )}
+                            {product.brand && (
+                              <Badge variant="secondary">{product.brand}</Badge>
+                            )}
                           </div>
                           {product.price && (
-                            <Badge variant="default">KSh {product.price.toLocaleString()}</Badge>
+                            <Badge variant="default">
+                              KSh {product.price.toLocaleString()}
+                            </Badge>
                           )}
                         </div>
 
-                        <p className="text-sm text-muted-foreground">{product.description}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {product.description}
+                        </p>
 
                         {product.specifications && (
-                          <p className="text-xs text-muted-foreground">{product.specifications}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {product.specifications}
+                          </p>
                         )}
 
                         <div className="flex items-center gap-2">
                           <Label className="text-xs">Category:</Label>
                           <Select
                             value={product.categoryId || ""}
-                            onValueChange={(value) => handleCategoryChange(index, value)}
+                            onValueChange={(value) =>
+                              handleCategoryChange(index, value)
+                            }
                           >
                             <SelectTrigger className="h-8 w-[200px]">
                               <SelectValue placeholder={product.category} />
@@ -315,7 +379,9 @@ export default function CatalogScanner({ userRole = "admin", vendorId, open, onO
                 <div className="flex gap-2">
                   <Button
                     onClick={handleImportProducts}
-                    disabled={isImporting || !extractedProducts.some((p) => p.selected)}
+                    disabled={
+                      isImporting || !extractedProducts.some((p) => p.selected)
+                    }
                     className="flex-1"
                   >
                     {isImporting ? (
@@ -326,11 +392,15 @@ export default function CatalogScanner({ userRole = "admin", vendorId, open, onO
                     ) : (
                       <>
                         <CheckCircle2 className="mr-2 h-4 w-4" />
-                        Import Selected ({extractedProducts.filter((p) => p.selected).length})
+                        Import Selected (
+                        {extractedProducts.filter((p) => p.selected).length})
                       </>
                     )}
                   </Button>
-                  <Button variant="outline" onClick={() => setExtractedProducts([])}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setExtractedProducts([])}
+                  >
                     <XCircle className="mr-2 h-4 w-4" />
                     Cancel
                   </Button>
@@ -345,13 +415,17 @@ export default function CatalogScanner({ userRole = "admin", vendorId, open, onO
               <div className="flex gap-3">
                 <AlertCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
                 <div className="text-sm space-y-2">
-                  <p className="font-medium text-blue-900">Tips for best results:</p>
+                  <p className="font-medium text-blue-900">
+                    Tips for best results:
+                  </p>
                   <ul className="list-disc list-inside space-y-1 text-blue-800">
                     <li>Use clear, high-quality images or PDFs</li>
                     <li>Ensure product names and details are readable</li>
                     <li>One page per file works best</li>
                     <li>Review extracted data before importing</li>
-                    <li>Match categories manually if AI doesn't find exact match</li>
+                    <li>
+                      Match categories manually if AI doesn't find exact match
+                    </li>
                   </ul>
                 </div>
               </div>

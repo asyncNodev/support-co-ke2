@@ -1,6 +1,7 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, query, internalQuery } from "./_generated/server";
+
 import type { Id } from "./_generated/dataModel.d.ts";
+import { internalQuery, mutation, query } from "./_generated/server";
 
 export const getCurrentUser = query({
   args: {},
@@ -24,7 +25,7 @@ export const updateQuotationPreference = mutation({
     preference: v.union(
       v.literal("registered_hospitals_only"),
       v.literal("registered_all"),
-      v.literal("all_including_guests")
+      v.literal("all_including_guests"),
     ),
   },
   handler: async (ctx, args) => {
@@ -67,6 +68,7 @@ export const createUser = mutation({
   args: {
     name: v.string(),
     email: v.string(),
+    authId: v.string(),
     role: v.union(v.literal("admin"), v.literal("vendor"), v.literal("buyer")),
     companyName: v.optional(v.string()),
     phone: v.optional(v.string()),
@@ -86,8 +88,9 @@ export const createUser = mutation({
     }
 
     const userId = await ctx.db.insert("users", {
-      authId: identity.tokenIdentifier,
+      authId: args.authId,
       email: args.email,
+      passwordHash: "", // Password hash should be set during registration ?????
       name: args.name,
       role: args.role,
       verified: false,
@@ -103,6 +106,16 @@ export const createUser = mutation({
     });
 
     return userId;
+  },
+});
+
+export const getUser = query({
+  args: { authId: v.string() },
+  async handler(ctx, args) {
+    return await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", args.authId))
+      .unique();
   },
 });
 
@@ -343,7 +356,7 @@ export const getPendingUsers = query({
 
     const allUsers = await ctx.db.query("users").collect();
     // Filter for users with status === "pending"
-    return allUsers.filter(user => user.status === "pending");
+    return allUsers.filter((user) => user.status === "pending");
   },
 });
 
@@ -401,6 +414,40 @@ export const updateNotificationPreferences = mutation({
     }
 
     await ctx.db.patch(user._id, updates);
+
+    return { success: true };
+  },
+});
+
+export const updateUser = mutation({
+  args: {
+    role: v.union(v.literal("vendor"), v.literal("buyer")),
+    companyName: v.string(),
+    phone: v.string(),
+    address: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .unique();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    await ctx.db.patch(user._id, {
+      role: args.role,
+      companyName: args.companyName,
+      phone: args.phone,
+      address: args.address,
+      status: "pending", // New users need approval
+    });
 
     return { success: true };
   },
