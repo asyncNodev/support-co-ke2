@@ -1,67 +1,129 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { BulkProductUpload } from "@/pages/admin/_components/BulkProductUpload.tsx";
+import { EditProductDialog } from "@/pages/admin/_components/EditProductDialog";
+import { useAction, useMutation, useQuery } from "convex/react";
+import {
+  AlertCircle,
+  BarChart3,
+  CheckCircle,
+  DollarSign,
+  Edit,
+  Globe,
+  Package,
+  PlayCircle,
+  Plus,
+  ScanLine,
+  Settings,
+  ShoppingCart,
+  Tag,
+  Trash2,
+  TrendingUp,
+  Upload,
+  Users,
+  XCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { PhotoUpload } from "@/components/ui/photo-upload";
-import { BulkProductUpload } from "@/pages/admin/_components/BulkProductUpload";
-import { EditProductDialog } from "@/pages/admin/_components/EditProductDialog";
-import { toast } from "sonner";
-import { Plus, Trash2, Users, Package, Tag, Settings, Upload, Edit, Globe, PlayCircle, CheckCircle } from "lucide-react";
-import { useAction } from "convex/react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import CatalogScanner from "@/components/CatalogScanner.tsx";
 
 export default function AdminDashboard() {
   const products = useQuery(api.products.getProducts, {});
   const categories = useQuery(api.categories.getCategories, {});
   const users = useQuery(api.users.getAllUsers, {});
-  const analytics = useQuery(api.analytics.getAnalytics, {});
-  const siteSettings = useQuery(api.siteSettings.getSiteSettings, {});
+  const allRfqs = useQuery(api.rfqs.getAllRFQsForAdmin, {});
+  const allQuotations = useQuery(
+    api.vendorQuotations.getAllQuotationsForAdmin,
+    {},
+  );
+  const marketIntelligence = useQuery(api.analytics.getMarketIntelligence, {});
 
   const createProduct = useMutation(api.products.createProduct);
   const deleteProduct = useMutation(api.products.deleteProduct);
   const createCategory = useMutation(api.categories.createCategory);
   const deleteCategory = useMutation(api.categories.deleteCategory);
   const verifyUser = useMutation(api.users.verifyUser);
-  const assignCategoriesToVendor = useMutation(api.users.assignCategoriesToVendor);
-  const updateSiteSettings = useMutation(api.siteSettings.updateSiteSettings);
-  const resetSiteSettings = useMutation(api.siteSettings.resetSiteSettings);
+  const findDuplicates = useQuery(api.products.findDuplicateProducts);
+  const removeDuplicates = useMutation(api.products.removeDuplicateProducts);
+  const generateSlugs = useMutation(api.products.generateAllSlugs);
+  const assignCategoriesToVendor = useMutation(
+    api.users.assignCategoriesToVendor,
+  );
 
   const verifyUserMutation = useMutation(api.users.verifyUser);
   const assignCategories = useMutation(api.users.assignCategoriesToVendor);
   const toggleStatus = useMutation(api.users.toggleUserStatus);
   const deleteUserMutation = useMutation(api.users.deleteUser);
 
+  // Site Settings
+  const updateSiteSettings = useMutation(api.siteSettings.updateSiteSettings);
+  const siteSettings = useQuery(api.siteSettings.getSiteSettings, {});
+
+  const approveUser = useMutation(api.users.approveUser);
+  const rejectUser = useMutation(api.users.rejectUser);
+  const pendingUsers = useQuery(api.users.getPendingUsers, {});
+
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-  const [viewDetailsUserId, setViewDetailsUserId] = useState<Id<"users"> | null>(null);
+  const [viewDetailsUserId, setViewDetailsUserId] =
+    useState<Id<"users"> | null>(null);
   const [viewDetailsOpen, setViewDetailsOpen] = useState(false);
   const [bulkUploadOpen, setBulkUploadOpen] = useState(false);
-  const [editProductId, setEditProductId] = useState<Id<"products"> | null>(null);
+  const [catalogScannerOpen, setCatalogScannerOpen] = useState(false);
+  const [editProductId, setEditProductId] = useState<Id<"products"> | null>(
+    null,
+  );
   const [editProductOpen, setEditProductOpen] = useState(false);
-  
+
   // Browse.ai Integration State
   const [browseAiRobotId, setBrowseAiRobotId] = useState("");
   const [browseAiTaskId, setBrowseAiTaskId] = useState("");
   const [browseAiCategoryId, setBrowseAiCategoryId] = useState("");
   const [browseAiVendorId, setBrowseAiVendorId] = useState("");
   const [browseAiProductId, setBrowseAiProductId] = useState("");
-  const [browseAiProductListName, setBrowseAiProductListName] = useState("products");
-  const [browseAiQuotationListName, setBrowseAiQuotationListName] = useState("quotations");
+  const [browseAiProductListName, setBrowseAiProductListName] =
+    useState("products");
+  const [browseAiQuotationListName, setBrowseAiQuotationListName] =
+    useState("quotations");
   const [taskStatus, setTaskStatus] = useState<string | null>(null);
 
   // Site Settings State
   const [settingsForm, setSettingsForm] = useState({
     logoUrl: "",
+    logoSize: "h-28",
     siteName: "",
     tagline: "",
     hospitalStep1: "",
@@ -72,49 +134,55 @@ export default function AdminDashboard() {
     vendorStep2: "",
     vendorStep3: "",
     vendorStep4: "",
-    workflowTextSize: "sm",
-    workflowBgColor: "bg-muted/30",
+    workflowTextSize: "text-sm",
+    workflowBgColor: "bg-blue-50",
   });
 
-  // Initialize settings form when site settings load
-  useEffect(() => {
-    if (siteSettings) {
-      setSettingsForm({
-        logoUrl: siteSettings.logoUrl || "",
-        siteName: siteSettings.siteName || "",
-        tagline: siteSettings.tagline || "",
-        hospitalStep1: siteSettings.hospitalStep1 || "",
-        hospitalStep2: siteSettings.hospitalStep2 || "",
-        hospitalStep3: siteSettings.hospitalStep3 || "",
-        hospitalStep4: siteSettings.hospitalStep4 || "",
-        vendorStep1: siteSettings.vendorStep1 || "",
-        vendorStep2: siteSettings.vendorStep2 || "",
-        vendorStep3: siteSettings.vendorStep3 || "",
-        vendorStep4: siteSettings.vendorStep4 || "",
-        workflowTextSize: siteSettings.workflowTextSize || "sm",
-        workflowBgColor: siteSettings.workflowBgColor || "bg-muted/30",
-      });
-    }
-  }, [siteSettings]);
+  // Initialize settings form when siteSettings loads
+  if (siteSettings && settingsForm.logoUrl === "") {
+    setSettingsForm({
+      logoUrl: siteSettings.logoUrl || "",
+      logoSize: siteSettings.logoSize || "h-28",
+      siteName: siteSettings.siteName || "",
+      tagline: siteSettings.tagline || "",
+      hospitalStep1: siteSettings.hospitalStep1 || "",
+      hospitalStep2: siteSettings.hospitalStep2 || "",
+      hospitalStep3: siteSettings.hospitalStep3 || "",
+      hospitalStep4: siteSettings.hospitalStep4 || "",
+      vendorStep1: siteSettings.vendorStep1 || "",
+      vendorStep2: siteSettings.vendorStep2 || "",
+      vendorStep3: siteSettings.vendorStep3 || "",
+      vendorStep4: siteSettings.vendorStep4 || "",
+      workflowTextSize: siteSettings.workflowTextSize || "text-sm",
+      workflowBgColor: siteSettings.workflowBgColor || "bg-blue-50",
+    });
+  }
 
   const triggerRobot = useAction(api.browseAi.integration.triggerRobot);
   const getTaskStatus = useAction(api.browseAi.integration.getTaskStatus);
   const syncProducts = useAction(api.browseAi.integration.syncProducts);
-  const syncVendorQuotations = useAction(api.browseAi.integration.syncVendorQuotations);
-  
-  const userDetails = useQuery(
-    api.users.getUserDetails,
-    viewDetailsUserId ? { userId: viewDetailsUserId } : "skip"
+  const syncVendorQuotations = useAction(
+    api.browseAi.integration.syncVendorQuotations,
   );
 
-  const [selectedVendor, setSelectedVendor] = useState<Id<"users"> | null>(null);
-  const [selectedCategories, setSelectedCategories] = useState<Id<"categories">[]>([]);
+  const userDetails = useQuery(
+    api.users.getUserDetails,
+    viewDetailsUserId ? { userId: viewDetailsUserId } : "skip",
+  );
+
+  const [selectedVendor, setSelectedVendor] = useState<Id<"users"> | null>(
+    null,
+  );
+  const [selectedCategories, setSelectedCategories] = useState<
+    Id<"categories">[]
+  >([]);
 
   const [newProduct, setNewProduct] = useState({
     name: "",
     categoryId: "",
     description: "",
     image: "",
+    price: 0,
   });
 
   const [newCategory, setNewCategory] = useState({
@@ -133,10 +201,11 @@ export default function AdminDashboard() {
         categoryId: newProduct.categoryId as Id<"categories">,
         description: newProduct.description,
         image: newProduct.image || undefined,
+        price: newProduct.price ?? 0,
       });
       toast.success("Product created successfully");
       setAddProductOpen(false);
-      setNewProduct({ name: "", categoryId: "", description: "", image: "" });
+      setNewProduct({ name: "", categoryId: "", description: "", image: "", price: 0 });
     } catch (error) {
       toast.error("Failed to create product");
     }
@@ -202,7 +271,7 @@ export default function AdminDashboard() {
     setSelectedCategories((prev) =>
       prev.includes(categoryId)
         ? prev.filter((id) => id !== categoryId)
-        : [...prev, categoryId]
+        : [...prev, categoryId],
     );
   };
 
@@ -211,7 +280,7 @@ export default function AdminDashboard() {
     try {
       await assignCategories({
         vendorId: selectedVendor,
-        categoryIds: selectedCategories,
+        categories: selectedCategories,
       });
       toast.success("Categories assigned successfully");
       setAssignDialogOpen(false);
@@ -291,13 +360,19 @@ export default function AdminDashboard() {
       });
       toast.success(`Synced ${result.syncedCount} products successfully`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to sync products";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to sync products";
       toast.error(errorMessage);
     }
   };
 
   const handleSyncQuotations = async () => {
-    if (!browseAiRobotId || !browseAiTaskId || !browseAiVendorId || !browseAiProductId) {
+    if (
+      !browseAiRobotId ||
+      !browseAiTaskId ||
+      !browseAiVendorId ||
+      !browseAiProductId
+    ) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -309,36 +384,63 @@ export default function AdminDashboard() {
         productId: browseAiProductId as Id<"products">,
         listName: browseAiQuotationListName,
       });
-      toast.success(`Synced ${result.syncedCount} quotations successfully`);
+      toast.success(`Synced ${result.syncedCount} quotations from Browse.ai`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to sync quotations";
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to sync quotations";
       toast.error(errorMessage);
     }
   };
 
-  // Site Settings Handlers
-  const handleSaveSiteSettings = async () => {
+  const handleSaveSettings = async () => {
     try {
       await updateSiteSettings({ settings: settingsForm });
-      toast.success("Site settings updated successfully");
+      toast.success("Site settings saved successfully!");
     } catch (error) {
-      toast.error("Failed to update site settings");
+      toast.error("Failed to save settings");
     }
   };
 
-  const handleResetSiteSettings = async () => {
-    if (confirm("Are you sure you want to reset all site settings to defaults? This cannot be undone.")) {
-      try {
-        await resetSiteSettings();
-        toast.success("Site settings reset to defaults");
-      } catch (error) {
-        toast.error("Failed to reset site settings");
-      }
+  const handleApproveUser = async (userId: Id<"users">) => {
+    try {
+      await approveUser({ userId });
+      toast.success("User approved successfully!");
+    } catch (error) {
+      toast.error("Failed to approve user");
+    }
+  };
+
+  const handleRejectUser = async (userId: Id<"users">) => {
+    try {
+      await rejectUser({ userId });
+      toast.success("User rejected");
+    } catch (error) {
+      toast.error("Failed to reject user");
+    }
+  };
+
+  const handleRemoveDuplicates = async () => {
+    try {
+      const result = await removeDuplicates({});
+      toast.success(`Removed ${result.removedCount} duplicate products`);
+    } catch (error) {
+      toast.error("Failed to remove duplicates");
+    }
+  };
+
+  const handleGenerateSlugs = async () => {
+    try {
+      const result = await generateSlugs({});
+      toast.success(result.message);
+    } catch (error) {
+      toast.error("Failed to generate slugs");
     }
   };
 
   const vendors = users?.filter((u) => u.role === "vendor") || [];
   const buyers = users?.filter((u) => u.role === "buyer") || [];
+
+  const [activeTab, setActiveTab] = useState("users");
 
   return (
     <div className="min-h-screen bg-background">
@@ -357,7 +459,9 @@ export default function AdminDashboard() {
         <div className="grid gap-6 md:grid-cols-4 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Products
+              </CardTitle>
               <Package className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -366,7 +470,9 @@ export default function AdminDashboard() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Vendors</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Vendors
+              </CardTitle>
               <Users className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -375,7 +481,9 @@ export default function AdminDashboard() {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Buyers</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Total Buyers
+              </CardTitle>
               <Users className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -388,22 +496,206 @@ export default function AdminDashboard() {
               <Tag className="size-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{categories?.length || 0}</div>
+              <div className="text-2xl font-bold">
+                {categories?.length || 0}
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="products" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="products">Products</TabsTrigger>
-            <TabsTrigger value="categories">Categories</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-            <TabsTrigger value="browse-ai">Browse.ai</TabsTrigger>
-            <TabsTrigger value="site-settings">Site Settings</TabsTrigger>
-          </TabsList>
+        {/* Tabs Navigation */}
+        <div className="border-b">
+          <div className="flex overflow-x-auto gap-1 pb-px">
+            {[
+              "users",
+              "products",
+              "categories",
+              "rfqs",
+              "market-intel",
+              "site-settings",
+            ].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                  activeTab === tab
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                {tab
+                  .split("-")
+                  .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                  .join(" ")}
+              </button>
+            ))}
+          </div>
+        </div>
 
-          <TabsContent value="products" className="space-y-4">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {activeTab === "users" && (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Vendors</CardTitle>
+                  <CardDescription>
+                    Manage vendor accounts and category assignments
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {vendors.map((vendor) => (
+                      <div
+                        key={vendor._id}
+                        className="flex items-center justify-between p-4 border rounded-lg"
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium">{vendor.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {vendor.email}
+                          </p>
+                          {vendor.companyName && (
+                            <p className="text-sm text-muted-foreground">
+                              {vendor.companyName}
+                            </p>
+                          )}
+                          {vendor.phone && (
+                            <p className="text-sm text-muted-foreground">
+                              Phone: {vendor.phone}
+                            </p>
+                          )}
+                          <div className="flex gap-2 mt-2">
+                            <Badge
+                              variant={
+                                vendor.verified ? "default" : "destructive"
+                              }
+                            >
+                              {vendor.verified ? "Verified" : "Unverified"}
+                            </Badge>
+                            {vendor.categories &&
+                              vendor.categories.length > 0 && (
+                                <Badge variant="outline">
+                                  {vendor.categories.length}{" "}
+                                  {vendor.categories.length === 1
+                                    ? "Category"
+                                    : "Categories"}
+                                </Badge>
+                              )}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewDetails(vendor._id)}
+                          >
+                            View Details
+                          </Button>
+                          {!vendor.verified && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleVerifyUser(vendor._id)}
+                            >
+                              Verify
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              handleOpenAssignCategories(vendor._id)
+                            }
+                          >
+                            Assign Categories
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={vendor.verified ? "outline" : "default"}
+                            onClick={() => handleToggleStatus(vendor._id)}
+                          >
+                            {vendor.verified ? "Disable" : "Enable"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteUser(vendor._id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Buyers</CardTitle>
+                  <CardDescription>Manage buyer accounts</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {buyers.map((buyer) => (
+                      <div
+                        key={buyer._id}
+                        className="flex items-center justify-between p-4 border rounded-lg"
+                      >
+                        <div className="flex-1">
+                          <p className="font-medium">{buyer.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {buyer.email}
+                          </p>
+                          {buyer.companyName && (
+                            <p className="text-sm text-muted-foreground">
+                              {buyer.companyName}
+                            </p>
+                          )}
+                          {buyer.phone && (
+                            <p className="text-sm text-muted-foreground">
+                              Phone: {buyer.phone}
+                            </p>
+                          )}
+                          <div className="flex gap-2 mt-2">
+                            <Badge
+                              variant={buyer.verified ? "default" : "secondary"}
+                            >
+                              {buyer.verified ? "Active" : "Inactive"}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewDetails(buyer._id)}
+                          >
+                            View Details
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={buyer.verified ? "outline" : "default"}
+                            onClick={() => handleToggleStatus(buyer._id)}
+                          >
+                            {buyer.verified ? "Disable" : "Enable"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDeleteUser(buyer._id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {activeTab === "products" && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -412,11 +704,24 @@ export default function AdminDashboard() {
                     <CardDescription>Manage medical products</CardDescription>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setBulkUploadOpen(true)}>
+                    <Button
+                      variant="outline"
+                      onClick={() => setBulkUploadOpen(true)}
+                    >
                       <Upload className="size-4 mr-2" />
                       Bulk Upload
                     </Button>
-                    <Dialog open={addProductOpen} onOpenChange={setAddProductOpen}>
+                    <Button
+                      variant="outline"
+                      onClick={() => setCatalogScannerOpen(true)}
+                    >
+                      <ScanLine className="size-4 mr-2" />
+                      Scan Catalog
+                    </Button>
+                    <Dialog
+                      open={addProductOpen}
+                      onOpenChange={setAddProductOpen}
+                    >
                       <DialogTrigger asChild>
                         <Button>
                           <Plus className="size-4 mr-2" />
@@ -426,14 +731,21 @@ export default function AdminDashboard() {
                       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                         <DialogHeader>
                           <DialogTitle>Add New Product</DialogTitle>
-                          <DialogDescription>Enter product details</DialogDescription>
+                          <DialogDescription>
+                            Enter product details
+                          </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
                           <div>
                             <Label>Name *</Label>
                             <Input
                               value={newProduct.name}
-                              onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
+                              onChange={(e) =>
+                                setNewProduct({
+                                  ...newProduct,
+                                  name: e.target.value,
+                                })
+                              }
                               placeholder="Hospital Bed"
                             />
                           </div>
@@ -441,7 +753,12 @@ export default function AdminDashboard() {
                             <Label>Category *</Label>
                             <Select
                               value={newProduct.categoryId}
-                              onValueChange={(value) => setNewProduct({ ...newProduct, categoryId: value })}
+                              onValueChange={(value) =>
+                                setNewProduct({
+                                  ...newProduct,
+                                  categoryId: value,
+                                })
+                              }
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Select category" />
@@ -459,17 +776,27 @@ export default function AdminDashboard() {
                             <Label>Description</Label>
                             <Textarea
                               value={newProduct.description}
-                              onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                              onChange={(e) =>
+                                setNewProduct({
+                                  ...newProduct,
+                                  description: e.target.value,
+                                })
+                              }
                               placeholder="Product description"
                             />
                           </div>
                           <PhotoUpload
                             value={newProduct.image}
-                            onChange={(url) => setNewProduct({ ...newProduct, image: url })}
+                            onChange={(url) =>
+                              setNewProduct({ ...newProduct, image: url })
+                            }
                             label="Product Photo"
                             uploadUrlMutation={api.products.generateUploadUrl}
                           />
-                          <Button onClick={handleCreateProduct} className="w-full">
+                          <Button
+                            onClick={handleCreateProduct}
+                            className="w-full"
+                          >
                             Create Product
                           </Button>
                         </div>
@@ -490,8 +817,13 @@ export default function AdminDashboard() {
                             className="w-full h-32 object-cover rounded-md mb-2"
                           />
                         )}
-                        <CardTitle className="text-base">{product.name}</CardTitle>
-                        <CardDescription>{product.categoryName}</CardDescription>
+                        <CardTitle className="text-base">
+                          {product.name}
+                        </CardTitle>
+                        <CardDescription>
+                          {categories?.find((c) => c._id === product.categoryId)
+                            ?.name || "Uncategorized"}
+                        </CardDescription>
                       </CardHeader>
                       <CardContent className="flex gap-2">
                         <Button
@@ -517,11 +849,62 @@ export default function AdminDashboard() {
                     </Card>
                   ))}
                 </div>
+                {findDuplicates && findDuplicates.totalDuplicates > 0 && (
+                  <>
+                    <Separator className="my-6" />
+                    <div className="p-4 border rounded-lg bg-destructive/10">
+                      <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
+                        <AlertCircle className="size-5 text-destructive" />
+                        Duplicate Products Found (
+                        {findDuplicates.totalDuplicates})
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        The following products have duplicates. Click below to
+                        remove duplicates and keep only the oldest version of
+                        each.
+                      </p>
+                      <div className="max-h-48 overflow-y-auto mb-4 space-y-2">
+                        {findDuplicates.duplicates.map((dup, idx) => (
+                          <div
+                            key={idx}
+                            className="text-sm border-l-2 border-destructive pl-3 py-1"
+                          >
+                            <span className="font-medium">{dup.name}</span>
+                            <span className="text-muted-foreground">
+                              {" "}
+                              - {dup.count} copies found
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        variant="destructive"
+                        onClick={handleRemoveDuplicates}
+                      >
+                        <Trash2 className="size-4 mr-2" />
+                        Remove All Duplicates
+                      </Button>
+                    </div>
+                  </>
+                )}
+
+                <div className="mt-4 p-4 bg-muted rounded-lg">
+                  <h3 className="text-sm font-semibold mb-2">
+                    Generate SEO Slugs
+                  </h3>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Generate URL-friendly slugs for all products and categories
+                    that don't have them yet.
+                  </p>
+                  <Button onClick={handleGenerateSlugs} size="sm">
+                    Generate Slugs
+                  </Button>
+                </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          )}
 
-          <TabsContent value="categories" className="space-y-4">
+          {activeTab === "categories" && (
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -529,7 +912,10 @@ export default function AdminDashboard() {
                     <CardTitle>Categories</CardTitle>
                     <CardDescription>Manage product categories</CardDescription>
                   </div>
-                  <Dialog open={addCategoryOpen} onOpenChange={setAddCategoryOpen}>
+                  <Dialog
+                    open={addCategoryOpen}
+                    onOpenChange={setAddCategoryOpen}
+                  >
                     <DialogTrigger asChild>
                       <Button>
                         <Plus className="size-4 mr-2" />
@@ -539,14 +925,21 @@ export default function AdminDashboard() {
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Add New Category</DialogTitle>
-                        <DialogDescription>Enter category details</DialogDescription>
+                        <DialogDescription>
+                          Enter category details
+                        </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4">
                         <div>
                           <Label>Name *</Label>
                           <Input
                             value={newCategory.name}
-                            onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                            onChange={(e) =>
+                              setNewCategory({
+                                ...newCategory,
+                                name: e.target.value,
+                              })
+                            }
                             placeholder="Patient Care Equipment"
                           />
                         </div>
@@ -554,11 +947,19 @@ export default function AdminDashboard() {
                           <Label>Description</Label>
                           <Textarea
                             value={newCategory.description}
-                            onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
+                            onChange={(e) =>
+                              setNewCategory({
+                                ...newCategory,
+                                description: e.target.value,
+                              })
+                            }
                             placeholder="Category description"
                           />
                         </div>
-                        <Button onClick={handleCreateCategory} className="w-full">
+                        <Button
+                          onClick={handleCreateCategory}
+                          className="w-full"
+                        >
                           Create Category
                         </Button>
                       </div>
@@ -571,9 +972,13 @@ export default function AdminDashboard() {
                   {categories?.map((category) => (
                     <Card key={category._id}>
                       <CardHeader>
-                        <CardTitle className="text-base">{category.name}</CardTitle>
+                        <CardTitle className="text-base">
+                          {category.name}
+                        </CardTitle>
                         {category.description && (
-                          <CardDescription>{category.description}</CardDescription>
+                          <CardDescription>
+                            {category.description}
+                          </CardDescription>
                         )}
                       </CardHeader>
                       <CardContent>
@@ -591,683 +996,797 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          )}
 
-          <TabsContent value="users" className="space-y-4">
+          {activeTab === "rfqs" && (
             <Card>
               <CardHeader>
-                <CardTitle>Vendors</CardTitle>
-                <CardDescription>Manage vendor accounts and category assignments</CardDescription>
+                <CardTitle>All RFQs</CardTitle>
+                <CardDescription>
+                  View all Request for Quotations submitted by buyers and guests
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {vendors.map((vendor) => (
-                    <div key={vendor._id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex-1">
-                        <p className="font-medium">{vendor.name}</p>
-                        <p className="text-sm text-muted-foreground">{vendor.email}</p>
-                        {vendor.companyName && (
-                          <p className="text-sm text-muted-foreground">{vendor.companyName}</p>
-                        )}
-                        {vendor.phone && (
-                          <p className="text-sm text-muted-foreground">Phone: {vendor.phone}</p>
-                        )}
-                        <div className="flex gap-2 mt-2">
-                          <Badge variant={vendor.verified ? "default" : "destructive"}>
-                            {vendor.verified ? "Verified" : "Unverified"}
-                          </Badge>
-                          {vendor.categories && vendor.categories.length > 0 && (
-                            <Badge variant="outline">
-                              {vendor.categories.length} {vendor.categories.length === 1 ? "Category" : "Categories"}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleViewDetails(vendor._id)}
-                        >
-                          View Details
-                        </Button>
-                        {!vendor.verified && (
-                          <Button
-                            size="sm"
-                            onClick={() => handleVerifyUser(vendor._id)}
-                          >
-                            Verify
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleOpenAssignCategories(vendor._id)}
-                        >
-                          Assign Categories
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={vendor.verified ? "outline" : "default"}
-                          onClick={() => handleToggleStatus(vendor._id)}
-                        >
-                          {vendor.verified ? "Disable" : "Enable"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleDeleteUser(vendor._id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                {!allRfqs ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-20 bg-muted animate-pulse rounded-md"
+                      />
+                    ))}
+                  </div>
+                ) : allRfqs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">No RFQs found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {allRfqs.map((rfq) => (
+                      <Card key={rfq._id} className="overflow-hidden">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="text-base">
+                                RFQ #{rfq._id.slice(-8)}
+                              </CardTitle>
+                              <CardDescription className="text-xs mt-1">
+                                {new Date(rfq.createdAt).toLocaleDateString(
+                                  "en-US",
+                                  {
+                                    year: "numeric",
+                                    month: "short",
+                                    day: "numeric",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  },
+                                )}
+                              </CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                  rfq.status === "pending"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : rfq.status === "quoted"
+                                      ? "bg-blue-100 text-blue-800"
+                                      : "bg-green-100 text-green-800"
+                                }`}
+                              >
+                                {rfq.status}
+                              </span>
+                              {rfq.isGuest && (
+                                <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                                  Guest
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-0 space-y-4">
+                          {/* Buyer Information */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b">
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">
+                                Submitted By
+                              </p>
+                              {rfq.isGuest ? (
+                                <div>
+                                  <p className="text-sm font-medium">
+                                    {rfq.guestName || "Unknown"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {rfq.guestCompanyName || "N/A"}
+                                  </p>
+                                </div>
+                              ) : rfq.buyer ? (
+                                <div>
+                                  <p className="text-sm font-medium">
+                                    {rfq.buyer.name || "Unknown"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {rfq.buyer.companyName || "N/A"}
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">
+                                  Unknown
+                                </p>
+                              )}
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">
+                                Contact
+                              </p>
+                              {rfq.isGuest ? (
+                                <div>
+                                  <p className="text-sm">
+                                    {rfq.guestEmail || "N/A"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {rfq.guestPhone || "N/A"}
+                                  </p>
+                                </div>
+                              ) : rfq.buyer ? (
+                                <div>
+                                  <p className="text-sm">
+                                    {rfq.buyer.email || "N/A"}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {rfq.buyer.phone || "N/A"}
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">
+                                  N/A
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Products Requested */}
+                          <div>
+                            <p className="text-xs font-medium text-muted-foreground mb-2">
+                              Products Requested
+                            </p>
+                            <div className="space-y-2">
+                              {rfq.items?.map((item) => (
+                                <div
+                                  key={item._id}
+                                  className="flex items-center gap-3 p-2 bg-muted/50 rounded-md"
+                                >
+                                  {item.product?.image && (
+                                    <img
+                                      src={item.product.image}
+                                      alt={item.product.name || "Product"}
+                                      className="w-12 h-12 object-cover rounded"
+                                    />
+                                  )}
+                                  <div className="flex-1">
+                                    <p className="text-sm font-medium">
+                                      {item.product?.name || "Unknown Product"}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Quantity: {item.quantity}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Sent Quotations */}
+                          {rfq.sentQuotations &&
+                            rfq.sentQuotations.length > 0 && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-2">
+                                  Quotations Received (
+                                  {rfq.sentQuotations.length})
+                                </p>
+                                <div className="space-y-3">
+                                  {rfq.sentQuotations.map((quote) => (
+                                    <Card
+                                      key={quote._id}
+                                      className="bg-muted/30"
+                                    >
+                                      <CardContent className="p-3 space-y-2">
+                                        <div className="flex items-start justify-between">
+                                          <div className="flex-1">
+                                            <p className="text-sm font-medium">
+                                              {quote.vendor?.name ||
+                                                "Unknown Vendor"}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                              {quote.vendor?.companyName ||
+                                                "N/A"}
+                                            </p>
+                                            {quote.vendor &&
+                                              quote.vendor.totalRatings > 0 && (
+                                                <div className="flex items-center gap-1 mt-1">
+                                                  <span className="text-xs">
+                                                    ⭐{" "}
+                                                    {quote.vendor.averageRating.toFixed(
+                                                      1,
+                                                    )}
+                                                  </span>
+                                                  <span className="text-xs text-muted-foreground">
+                                                    ({quote.vendor.totalRatings}{" "}
+                                                    ratings)
+                                                  </span>
+                                                </div>
+                                              )}
+                                          </div>
+                                          <div className="flex flex-col items-end gap-1">
+                                            <span
+                                              className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                                quote.quotationType ===
+                                                "pre-filled"
+                                                  ? "bg-purple-100 text-purple-800"
+                                                  : "bg-blue-100 text-blue-800"
+                                              }`}
+                                            >
+                                              {quote.quotationType}
+                                            </span>
+                                            {quote.chosen && (
+                                              <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                                                Chosen
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                          <div>
+                                            <span className="text-muted-foreground">
+                                              Price:
+                                            </span>{" "}
+                                            <span className="font-medium">
+                                              KSh{" "}
+                                              {quote.price?.toLocaleString() ||
+                                                "N/A"}
+                                            </span>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">
+                                              Quantity:
+                                            </span>{" "}
+                                            <span className="font-medium">
+                                              {quote.quantity || "N/A"}
+                                            </span>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">
+                                              Payment:
+                                            </span>{" "}
+                                            <span className="font-medium capitalize">
+                                              {quote.paymentTerms || "N/A"}
+                                            </span>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">
+                                              Delivery:
+                                            </span>{" "}
+                                            <span className="font-medium">
+                                              {quote.deliveryTime || "N/A"}
+                                            </span>
+                                          </div>
+                                          <div>
+                                            <span className="text-muted-foreground">
+                                              Warranty:
+                                            </span>{" "}
+                                            <span className="font-medium">
+                                              {quote.warrantyPeriod || "N/A"}
+                                            </span>
+                                          </div>
+                                          {quote.brand && (
+                                            <div>
+                                              <span className="text-muted-foreground">
+                                                Brand:
+                                              </span>{" "}
+                                              <span className="font-medium">
+                                                {quote.brand}
+                                              </span>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                          Contact:{" "}
+                                          {quote.vendor?.email || "N/A"}
+                                        </p>
+                                      </CardContent>
+                                    </Card>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                          {/* Delivery & Status */}
+                          <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">
+                                Expected Delivery
+                              </p>
+                              <p className="text-sm">
+                                {rfq.expectedDeliveryTime || "Not specified"}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">
+                                Quotations
+                              </p>
+                              <p className="text-sm font-medium">
+                                {rfq.quotationCount || 0} received
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
+          )}
 
+          {activeTab === "market-intel" && (
             <Card>
               <CardHeader>
-                <CardTitle>Buyers</CardTitle>
-                <CardDescription>Manage buyer accounts</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {buyers.map((buyer) => (
-                    <div key={buyer._id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex-1">
-                        <p className="font-medium">{buyer.name}</p>
-                        <p className="text-sm text-muted-foreground">{buyer.email}</p>
-                        {buyer.companyName && (
-                          <p className="text-sm text-muted-foreground">{buyer.companyName}</p>
-                        )}
-                        {buyer.phone && (
-                          <p className="text-sm text-muted-foreground">Phone: {buyer.phone}</p>
-                        )}
-                        <div className="flex gap-2 mt-2">
-                          <Badge variant={buyer.verified ? "default" : "secondary"}>
-                            {buyer.verified ? "Active" : "Inactive"}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleViewDetails(buyer._id)}
-                        >
-                          View Details
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={buyer.verified ? "outline" : "default"}
-                          onClick={() => handleToggleStatus(buyer._id)}
-                        >
-                          {buyer.verified ? "Disable" : "Enable"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleDeleteUser(buyer._id)}
-                        >
-                          Delete
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Platform Analytics</CardTitle>
-                <CardDescription>Overview of platform activity</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Visitors</p>
-                    <p className="text-2xl font-bold">
-                      {typeof analytics?.visitors === 'number' ? analytics.visitors : 0}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total RFQs</p>
-                    <p className="text-2xl font-bold">
-                      {typeof analytics?.rfqs === 'number' ? analytics.rfqs : analytics?.rfqs?.total || 0}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Quotations</p>
-                    <p className="text-2xl font-bold">
-                      {typeof analytics?.quotations === 'number' ? analytics.quotations : analytics?.quotations?.total || 0}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="browse-ai" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Globe className="size-6" />
-                  <div>
-                    <CardTitle>Browse.ai Integration</CardTitle>
-                    <CardDescription>
-                      Automatically scrape and import products and quotations using browse.ai robots
-                    </CardDescription>
-                  </div>
-                </div>
+                <CardTitle>Market Intelligence Report</CardTitle>
+                <CardDescription>
+                  Comprehensive market trends, demand analysis, and pricing
+                  insights
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* API Key Status */}
-                <div className="rounded-lg border p-4 bg-muted/50">
-                  <p className="text-sm font-medium mb-2">Setup Instructions</p>
-                  <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                    <li>Get your API key from <a href="https://browse.ai/dashboard/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary underline">browse.ai dashboard</a></li>
-                    <li>Create a robot on browse.ai to scrape product or quotation data</li>
-                    <li>Add your browse.ai API key to <strong>App Settings → Environment Variables</strong> as <code className="px-1 py-0.5 bg-background rounded">BROWSE_AI_API_KEY</code></li>
-                    <li>Refresh this page after adding the environment variable</li>
-                    <li>Run your robot manually in browse.ai (or use the trigger button below)</li>
-                    <li>Copy the Task ID from browse.ai and use it to sync data</li>
-                  </ol>
-                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-800">
-                    <p className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-1">
-                      💡 Tip: Use existing tasks
-                    </p>
-                    <p className="text-xs text-blue-700 dark:text-blue-300">
-                      You don't need to trigger robots via the API. Just run them in the browse.ai dashboard 
-                      and use the Task ID to sync data. This avoids API permissions issues.
-                    </p>
+                {/* Overview Statistics */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">
+                    Platform Overview
+                  </h3>
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardDescription>Total RFQs</CardDescription>
+                        <CardTitle className="text-3xl">
+                          {marketIntelligence?.overview.totalRFQs || 0}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-xs text-muted-foreground">
+                          {marketIntelligence?.overview.recentRFQs || 0} in last
+                          30 days
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardDescription>Total Orders</CardDescription>
+                        <CardTitle className="text-3xl">
+                          {marketIntelligence?.overview.totalOrders || 0}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-xs text-muted-foreground">
+                          {marketIntelligence?.overview.recentOrders || 0} in
+                          last 30 days
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardDescription>Total Value</CardDescription>
+                        <CardTitle className="text-3xl">
+                          KES{" "}
+                          {(
+                            marketIntelligence?.overview.totalOrderValue || 0
+                          ).toLocaleString()}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-xs text-muted-foreground">
+                          KES{" "}
+                          {(
+                            marketIntelligence?.overview.recentOrderValue || 0
+                          ).toLocaleString()}{" "}
+                          (30d)
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardDescription>Avg Delivery</CardDescription>
+                        <CardTitle className="text-3xl">
+                          {marketIntelligence?.overview.avgDeliveryTime || 0}{" "}
+                          days
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-xs text-muted-foreground">
+                          {marketIntelligence?.overview.activeBuyers || 0}{" "}
+                          buyers,{" "}
+                          {marketIntelligence?.overview.activeVendors || 0}{" "}
+                          vendors
+                        </p>
+                      </CardContent>
+                    </Card>
                   </div>
                 </div>
 
-                {/* Trigger Robot */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <PlayCircle className="size-5 text-primary" />
-                    <h3 className="font-semibold">Trigger Robot (Optional)</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    You can trigger a robot to run, or skip this step and use an existing task ID from a robot 
-                    you've already run in the browse.ai dashboard.
-                  </p>
-                  <div className="grid gap-4">
-                    <div>
-                      <Label>Robot ID</Label>
-                      <Input
-                        value={browseAiRobotId}
-                        onChange={(e) => setBrowseAiRobotId(e.target.value)}
-                        placeholder="Enter browse.ai robot ID"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Find this in your browse.ai dashboard under the robot's settings
-                      </p>
-                    </div>
-                    <Button onClick={handleTriggerRobot}>
-                      <PlayCircle className="size-4 mr-2" />
-                      Trigger Robot
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Check Task Status */}
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="size-5 text-primary" />
-                    <h3 className="font-semibold">Check Task Status</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Check if a task has completed successfully before syncing data.
-                  </p>
-                  <div className="grid gap-4">
-                    <div>
-                      <Label>Task ID</Label>
-                      <Input
-                        value={browseAiTaskId}
-                        onChange={(e) => setBrowseAiTaskId(e.target.value)}
-                        placeholder="Enter browse.ai task ID"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Find this in your browse.ai dashboard under Monitoring → Tasks, or use the Task ID from triggering a robot above
-                      </p>
-                    </div>
-                    <Button onClick={handleCheckTaskStatus} variant="outline">
-                      Check Status
-                    </Button>
-                    {taskStatus && (
-                      <div className="rounded-lg border p-4">
-                        <p className="text-sm font-medium">Task Status</p>
-                        <Badge variant={taskStatus === "successful" ? "default" : "secondary"}>
-                          {taskStatus}
-                        </Badge>
-                        {taskStatus !== "successful" && (
-                          <p className="text-xs text-muted-foreground mt-2">
-                            Wait for the task to complete before syncing data
-                          </p>
-                        )}
+                {/* Top Requested Products */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">
+                    Top 10 Most Requested Products
+                  </h3>
+                  <div className="space-y-2">
+                    {marketIntelligence?.topProducts.map((product, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 border rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Badge variant="secondary">{index + 1}</Badge>
+                          <span className="font-medium">{product.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="size-4 text-muted-foreground" />
+                          <span className="text-sm font-semibold">
+                            {product.count} requests
+                          </span>
+                        </div>
                       </div>
+                    )) || (
+                      <p className="text-sm text-muted-foreground">
+                        No data available
+                      </p>
                     )}
                   </div>
                 </div>
 
-                {/* Sync Products */}
-                <div className="space-y-4 border-t pt-6">
-                  <div className="flex items-center gap-2">
-                    <Package className="size-5 text-primary" />
-                    <h3 className="font-semibold">Sync Products</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Import products from a completed browse.ai task. Your robot should capture a list named "{browseAiProductListName}" 
-                    with fields: name, description, image, sku, specifications.
-                  </p>
-                  <div className="rounded-lg border p-3 bg-muted/30">
-                    <p className="text-xs font-medium mb-1">Expected Data Structure:</p>
-                    <pre className="text-xs text-muted-foreground overflow-x-auto">
-{`{
-  "capturedLists": {
-    "${browseAiProductListName}": [
-      {
-        "name": "Hospital Bed",
-        "description": "Electric hospital bed",
-        "image": "https://...",
-        "sku": "HB-001",
-        "specifications": "Dimensions: ..."
-      }
-    ]
-  }
-}`}
-                    </pre>
-                  </div>
-                  <div className="grid gap-4">
-                    <div>
-                      <Label>List Name</Label>
-                      <Input
-                        value={browseAiProductListName}
-                        onChange={(e) => setBrowseAiProductListName(e.target.value)}
-                        placeholder="products"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        The name of the captured list in your browse.ai robot
+                {/* Average Prices by Product */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">
+                    Average Market Prices (Top 10 Products)
+                  </h3>
+                  <div className="space-y-2">
+                    {marketIntelligence?.avgPricesByProduct.map(
+                      (product, index) => (
+                        <div key={index} className="p-3 border rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium">{product.name}</span>
+                            <Badge variant="outline">
+                              {product.quotationCount} quotes
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <p className="text-muted-foreground">Min Price</p>
+                              <p className="font-semibold">
+                                KES {product.minPrice.toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Avg Price</p>
+                              <p className="font-semibold text-primary">
+                                KES {product.avgPrice.toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Max Price</p>
+                              <p className="font-semibold">
+                                KES {product.maxPrice.toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ),
+                    ) || (
+                      <p className="text-sm text-muted-foreground">
+                        No data available
                       </p>
-                    </div>
-                    <div>
-                      <Label>Category</Label>
-                      <Select
-                        value={browseAiCategoryId}
-                        onValueChange={setBrowseAiCategoryId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select category for products" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories?.map((cat) => (
-                            <SelectItem key={cat._id} value={cat._id}>
-                              {cat.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button onClick={handleSyncProducts}>
-                      <Package className="size-4 mr-2" />
-                      Sync Products
-                    </Button>
+                    )}
                   </div>
                 </div>
 
-                {/* Sync Vendor Quotations */}
-                <div className="space-y-4 border-t pt-6">
-                  <div className="flex items-center gap-2">
-                    <Tag className="size-5 text-primary" />
-                    <h3 className="font-semibold">Sync Vendor Quotations</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Import vendor quotations from a completed browse.ai task. Your robot should capture a list named 
-                    "{browseAiQuotationListName}" with fields: price, quantity, paymentTerms, deliveryTime, warrantyPeriod, 
-                    countryOfOrigin, specifications, photo, description, brand.
-                  </p>
-                  <div className="rounded-lg border p-3 bg-muted/30">
-                    <p className="text-xs font-medium mb-1">Expected Data Structure:</p>
-                    <pre className="text-xs text-muted-foreground overflow-x-auto">
-{`{
-  "capturedLists": {
-    "${browseAiQuotationListName}": [
-      {
-        "price": "25000",
-        "quantity": "1",
-        "paymentTerms": "credit",
-        "deliveryTime": "2 weeks",
-        "warrantyPeriod": "1 year",
-        "countryOfOrigin": "Kenya",
-        "specifications": "Model XYZ",
-        "photo": "https://...",
-        "description": "High quality...",
-        "brand": "MedEquip"
-      }
-    ]
-  }
-}`}
-                    </pre>
-                  </div>
-                  <div className="grid gap-4">
-                    <div>
-                      <Label>List Name</Label>
-                      <Input
-                        value={browseAiQuotationListName}
-                        onChange={(e) => setBrowseAiQuotationListName(e.target.value)}
-                        placeholder="quotations"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        The name of the captured list in your browse.ai robot
+                {/* RFQ Trends */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4">
+                    RFQ Volume Trends (Last 6 Months)
+                  </h3>
+                  <div className="space-y-2">
+                    {marketIntelligence?.rfqTrends.map((trend, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-3 border rounded-lg"
+                      >
+                        <span className="font-medium">{trend.month}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-48 bg-muted rounded-full h-2">
+                            <div
+                              className="bg-primary h-2 rounded-full"
+                              style={{
+                                width: `${Math.min(100, (trend.count / Math.max(...(marketIntelligence?.rfqTrends.map((t) => t.count) || [1]))) * 100)}%`,
+                              }}
+                            />
+                          </div>
+                          <span className="text-sm font-semibold w-16 text-right">
+                            {trend.count} RFQs
+                          </span>
+                        </div>
+                      </div>
+                    )) || (
+                      <p className="text-sm text-muted-foreground">
+                        No data available
                       </p>
-                    </div>
-                    <div>
-                      <Label>Vendor</Label>
-                      <Select
-                        value={browseAiVendorId}
-                        onValueChange={setBrowseAiVendorId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select vendor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {vendors.map((vendor) => (
-                            <SelectItem key={vendor._id} value={vendor._id}>
-                              {vendor.name} - {vendor.email}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Product</Label>
-                      <Select
-                        value={browseAiProductId}
-                        onValueChange={setBrowseAiProductId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select product" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products?.map((product) => (
-                            <SelectItem key={product._id} value={product._id}>
-                              {product.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button onClick={handleSyncQuotations}>
-                      <Tag className="size-4 mr-2" />
-                      Sync Quotations
-                    </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          )}
 
-          <TabsContent value="site-settings" className="space-y-4">
+          {activeTab === "site-settings" && (
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Site Settings</CardTitle>
-                    <CardDescription>
-                      Customize your site logo, name, and workflow display
-                    </CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" onClick={handleResetSiteSettings}>
-                      Reset to Defaults
-                    </Button>
-                    <Button onClick={handleSaveSiteSettings}>
-                      Save Changes
-                    </Button>
-                  </div>
-                </div>
+                <CardTitle>Site Settings</CardTitle>
+                <CardDescription>
+                  Customize the logo, branding, and workflow text displayed on
+                  the site
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-8">
+              <CardContent className="space-y-6">
                 {/* Branding Section */}
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-lg border-b pb-2">Branding</h3>
+                  <h3 className="font-semibold text-lg">Branding</h3>
+
                   <div className="grid gap-4">
-                    <div>
-                      <Label>Logo URL</Label>
+                    <div className="space-y-2">
+                      <Label htmlFor="logoUrl">Logo URL</Label>
                       <Input
-                        value={settingsForm.logoUrl}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, logoUrl: e.target.value })}
+                        id="logoUrl"
                         placeholder="https://cdn.hercules.app/file_..."
+                        value={settingsForm.logoUrl}
+                        onChange={(e) =>
+                          setSettingsForm({
+                            ...settingsForm,
+                            logoUrl: e.target.value,
+                          })
+                        }
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Upload logo to Files & Media tab and paste the URL here
+                      <p className="text-sm text-muted-foreground">
+                        Upload your logo to Files & Media and paste the URL here
                       </p>
-                      {settingsForm.logoUrl && (
-                        <div className="mt-2">
-                          <img 
-                            src={settingsForm.logoUrl} 
-                            alt="Logo preview" 
-                            className="h-12 w-auto border rounded p-2"
-                          />
-                        </div>
-                      )}
                     </div>
-                    <div>
-                      <Label>Site Name</Label>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="logoSize">Logo Size</Label>
+                      <Select
+                        value={settingsForm.logoSize}
+                        onValueChange={(value) =>
+                          setSettingsForm({ ...settingsForm, logoSize: value })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select logo size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="h-16">Small (h-16)</SelectItem>
+                          <SelectItem value="h-20">
+                            Medium Small (h-20)
+                          </SelectItem>
+                          <SelectItem value="h-24">Medium (h-24)</SelectItem>
+                          <SelectItem value="h-28">
+                            Medium Large (h-28)
+                          </SelectItem>
+                          <SelectItem value="h-32">Large (h-32)</SelectItem>
+                          <SelectItem value="h-40">
+                            Extra Large (h-40)
+                          </SelectItem>
+                          <SelectItem value="h-48">Huge (h-48)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="siteName">Site Name</Label>
                       <Input
-                        value={settingsForm.siteName}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, siteName: e.target.value })}
+                        id="siteName"
                         placeholder="Medical Supplies Kenya"
+                        value={settingsForm.siteName}
+                        onChange={(e) =>
+                          setSettingsForm({
+                            ...settingsForm,
+                            siteName: e.target.value,
+                          })
+                        }
                       />
                     </div>
-                    <div>
-                      <Label>Tagline</Label>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="tagline">Tagline</Label>
                       <Input
+                        id="tagline"
+                        placeholder="Find Medical Equipment & Supplies"
                         value={settingsForm.tagline}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, tagline: e.target.value })}
-                        placeholder="Connecting Hospitals with Verified Suppliers"
+                        onChange={(e) =>
+                          setSettingsForm({
+                            ...settingsForm,
+                            tagline: e.target.value,
+                          })
+                        }
                       />
                     </div>
                   </div>
                 </div>
+
+                <Separator />
 
                 {/* Hospital Workflow Section */}
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-lg border-b pb-2">Hospital Workflow Steps</h3>
+                  <h3 className="font-semibold text-lg">
+                    Hospital Workflow Steps
+                  </h3>
                   <div className="grid gap-4">
-                    <div>
-                      <Label>Step 1</Label>
-                      <Input
-                        value={settingsForm.hospitalStep1}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, hospitalStep1: e.target.value })}
-                        placeholder="Search Products"
-                      />
-                    </div>
-                    <div>
-                      <Label>Step 2</Label>
-                      <Input
-                        value={settingsForm.hospitalStep2}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, hospitalStep2: e.target.value })}
-                        placeholder="Create RFQ"
-                      />
-                    </div>
-                    <div>
-                      <Label>Step 3</Label>
-                      <Input
-                        value={settingsForm.hospitalStep3}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, hospitalStep3: e.target.value })}
-                        placeholder="Receive Quotations"
-                      />
-                    </div>
-                    <div>
-                      <Label>Step 4 (Final)</Label>
-                      <Input
-                        value={settingsForm.hospitalStep4}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, hospitalStep4: e.target.value })}
-                        placeholder="Choose Best Vendor"
-                      />
-                    </div>
+                    {[
+                      "hospitalStep1",
+                      "hospitalStep2",
+                      "hospitalStep3",
+                      "hospitalStep4",
+                    ].map((key, index) => (
+                      <div key={key} className="space-y-2">
+                        <Label htmlFor={key}>Step {index + 1}</Label>
+                        <Input
+                          id={key}
+                          placeholder={`Step ${index + 1}`}
+                          value={settingsForm[key as keyof typeof settingsForm]}
+                          onChange={(e) =>
+                            setSettingsForm({
+                              ...settingsForm,
+                              [key]: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
+
+                <Separator />
 
                 {/* Vendor Workflow Section */}
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-lg border-b pb-2">Vendor Workflow Steps</h3>
+                  <h3 className="font-semibold text-lg">
+                    Vendor Workflow Steps
+                  </h3>
                   <div className="grid gap-4">
-                    <div>
-                      <Label>Step 1</Label>
-                      <Input
-                        value={settingsForm.vendorStep1}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, vendorStep1: e.target.value })}
-                        placeholder="Upload Products"
-                      />
-                    </div>
-                    <div>
-                      <Label>Step 2</Label>
-                      <Input
-                        value={settingsForm.vendorStep2}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, vendorStep2: e.target.value })}
-                        placeholder="Receive RFQ Alerts"
-                      />
-                    </div>
-                    <div>
-                      <Label>Step 3</Label>
-                      <Input
-                        value={settingsForm.vendorStep3}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, vendorStep3: e.target.value })}
-                        placeholder="Submit Quotations"
-                      />
-                    </div>
-                    <div>
-                      <Label>Step 4 (Final)</Label>
-                      <Input
-                        value={settingsForm.vendorStep4}
-                        onChange={(e) => setSettingsForm({ ...settingsForm, vendorStep4: e.target.value })}
-                        placeholder="Win Orders"
-                      />
-                    </div>
+                    {[
+                      "vendorStep1",
+                      "vendorStep2",
+                      "vendorStep3",
+                      "vendorStep4",
+                    ].map((key, index) => (
+                      <div key={key} className="space-y-2">
+                        <Label htmlFor={key}>Step {index + 1}</Label>
+                        <Input
+                          id={key}
+                          placeholder={`Step ${index + 1}`}
+                          value={settingsForm[key as keyof typeof settingsForm]}
+                          onChange={(e) =>
+                            setSettingsForm({
+                              ...settingsForm,
+                              [key]: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
+
+                <Separator />
 
                 {/* Workflow Styling Section */}
                 <div className="space-y-4">
-                  <h3 className="font-semibold text-lg border-b pb-2">Workflow Styling</h3>
-                  <div className="grid gap-4">
-                    <div>
-                      <Label>Text Size</Label>
+                  <h3 className="font-semibold text-lg">
+                    Workflow Banner Styling
+                  </h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="workflowTextSize">Text Size</Label>
                       <Select
                         value={settingsForm.workflowTextSize}
-                        onValueChange={(value) => setSettingsForm({ ...settingsForm, workflowTextSize: value })}
+                        onValueChange={(value) =>
+                          setSettingsForm({
+                            ...settingsForm,
+                            workflowTextSize: value,
+                          })
+                        }
                       >
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select text size" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="xs">Extra Small</SelectItem>
-                          <SelectItem value="sm">Small</SelectItem>
-                          <SelectItem value="base">Medium</SelectItem>
-                          <SelectItem value="lg">Large</SelectItem>
-                          <SelectItem value="xl">Extra Large</SelectItem>
+                          <SelectItem value="text-xs">Extra Small</SelectItem>
+                          <SelectItem value="text-sm">Small</SelectItem>
+                          <SelectItem value="text-base">Base</SelectItem>
+                          <SelectItem value="text-lg">Large</SelectItem>
+                          <SelectItem value="text-xl">Extra Large</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                    <div>
-                      <Label>Background Color</Label>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="workflowBgColor">Background Color</Label>
                       <Select
                         value={settingsForm.workflowBgColor}
-                        onValueChange={(value) => setSettingsForm({ ...settingsForm, workflowBgColor: value })}
+                        onValueChange={(value) =>
+                          setSettingsForm({
+                            ...settingsForm,
+                            workflowBgColor: value,
+                          })
+                        }
                       >
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Select background color" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="bg-muted/30">Light Gray</SelectItem>
-                          <SelectItem value="bg-blue-50 dark:bg-blue-950/20">Light Blue</SelectItem>
-                          <SelectItem value="bg-green-50 dark:bg-green-950/20">Light Green</SelectItem>
-                          <SelectItem value="bg-orange-50 dark:bg-orange-950/20">Light Orange</SelectItem>
-                          <SelectItem value="bg-purple-50 dark:bg-purple-950/20">Light Purple</SelectItem>
-                          <SelectItem value="bg-transparent">Transparent</SelectItem>
+                          <SelectItem value="bg-blue-50">Light Blue</SelectItem>
+                          <SelectItem value="bg-green-50">
+                            Light Green
+                          </SelectItem>
+                          <SelectItem value="bg-orange-50">
+                            Light Orange
+                          </SelectItem>
+                          <SelectItem value="bg-purple-50">
+                            Light Purple
+                          </SelectItem>
+                          <SelectItem value="bg-gray-50">Light Gray</SelectItem>
+                          <SelectItem value="bg-muted/30">Muted</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
                   </div>
                 </div>
 
-                {/* Preview Section */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold text-lg border-b pb-2">Preview</h3>
-                  <div className="border rounded-lg p-4 bg-background">
-                    <div className="flex items-center gap-3 mb-4">
-                      {settingsForm.logoUrl && (
-                        <img 
-                          src={settingsForm.logoUrl} 
-                          alt="Logo preview" 
-                          className="h-12 w-auto"
+                <Separator />
+
+                {/* Save Button */}
+                <div className="flex justify-end gap-4">
+                  <Button onClick={handleSaveSettings}>Save Changes</Button>
+                </div>
+
+                {/* Live Preview */}
+                {siteSettings && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-lg">Live Preview</h3>
+                    <div className="border rounded-lg p-4 bg-muted/20">
+                      <div className="flex items-center gap-3 mb-4">
+                        <img
+                          src={settingsForm.logoUrl || siteSettings.logoUrl}
+                          alt="Logo Preview"
+                          className={`${settingsForm.logoSize} w-auto`}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = "none";
+                          }}
                         />
-                      )}
-                      <div>
-                        <h1 className="text-xl font-bold">{settingsForm.siteName || "Site Name"}</h1>
-                        <p className="text-xs text-muted-foreground">{settingsForm.tagline || "Tagline"}</p>
-                      </div>
-                    </div>
-                    <div className={`${settingsForm.workflowBgColor} rounded-lg p-4`}>
-                      <h2 className="text-center font-semibold mb-3 text-sm">How It Works Preview</h2>
-                      <div className="grid md:grid-cols-2 gap-4">
                         <div>
-                          <p className="font-semibold text-sm mb-2">For Hospitals</p>
-                          <div className={`flex flex-wrap items-center gap-1 text-${settingsForm.workflowTextSize}`}>
-                            <span className="bg-background px-2 py-1 rounded border text-xs">
-                              {settingsForm.hospitalStep1 || "Step 1"}
-                            </span>
-                            <span className="text-xs">→</span>
-                            <span className="bg-background px-2 py-1 rounded border text-xs">
-                              {settingsForm.hospitalStep2 || "Step 2"}
-                            </span>
-                            <span className="text-xs">→</span>
-                            <span className="bg-background px-2 py-1 rounded border text-xs">
-                              {settingsForm.hospitalStep3 || "Step 3"}
-                            </span>
-                            <span className="text-xs">→</span>
-                            <span className="bg-primary text-primary-foreground px-2 py-1 rounded text-xs">
-                              {settingsForm.hospitalStep4 || "Step 4"}
-                            </span>
-                          </div>
+                          <h4 className="font-bold">
+                            {settingsForm.siteName || siteSettings.siteName}
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            {settingsForm.tagline || siteSettings.tagline}
+                          </p>
                         </div>
-                        <div>
-                          <p className="font-semibold text-sm mb-2">For Vendors</p>
-                          <div className={`flex flex-wrap items-center gap-1 text-${settingsForm.workflowTextSize}`}>
-                            <span className="bg-background px-2 py-1 rounded border text-xs">
-                              {settingsForm.vendorStep1 || "Step 1"}
+                      </div>
+                      <div
+                        className={`${settingsForm.workflowBgColor} p-4 rounded-lg ${settingsForm.workflowTextSize}`}
+                      >
+                        <p className="font-semibold mb-2">Hospital Workflow:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            settingsForm.hospitalStep1,
+                            settingsForm.hospitalStep2,
+                            settingsForm.hospitalStep3,
+                            settingsForm.hospitalStep4,
+                          ].map((step, i) => (
+                            <span
+                              key={i}
+                              className="bg-background px-2 py-1 rounded border"
+                            >
+                              {step || `Step ${i + 1}`}
                             </span>
-                            <span className="text-xs">→</span>
-                            <span className="bg-background px-2 py-1 rounded border text-xs">
-                              {settingsForm.vendorStep2 || "Step 2"}
-                            </span>
-                            <span className="text-xs">→</span>
-                            <span className="bg-background px-2 py-1 rounded border text-xs">
-                              {settingsForm.vendorStep3 || "Step 3"}
-                            </span>
-                            <span className="text-xs">→</span>
-                            <span className="bg-primary text-primary-foreground px-2 py-1 rounded text-xs">
-                              {settingsForm.vendorStep4 || "Step 4"}
-                            </span>
-                          </div>
+                          ))}
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
       </main>
 
       <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
@@ -1317,32 +1836,34 @@ export default function AdminDashboard() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Name</p>
-                    <p className="font-medium">{userDetails.user.name}</p>
+                    <p className="font-medium">{userDetails.name}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-medium">{userDetails.user.email}</p>
+                    <p className="font-medium">{userDetails.email}</p>
                   </div>
-                  {userDetails.user.phone && (
+                  {userDetails.phone && (
                     <div>
                       <p className="text-sm text-muted-foreground">Phone</p>
-                      <p className="font-medium">{userDetails.user.phone}</p>
+                      <p className="font-medium">{userDetails.phone}</p>
                     </div>
                   )}
-                  {userDetails.user.companyName && (
+                  {userDetails.companyName && (
                     <div>
                       <p className="text-sm text-muted-foreground">Company</p>
-                      <p className="font-medium">{userDetails.user.companyName}</p>
+                      <p className="font-medium">{userDetails.companyName}</p>
                     </div>
                   )}
                   <div>
                     <p className="text-sm text-muted-foreground">Role</p>
-                    <Badge>{userDetails.user.role}</Badge>
+                    <Badge>{userDetails.role}</Badge>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Status</p>
-                    <Badge variant={userDetails.user.verified ? "default" : "secondary"}>
-                      {userDetails.user.verified ? "Active" : "Inactive"}
+                    <Badge
+                      variant={userDetails.verified ? "default" : "secondary"}
+                    >
+                      {userDetails.verified ? "Active" : "Inactive"}
                     </Badge>
                   </div>
                 </div>
@@ -1352,34 +1873,54 @@ export default function AdminDashboard() {
               <div>
                 <h3 className="font-semibold mb-3">Activity</h3>
                 <div className="grid grid-cols-2 gap-4">
-                  {userDetails.user.role === "buyer" && (
+                  {userDetails.role === "buyer" && (
                     <>
                       <Card>
                         <CardHeader className="pb-3">
                           <CardDescription>RFQs Submitted</CardDescription>
-                          <CardTitle className="text-3xl">{userDetails.rfqsCount}</CardTitle>
+                          <CardTitle className="text-3xl">
+                            {allRfqs?.filter(
+                              (r) => r.buyerId === userDetails._id,
+                            ).length || 0}
+                          </CardTitle>
                         </CardHeader>
                       </Card>
                       <Card>
                         <CardHeader className="pb-3">
                           <CardDescription>Quotations Received</CardDescription>
-                          <CardTitle className="text-3xl">{userDetails.receivedQuotationsCount}</CardTitle>
+                          <CardTitle className="text-3xl">
+                            {allQuotations?.filter((q) =>
+                              allRfqs?.find(
+                                (r) =>
+                                  r._id === q.rfqId &&
+                                  r.buyerId === userDetails._id,
+                              ),
+                            ).length || 0}
+                          </CardTitle>
                         </CardHeader>
                       </Card>
                     </>
                   )}
-                  {userDetails.user.role === "vendor" && (
+                  {userDetails.role === "vendor" && (
                     <>
                       <Card>
                         <CardHeader className="pb-3">
                           <CardDescription>Active Products</CardDescription>
-                          <CardTitle className="text-3xl">{userDetails.activeQuotationsCount}</CardTitle>
+                          <CardTitle className="text-3xl">
+                            {allQuotations?.filter(
+                              (q) => q.vendorId === userDetails._id && q.active,
+                            ).length || 0}
+                          </CardTitle>
                         </CardHeader>
                       </Card>
                       <Card>
                         <CardHeader className="pb-3">
                           <CardDescription>Quotations Sent</CardDescription>
-                          <CardTitle className="text-3xl">{userDetails.sentQuotationsCount}</CardTitle>
+                          <CardTitle className="text-3xl">
+                            {allQuotations?.filter(
+                              (q) => q.vendorId === userDetails._id,
+                            ).length || 0}
+                          </CardTitle>
                         </CardHeader>
                       </Card>
                     </>
@@ -1388,19 +1929,25 @@ export default function AdminDashboard() {
               </div>
 
               {/* Vendor Categories */}
-              {userDetails.user.role === "vendor" && userDetails.user.categories && (
+              {userDetails.role === "vendor" && userDetails.categories && (
                 <div>
                   <h3 className="font-semibold mb-3">Assigned Categories</h3>
                   <div className="flex flex-wrap gap-2">
-                    {userDetails.user.categories.length > 0 ? (
-                      userDetails.user.categories.map((catId) => {
-                        const category = categories?.find(c => c._id === catId);
+                    {userDetails.categories.length > 0 ? (
+                      userDetails.categories.map((catId: Id<"categories">) => {
+                        const category = categories?.find(
+                          (c) => c._id === catId,
+                        );
                         return category ? (
-                          <Badge key={catId} variant="outline">{category.name}</Badge>
+                          <Badge key={catId} variant="outline">
+                            {category.name}
+                          </Badge>
                         ) : null;
                       })
                     ) : (
-                      <p className="text-sm text-muted-foreground">No categories assigned</p>
+                      <p className="text-sm text-muted-foreground">
+                        No categories assigned
+                      </p>
                     )}
                   </div>
                 </div>
@@ -1413,6 +1960,12 @@ export default function AdminDashboard() {
           )}
         </DialogContent>
       </Dialog>
+
+      <CatalogScanner
+        open={catalogScannerOpen}
+        onOpenChange={setCatalogScannerOpen}
+        userRole="admin"
+      />
 
       <BulkProductUpload
         open={bulkUploadOpen}

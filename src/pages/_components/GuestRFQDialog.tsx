@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
-import { AlertCircle, Building, Mail, Phone, User, UserPlus } from "lucide-react";
+import type { Id } from "@/convex/_generated/dataModel.d.ts";
 import {
   Dialog,
   DialogContent,
@@ -10,14 +10,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog.tsx";
-import { Button } from "@/components/ui/button.tsx";
-import { Input } from "@/components/ui/input.tsx";
-import { Label } from "@/components/ui/label.tsx";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert.tsx";
-import type { Id } from "@/convex/_generated/dataModel.d.ts";
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
-type Props = {
+type GuestRFQDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   items: Array<{ productId: Id<"products">; quantity: number }>;
@@ -25,43 +25,51 @@ type Props = {
   onSuccess: () => void;
 };
 
-export default function GuestRFQDialog({ open, onOpenChange, items, expectedDeliveryTime, onSuccess }: Props) {
-  const [guestName, setGuestName] = useState("");
-  const [guestEmail, setGuestEmail] = useState("");
-  const [guestPhone, setGuestPhone] = useState("");
-  const [guestCompanyName, setGuestCompanyName] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
+export default function GuestRFQDialog({
+  open,
+  onOpenChange,
+  items,
+  expectedDeliveryTime,
+  onSuccess,
+}: GuestRFQDialogProps) {
   const submitGuestRFQ = useMutation(api.rfqs.submitGuestRFQ);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    guestName: "",
+    guestCompanyName: "",
+    guestPhone: "",
+    guestEmail: "",
+  });
 
-  const handleSubmit = async () => {
-    if (!guestName || !guestEmail || !guestPhone || !guestCompanyName) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.guestName || !formData.guestCompanyName || !formData.guestPhone || !formData.guestEmail) {
       toast.error("Please fill in all fields");
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const result = await submitGuestRFQ({
+      await submitGuestRFQ({
         items,
         expectedDeliveryTime,
-        guestName,
-        guestEmail,
-        guestPhone,
-        guestCompanyName,
+        ...formData,
       });
-
-      toast.success(`RFQ submitted! ${result.matchedCount} quotations sent immediately.`);
-      onSuccess();
-      onOpenChange(false);
       
-      // Reset form
-      setGuestName("");
-      setGuestEmail("");
-      setGuestPhone("");
-      setGuestCompanyName("");
+      toast.success("RFQ submitted successfully! Vendors will contact you soon.");
+      setFormData({
+        guestName: "",
+        guestCompanyName: "",
+        guestPhone: "",
+        guestEmail: "",
+      });
+      onOpenChange(false);
+      onSuccess();
     } catch (error) {
-      toast.error("Failed to submit RFQ: " + String(error));
+      toast.error("Failed to submit RFQ. Please try again.");
+      console.error(error);
     } finally {
       setIsSubmitting(false);
     }
@@ -69,102 +77,86 @@ export default function GuestRFQDialog({ open, onOpenChange, items, expectedDeli
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Submit RFQ as Guest</DialogTitle>
           <DialogDescription>
-            Enter your information to submit an RFQ. Your details will be shared with vendors immediately.
+            Please provide your contact information so vendors can send you quotations.
           </DialogDescription>
         </DialogHeader>
 
         <Alert>
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Want to reach more vendors?</AlertTitle>
           <AlertDescription>
-            Registered users get quotations from ALL vendors. Guest users only receive quotations from vendors who
-            accept unregistered buyers. <strong>Register to maximize your responses!</strong>
+            <strong>Note:</strong> To reach more vendors and track your quotations, we recommend{" "}
+            <a href="/register" className="underline font-medium">
+              creating an account
+            </a>
+            . Guest RFQs may receive fewer responses.
           </AlertDescription>
         </Alert>
 
-        <div className="space-y-4 py-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="guestName">
-              <User className="inline h-4 w-4 mr-2" />
-              Your Name
-            </Label>
+            <Label htmlFor="guestName">Your Name *</Label>
             <Input
               id="guestName"
-              placeholder="John Doe"
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
+              value={formData.guestName}
+              onChange={(e) => setFormData({ ...formData, guestName: e.target.value })}
+              placeholder="John Smith"
+              required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="guestCompanyName">
-              <Building className="inline h-4 w-4 mr-2" />
-              Hospital / Company Name
-            </Label>
+            <Label htmlFor="guestCompanyName">Hospital / Company Name *</Label>
             <Input
               id="guestCompanyName"
+              value={formData.guestCompanyName}
+              onChange={(e) => setFormData({ ...formData, guestCompanyName: e.target.value })}
               placeholder="Nairobi General Hospital"
-              value={guestCompanyName}
-              onChange={(e) => setGuestCompanyName(e.target.value)}
+              required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="guestEmail">
-              <Mail className="inline h-4 w-4 mr-2" />
-              Email Address
-            </Label>
-            <Input
-              id="guestEmail"
-              type="email"
-              placeholder="john@hospital.com"
-              value={guestEmail}
-              onChange={(e) => setGuestEmail(e.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="guestPhone">
-              <Phone className="inline h-4 w-4 mr-2" />
-              Phone Number
-            </Label>
+            <Label htmlFor="guestPhone">Phone Number *</Label>
             <Input
               id="guestPhone"
               type="tel"
-              placeholder="+254 700 000 000"
-              value={guestPhone}
-              onChange={(e) => setGuestPhone(e.target.value)}
+              value={formData.guestPhone}
+              onChange={(e) => setFormData({ ...formData, guestPhone: e.target.value })}
+              placeholder="+254 712 345 678"
+              required
             />
           </div>
-        </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => {
-              onOpenChange(false);
-              window.location.href = "/register";
-            }}
-            disabled={isSubmitting}
-          >
-            <UserPlus className="h-4 w-4 mr-2" />
-            Register Instead
-          </Button>
-          <Button onClick={handleSubmit} disabled={isSubmitting}>
-            {isSubmitting ? "Submitting..." : "Submit Guest RFQ"}
-          </Button>
-        </DialogFooter>
+          <div className="space-y-2">
+            <Label htmlFor="guestEmail">Email Address *</Label>
+            <Input
+              id="guestEmail"
+              type="email"
+              value={formData.guestEmail}
+              onChange={(e) => setFormData({ ...formData, guestEmail: e.target.value })}
+              placeholder="john@hospital.co.ke"
+              required
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Submitting..." : "Submit RFQ"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

@@ -64,6 +64,9 @@ export const getPendingRFQs = query({
       return [];
     }
 
+    // Get vendor's quotation preference
+    const preference = currentUser.quotationPreference ?? "all_including_guests";
+
     const allRFQs = await ctx.db
       .query("rfqs")
       .filter((q) => q.eq(q.field("status"), "pending"))
@@ -71,7 +74,12 @@ export const getPendingRFQs = query({
 
     const rfqsWithDetails: Array<{
       _id: Id<"rfqs">;
-      buyerId: Id<"users">;
+      buyerId?: Id<"users">;
+      isGuest?: boolean;
+      guestName?: string;
+      guestCompanyName?: string;
+      guestPhone?: string;
+      guestEmail?: string;
       status: string;
       expectedDeliveryTime?: string;
       createdAt: number;
@@ -86,6 +94,22 @@ export const getPendingRFQs = query({
     }> = [];
 
     for (const rfq of allRFQs) {
+      // Filter based on vendor preference
+      if (rfq.isGuest && preference === "registered_hospitals_only") {
+        continue; // Skip guest RFQs
+      }
+      if (rfq.isGuest && preference === "registered_all") {
+        continue; // Skip guest RFQs
+      }
+      
+      // If RFQ has a buyerId, check if buyer is hospital or not
+      if (rfq.buyerId && preference === "registered_hospitals_only") {
+        const buyer = await ctx.db.get(rfq.buyerId);
+        if (buyer && buyer.role !== "buyer") {
+          continue; // Skip non-hospital buyers
+        }
+      }
+
       const rfqItems = await ctx.db
         .query("rfqItems")
         .withIndex("by_rfq", (q) => q.eq("rfqId", rfq._id))
@@ -366,5 +390,94 @@ export const createQuotationInternal = mutation({
     });
 
     return quotationId;
+  },
+});
+
+// Get all quotations for admin
+export const getAllQuotationsForAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!admin || admin.role !== "admin") {
+      throw new ConvexError({
+        message: "Admin access required",
+        code: "FORBIDDEN",
+      });
+    }
+
+    const quotations = await ctx.db
+      .query("vendorQuotations")
+      .order("desc")
+      .collect();
+
+    return await Promise.all(
+      quotations.map(async (quotation) => {
+        const vendor = await ctx.db.get(quotation.vendorId);
+        const product = await ctx.db.get(quotation.productId);
+
+        // Get vendor rating
+        const vendorRatings = await ctx.db
+          .query("ratings")
+          .withIndex("by_vendor", (q) => q.eq("vendorId", quotation.vendorId))
+          .collect();
+        
+        const avgRating = vendorRatings.length > 0
+          ? vendorRatings.reduce((sum, r) => sum + r.rating, 0) / vendorRatings.length
+          : 0;
+
+        let rfqInfo = null;
+        if (quotation.rfqId) {
+          const rfq = await ctx.db.get(quotation.rfqId);
+          if (rfq) {
+            let buyerInfo = null;
+            if (rfq.buyerId) {
+              const buyer = await ctx.db.get(rfq.buyerId);
+              buyerInfo = buyer ? {
+                name: buyer.name,
+                companyName: buyer.companyName,
+              } : null;
+            } else if (rfq.isGuest) {
+              buyerInfo = {
+                name: rfq.guestName || "Guest",
+                companyName: rfq.guestCompanyName || "N/A",
+              };
+            }
+            rfqInfo = {
+              _id: rfq._id,
+              buyer: buyerInfo,
+            };
+          }
+        }
+
+        return {
+          ...quotation,
+          vendor: vendor ? {
+            name: vendor.name,
+            email: vendor.email,
+            companyName: vendor.companyName || "N/A",
+            averageRating: avgRating,
+            totalRatings: vendorRatings.length,
+          } : null,
+          product: product ? {
+            name: product.name,
+            image: product.image,
+            description: product.description,
+          } : null,
+          rfq: rfqInfo,
+        };
+      })
+    );
   },
 });

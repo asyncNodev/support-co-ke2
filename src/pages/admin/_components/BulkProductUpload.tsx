@@ -1,25 +1,44 @@
-import { useState, useRef } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+import { useMutation, useQuery } from "convex/react";
+import {
+  AlertCircle,
+  CheckCircle,
+  FileSpreadsheet,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle } from "lucide-react";
+
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 type BulkProductUploadProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
-export function BulkProductUpload({ open, onOpenChange }: BulkProductUploadProps) {
+export function BulkProductUpload({
+  open,
+  onOpenChange,
+}: BulkProductUploadProps) {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadResults, setUploadResults] = useState<{ success: number; failed: number } | null>(null);
+  const [uploadResults, setUploadResults] = useState<{
+    created: number;
+    skipped: number;
+    skippedProducts?: string[];
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const categories = useQuery(api.categories.getCategories, {});
   const bulkCreateProducts = useMutation(api.products.bulkCreateProducts);
 
@@ -33,37 +52,70 @@ export function BulkProductUpload({ open, onOpenChange }: BulkProductUploadProps
     }
   };
 
-  const parseCsv = (text: string): Array<{ name: string; category: string; description: string; image?: string; sku?: string; specifications?: string }> => {
-    const lines = text.split("\n").filter(line => line.trim());
-    const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
-    
-    const products: Array<{ name: string; category: string; description: string; image?: string; sku?: string; specifications?: string }> = [];
-    
+  const parseCsv = (
+    text: string,
+  ): Array<{
+    name: string;
+    category: string;
+    description: string;
+    image?: string;
+    sku?: string;
+    specifications?: string;
+    pirce?: number;
+  }> => {
+    const lines = text.split("\n").filter((line) => line.trim());
+    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+
+    const products: Array<{
+      name: string;
+      category: string;
+      description: string;
+      image?: string;
+      sku?: string;
+      specifications?: string;
+      price?: number;
+    }> = [];
+
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split(",");
       if (values.length < 3) continue;
-      
-      const product: { name: string; category: string; description: string; image?: string; sku?: string; specifications?: string } = {
+
+      const product: {
+        name: string;
+        category: string;
+        description: string;
+        image?: string;
+        sku?: string;
+        specifications?: string;
+        price?: number;
+      } = {
         name: "",
         category: "",
         description: "",
       };
-      
+
       headers.forEach((header, index) => {
         const value = values[index]?.trim() || "";
-        if (header === "name" || header === "product name") product.name = value;
+        if (header === "name" || header === "product name")
+          product.name = value;
         else if (header === "category") product.category = value;
         else if (header === "description") product.description = value;
-        else if (header === "image" || header === "photo" || header === "image url") product.image = value;
+        else if (
+          header === "image" ||
+          header === "photo" ||
+          header === "image url"
+        )
+          product.image = value;
         else if (header === "sku") product.sku = value;
-        else if (header === "specifications" || header === "specs") product.specifications = value;
+        else if (header === "specifications" || header === "specs")
+          product.specifications = value;
       });
-      
+
       if (product.name && product.category && product.description) {
         products.push(product);
       }
     }
-    
+
     return products;
   };
 
@@ -87,7 +139,7 @@ export function BulkProductUpload({ open, onOpenChange }: BulkProductUploadProps
 
       // Create a map of category names to IDs
       const categoryMap: Record<string, Id<"categories">> = {};
-      categories.forEach(cat => {
+      categories.forEach((cat) => {
         categoryMap[cat.name.toLowerCase()] = cat._id;
       });
 
@@ -99,6 +151,7 @@ export function BulkProductUpload({ open, onOpenChange }: BulkProductUploadProps
         image?: string;
         sku?: string;
         specifications?: string;
+        price: number;
       }> = [];
 
       const errors: string[] = [];
@@ -106,7 +159,9 @@ export function BulkProductUpload({ open, onOpenChange }: BulkProductUploadProps
       for (const product of parsedProducts) {
         const categoryId = categoryMap[product.category.toLowerCase()];
         if (!categoryId) {
-          errors.push(`Category "${product.category}" not found for product "${product.name}"`);
+          errors.push(
+            `Category "${product.category}" not found for product "${product.name}"`,
+          );
           continue;
         }
 
@@ -117,6 +172,7 @@ export function BulkProductUpload({ open, onOpenChange }: BulkProductUploadProps
           image: product.image,
           sku: product.sku,
           specifications: product.specifications,
+          price: 0, // Default price, adjust as needed or parse from CSV if available
         });
       }
 
@@ -128,11 +184,14 @@ export function BulkProductUpload({ open, onOpenChange }: BulkProductUploadProps
       const result = await bulkCreateProducts({ products: productsToCreate });
 
       setUploadResults({
-        success: result.count,
-        failed: parsedProducts.length - result.count,
+        created: result.created,
+        skipped: result.skipped,
+        skippedProducts: result.skippedProducts,
       });
 
-      toast.success(`Successfully uploaded ${result.count} products`);
+      toast.success(
+        `Successfully uploaded ${result.created} products${result.skipped > 0 ? `, skipped ${result.skipped} duplicates` : ""}`,
+      );
     } catch (error) {
       console.error("Upload error:", error);
       toast.error("Failed to upload products");
@@ -142,7 +201,8 @@ export function BulkProductUpload({ open, onOpenChange }: BulkProductUploadProps
   };
 
   const handleDownloadTemplate = () => {
-    const csvContent = "name,category,description,image,sku,specifications\nHospital Bed,Patient Care Equipment,Standard hospital bed with adjustable height,https://example.com/bed.jpg,BED-001,Electric adjustable\nWheelchair,Patient Care Equipment,Manual wheelchair for patient mobility,,,Standard manual wheelchair";
+    const csvContent =
+      "name,category,description,image,sku,specifications\nHospital Bed,Patient Care Equipment,Stanprd hospital bed with adjustable height,https://example.com/bed.jpg,BED-001,Electric adjustable\nWheelchair,Patient Care Equipment,Manual wheelchair for patient mobility,,,Standard manual wheelchair";
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -187,7 +247,11 @@ export function BulkProductUpload({ open, onOpenChange }: BulkProductUploadProps
           </Alert>
 
           {/* Download Template */}
-          <Button variant="outline" onClick={handleDownloadTemplate} className="w-full">
+          <Button
+            variant="outline"
+            onClick={handleDownloadTemplate}
+            className="w-full"
+          >
             <FileSpreadsheet className="size-4 mr-2" />
             Download CSV Template
           </Button>
@@ -215,8 +279,10 @@ export function BulkProductUpload({ open, onOpenChange }: BulkProductUploadProps
 
           {/* Upload Results */}
           {uploadResults && (
-            <Alert variant={uploadResults.failed > 0 ? "destructive" : "default"}>
-              {uploadResults.failed > 0 ? (
+            <Alert
+              variant={uploadResults.skipped > 0 ? "destructive" : "default"}
+            >
+              {uploadResults.skipped > 0 ? (
                 <AlertCircle className="size-4" />
               ) : (
                 <CheckCircle className="size-4" />
@@ -224,9 +290,23 @@ export function BulkProductUpload({ open, onOpenChange }: BulkProductUploadProps
               <AlertDescription>
                 <p className="font-medium">Upload Complete</p>
                 <p className="text-sm">
-                  Successfully created: {uploadResults.success} products
-                  {uploadResults.failed > 0 && ` • Failed: ${uploadResults.failed} products`}
+                  Successfully created: {uploadResults.created} products
+                  {uploadResults.skipped > 0 &&
+                    ` • Skipped: ${uploadResults.skipped} duplicates`}
                 </p>
+                {uploadResults.skippedProducts &&
+                  uploadResults.skippedProducts.length > 0 && (
+                    <details className="mt-2 text-sm">
+                      <summary className="cursor-pointer font-medium">
+                        View skipped products
+                      </summary>
+                      <ul className="mt-2 list-disc list-inside space-y-1">
+                        {uploadResults.skippedProducts.map((name, idx) => (
+                          <li key={idx}>{name}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
               </AlertDescription>
             </Alert>
           )}

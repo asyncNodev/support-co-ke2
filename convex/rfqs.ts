@@ -1,8 +1,10 @@
 import { ConvexError, v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import type { Id } from "./_generated/dataModel.d.ts";
 
-// Submit RFQ as guest (no authentication required)
+import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel.d.ts";
+import { mutation, query } from "./_generated/server";
+
+// Submit RFQ as guest (unauthenticated user)
 export const submitGuestRFQ = mutation({
   args: {
     items: v.array(
@@ -13,34 +15,34 @@ export const submitGuestRFQ = mutation({
     ),
     expectedDeliveryTime: v.string(),
     guestName: v.string(),
-    guestEmail: v.string(),
-    guestPhone: v.string(),
     guestCompanyName: v.string(),
+    guestPhone: v.string(),
+    guestEmail: v.string(),
   },
   handler: async (ctx, args) => {
-    // Validate guest information
-    if (!args.guestName || !args.guestEmail || !args.guestPhone || !args.guestCompanyName) {
-      throw new ConvexError({
-        message: "All guest information is required",
-        code: "BAD_REQUEST",
-      });
-    }
+    const {
+      items,
+      expectedDeliveryTime,
+      guestName,
+      guestCompanyName,
+      guestPhone,
+      guestEmail,
+    } = args;
 
-    // Create guest RFQ
+    // Create the RFQ as a guest submission
     const rfqId = await ctx.db.insert("rfqs", {
-      buyerId: undefined,
-      guestName: args.guestName,
-      guestEmail: args.guestEmail,
-      guestPhone: args.guestPhone,
-      guestCompanyName: args.guestCompanyName,
+      isGuest: true,
+      guestName,
+      guestCompanyName,
+      guestPhone,
+      guestEmail,
       status: "pending",
-      isBroker: false,
-      expectedDeliveryTime: args.expectedDeliveryTime,
+      expectedDeliveryTime,
       createdAt: Date.now(),
     });
 
-    // Add RFQ items
-    for (const item of args.items) {
+    // Insert RFQ items
+    for (const item of items) {
       await ctx.db.insert("rfqItems", {
         rfqId,
         productId: item.productId,
@@ -48,109 +50,24 @@ export const submitGuestRFQ = mutation({
       });
     }
 
-    // Auto-match with pre-filled vendor quotations and notify vendors
-    let matchedCount = 0;
-    const vendorNotifications = new Map<Id<"users">, Array<{ productId: Id<"products">; productName: string }>>();
+    // Send notification to vendors based on their preferences
+    const vendors = await ctx.db
+      .query("users")
+      .withIndex("by_role", (q) => q.eq("role", "vendor"))
+      .filter((q) => q.eq(q.field("verified"), true))
+      .collect();
 
-    // Process each item in the RFQ
-    for (const item of args.items) {
-      const product = await ctx.db.get(item.productId);
-      if (!product) continue;
+    for (const vendor of vendors) {
+      // Check vendor's quotation preference
+      const preference = vendor.quotationPreference ?? "all_including_guests";
 
-      // Find vendors with pre-filled quotations for this product
-      const quotations = await ctx.db
-        .query("vendorQuotations")
-        .withIndex("by_product", (q) => q.eq("productId", item.productId))
-        .filter((q) => q.eq(q.field("active"), true))
-        .collect();
-
-      // Filter based on vendor preferences
-      for (const quotation of quotations) {
-        const vendor = await ctx.db.get(quotation.vendorId);
-        if (!vendor || !vendor.verified) continue;
-
-        // Check vendor's quotation preference
-        const preference = vendor.quotationPreference || "all_registered_and_unregistered";
-        
-        // Guest RFQs are only sent to vendors who accept unregistered buyers
-        if (preference !== "all_registered_and_unregistered") continue;
-
-        matchedCount++;
-
-        // Create sent quotation
-        await ctx.db.insert("sentQuotations", {
-          rfqId,
-          buyerId: vendor._id, // Store vendor ID temporarily for querying
-          vendorId: vendor._id,
-          productId: item.productId,
-          quotationId: quotation._id,
-          quotationType: "pre-filled" as const,
-          price: quotation.price,
-          quantity: quotation.quantity,
-          paymentTerms: quotation.paymentTerms,
-          deliveryTime: quotation.deliveryTime,
-          warrantyPeriod: quotation.warrantyPeriod,
-          countryOfOrigin: quotation.countryOfOrigin,
-          productSpecifications: quotation.productSpecifications,
-          productPhoto: quotation.productPhoto,
-          productDescription: quotation.productDescription,
-          brand: quotation.brand,
-          opened: false,
-          chosen: false,
-          sentAt: Date.now(),
-        });
-
-        // Notify vendor
+      // Only notify if vendor accepts guest RFQs
+      if (preference === "all_including_guests") {
         await ctx.db.insert("notifications", {
           userId: vendor._id,
-          type: "quotation_sent",
-          title: "Your quotation was sent to a guest buyer!",
-          message: `Your pre-filled quotation for ${product.name} was sent to ${args.guestCompanyName}`,
-          read: false,
-          relatedId: rfqId,
-          createdAt: Date.now(),
-        });
-      }
-
-      // Find vendors who might want to quote (based on category and preference)
-      const allVerifiedVendors = await ctx.db
-        .query("users")
-        .withIndex("by_role", (q) => {
-          const role = "vendor" as const;
-          return q.eq("role", role);
-        })
-        .filter((q) => q.eq(q.field("verified"), true))
-        .collect();
-
-      for (const vendor of allVerifiedVendors) {
-        const preference = vendor.quotationPreference || "all_registered_and_unregistered";
-        
-        // Only notify if vendor accepts unregistered buyers
-        if (preference !== "all_registered_and_unregistered") continue;
-
-        const hasQuotation = quotations.some((q) => q.vendorId === vendor._id);
-        const isAssignedToCategory = product.categoryId && vendor.categories?.includes(product.categoryId);
-
-        if (!hasQuotation && isAssignedToCategory) {
-          if (!vendorNotifications.has(vendor._id)) {
-            vendorNotifications.set(vendor._id, []);
-          }
-          vendorNotifications.get(vendor._id)!.push({
-            productId: item.productId,
-            productName: product.name,
-          });
-        }
-      }
-    }
-
-    // Send notifications to vendors
-    for (const [vendorId, products] of vendorNotifications.entries()) {
-      for (const product of products) {
-        await ctx.db.insert("notifications", {
-          userId: vendorId,
           type: "rfq_needs_quotation",
-          title: `New Guest RFQ for ${product.productName}`,
-          message: `${args.guestCompanyName} has requested quotations for ${product.productName}. Click to respond.`,
+          title: "New Guest RFQ",
+          message: `${guestName} from ${guestCompanyName} submitted an RFQ`,
           read: false,
           relatedId: rfqId,
           createdAt: Date.now(),
@@ -158,23 +75,7 @@ export const submitGuestRFQ = mutation({
       }
     }
 
-    // Update RFQ status
-    if (matchedCount > 0) {
-      await ctx.db.patch(rfqId, { status: "quoted" });
-    }
-
-    // Track analytics
-    await ctx.db.insert("analytics", {
-      type: "rfq_sent",
-      metadata: JSON.stringify({ rfqId, itemCount: args.items.length, guest: true }),
-      timestamp: Date.now(),
-    });
-
-    return {
-      rfqId,
-      matchedCount,
-      vendorsNotified: vendorNotifications.size,
-    };
+    return rfqId;
   },
 });
 
@@ -208,9 +109,11 @@ export const submitRFQ = mutation({
       const userId = await ctx.db.insert("users", {
         authId: identity.tokenIdentifier,
         email: identity.email ?? "unknown@example.com",
+        passwordHash: "", // No password for OAuth users
         name: identity.name ?? "Unknown User",
         role: "buyer",
         verified: true,
+        status: "approved",
         registeredAt: Date.now(),
       });
       user = await ctx.db.get(userId);
@@ -260,7 +163,10 @@ export const submitRFQ = mutation({
 
     // Auto-match with pre-filled vendor quotations and notify vendors without quotations
     let matchedCount = 0;
-    const vendorNotifications = new Map<Id<"users">, Array<{ productId: Id<"products">; productName: string }>>();
+    const vendorNotifications = new Map<
+      Id<"users">,
+      Array<{ productId: Id<"products">; productName: string }>
+    >();
 
     // Process each item in the RFQ
     for (const item of args.items) {
@@ -327,7 +233,8 @@ export const submitRFQ = mutation({
 
       for (const vendor of allVerifiedVendors) {
         const hasQuotation = quotations.some((q) => q.vendorId === vendor._id);
-        const isAssignedToCategory = product.categoryId && vendor.categories?.includes(product.categoryId);
+        const isAssignedToCategory =
+          product.categoryId && vendor.categories?.includes(product.categoryId);
 
         if (!hasQuotation && isAssignedToCategory) {
           // Track this product for this vendor
@@ -412,7 +319,7 @@ export const getMyRFQs = query({
           items.map(async (item) => {
             const product = await ctx.db.get(item.productId);
             return { ...item, product };
-          })
+          }),
         );
 
         const quotations = await ctx.db
@@ -425,7 +332,7 @@ export const getMyRFQs = query({
           items: itemsWithProducts,
           quotationCount: quotations.length,
         };
-      })
+      }),
     );
   },
 });
@@ -480,7 +387,7 @@ export const getRFQDetails = query({
       items.map(async (item) => {
         const product = await ctx.db.get(item.productId);
         return { ...item, product };
-      })
+      }),
     );
 
     // Get all quotations for this RFQ
@@ -508,17 +415,19 @@ export const getRFQDetails = query({
 
         return {
           ...quot,
-          vendor: vendor ? {
-            _id: vendor._id,
-            name: vendor.name,
-            companyName: vendor.companyName,
-            email: quot.chosen ? vendor.email : undefined,
-            phone: quot.chosen ? vendor.phone : undefined,
-          } : null,
+          vendor: vendor
+            ? {
+                _id: vendor._id,
+                name: vendor.name,
+                companyName: vendor.companyName,
+                email: quot.chosen ? vendor.email : undefined,
+                phone: quot.chosen ? vendor.phone : undefined,
+              }
+            : null,
           product,
           vendorRating: avgRating,
         };
-      })
+      }),
     );
 
     return {
@@ -600,19 +509,20 @@ export const getMyQuotationsReceived = query({
         return {
           ...quotation,
           product,
-          vendor: quotation.chosen && vendor
-            ? {
-                _id: vendor._id,
-                name: vendor.name,
-                companyName: vendor.companyName,
-                email: vendor.email,
-                phone: vendor.phone,
-              }
-            : vendor
-            ? { _id: vendor._id, name: vendor.name }
-            : null,
+          vendor:
+            quotation.chosen && vendor
+              ? {
+                  _id: vendor._id,
+                  name: vendor.name,
+                  companyName: vendor.companyName,
+                  email: vendor.email,
+                  phone: vendor.phone,
+                }
+              : vendor
+                ? { _id: vendor._id, name: vendor.name }
+                : null,
         };
-      })
+      }),
     );
 
     return enrichedQuotations;
@@ -658,19 +568,20 @@ export const getMyQuotationsSent = query({
         return {
           ...quotation,
           product,
-          vendor: quotation.chosen && vendor
-            ? {
-                _id: vendor._id,
-                name: vendor.name,
-                companyName: vendor.companyName,
-                email: vendor.email,
-                phone: vendor.phone,
-              }
-            : vendor
-            ? { _id: vendor._id, name: vendor.name }
-            : null,
+          vendor:
+            quotation.chosen && vendor
+              ? {
+                  _id: vendor._id,
+                  name: vendor.name,
+                  companyName: vendor.companyName,
+                  email: vendor.email,
+                  phone: vendor.phone,
+                }
+              : vendor
+                ? { _id: vendor._id, name: vendor.name }
+                : null,
         };
-      })
+      }),
     );
   },
 });
@@ -721,7 +632,12 @@ export const getMyVendorQuotationsSent = query({
           _id: quot._id,
           productName: product?.name,
           buyerType,
-          buyerName: quot.chosen && buyer ? buyer.name : (isBroker ? "Anonymous Broker" : "Anonymous Buyer"),
+          buyerName:
+            quot.chosen && buyer
+              ? buyer.name
+              : isBroker
+                ? "Anonymous Broker"
+                : "Anonymous Buyer",
           buyerEmail: quot.chosen && buyer ? buyer.email : undefined,
           buyerPhone: quot.chosen && buyer ? buyer.phone : undefined,
           price: quot.price,
@@ -730,14 +646,14 @@ export const getMyVendorQuotationsSent = query({
           chosen: quot.chosen,
           opened: quot.opened,
         };
-      })
+      }),
     );
 
     return enrichedQuotations;
   },
 });
 
-// Get pending RFQs with buyer info (for vendors), filtering by vendor's quotation preference
+// Get pending RFQs with anonymous buyer info (for vendors)
 export const getPendingRFQs = query({
   args: {},
   handler: async (ctx) => {
@@ -793,53 +709,23 @@ export const getPendingRFQs = query({
             .filter((q) => q.eq(q.field("rfqId"), rfqId))
             .first();
 
-          if (existingQuotation) {
-            continue;
+          if (!existingQuotation) {
+            itemsWithProducts.push({
+              productId: item.productId,
+              productName: product.name,
+              quantity: item.quantity,
+              specifications: product.specifications,
+            });
           }
-
-          // Check vendor's quotation preference to decide if this RFQ item should be shown
-          // Vendor quotationPreference can be:
-          // "all_registered_and_unregistered" - accept all RFQs including guest buyers
-          // other values might exclude guest RFQs
-
-          const preference = user.quotationPreference || "all_registered_and_unregistered";
-
-          // If RFQ is from guest and vendor does not accept guest RFQs, skip item
-          if (!rfq.buyerId && preference !== "all_registered_and_unregistered") {
-            continue;
-          }
-
-          itemsWithProducts.push({
-            productId: item.productId,
-            productName: product.name,
-            quantity: item.quantity,
-            specifications: product.specifications,
-          });
         }
 
         if (itemsWithProducts.length > 0) {
-          let buyerInfo = "Anonymous Buyer";
-          let buyerType = "Buyer";
-          if (rfq.isBroker === true) {
-            buyerInfo = "Anonymous Broker";
-            buyerType = "Broker";
-          } else if (rfq.buyerId) {
-            // Try to get buyer info if not a guest RFQ
-            const buyer = await ctx.db.get(rfq.buyerId);
-            if (buyer) {
-              buyerInfo = buyer.companyName || buyer.name || "Buyer";
-            }
-          } else {
-            // For guest buyers, show guest details
-            buyerInfo = `${rfq.guestCompanyName || "Guest Company"} (Guest Buyer)`;
-            buyerType = "Guest Buyer";
-          }
-
           pendingRFQs.push({
             rfqId,
             createdAt: rfq.createdAt,
-            buyerInfo,
-            buyerType,
+            buyerInfo:
+              rfq.isBroker === true ? "Anonymous Broker" : "Anonymous Buyer",
+            buyerType: rfq.isBroker === true ? "Broker" : "Buyer",
             items: itemsWithProducts,
           });
         }
@@ -889,11 +775,28 @@ export const chooseQuotation = mutation({
       });
     }
 
+    // Get product name for notification
+    const product = await ctx.db.get(quotation.productId);
+
     // Mark quotation as chosen
     await ctx.db.patch(args.sentQuotationId, { chosen: true });
 
     // Update RFQ status to completed
     await ctx.db.patch(quotation.rfqId, { status: "completed" });
+
+    // Create order
+    await ctx.db.insert("orders", {
+      rfqId: quotation.rfqId,
+      quotationId: args.sentQuotationId,
+      buyerId: user._id,
+      vendorId: quotation.vendorId,
+      productId: quotation.productId,
+      quantity: quotation.quantity,
+      totalAmount: quotation.price * quotation.quantity,
+      status: "ordered",
+      orderDate: Date.now(),
+      lastUpdated: Date.now(),
+    });
 
     // Notify vendor
     await ctx.db.insert("notifications", {
@@ -905,6 +808,19 @@ export const chooseQuotation = mutation({
       relatedId: args.sentQuotationId,
       createdAt: Date.now(),
     });
+
+    // Send WhatsApp notification to vendor
+    await ctx.scheduler.runAfter(
+      0,
+      internal.whatsapp.notifyVendorQuotationChosen,
+      {
+        vendorId: quotation.vendorId,
+        productName: product?.name ?? "Product",
+        buyerName: user.name,
+        buyerPhone: user.phone ?? "Not provided",
+        buyerEmail: user.email,
+      },
+    );
 
     return { success: true };
   },
@@ -966,5 +882,126 @@ export const declineQuotation = mutation({
     });
 
     return { success: true };
+  },
+});
+
+// Get all RFQs for admin (with full details)
+export const getAllRFQsForAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError({
+        message: "User not logged in",
+        code: "UNAUTHENTICATED",
+      });
+    }
+
+    const admin = await ctx.db
+      .query("users")
+      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+      .first();
+
+    if (!admin || admin.role !== "admin") {
+      throw new ConvexError({
+        message: "Admin access required",
+        code: "FORBIDDEN",
+      });
+    }
+
+    const rfqs = await ctx.db.query("rfqs").order("desc").collect();
+
+    return await Promise.all(
+      rfqs.map(async (rfq) => {
+        let buyer = null;
+        let buyerInfo = null;
+
+        if (rfq.buyerId) {
+          buyer = await ctx.db.get(rfq.buyerId);
+          buyerInfo = {
+            name: buyer?.name || "Unknown",
+            email: buyer?.email || "Unknown",
+            companyName: buyer?.companyName || "N/A",
+            phone: buyer?.phone || "N/A",
+          };
+        } else if (rfq.isGuest) {
+          buyerInfo = {
+            name: rfq.guestName || "Guest",
+            email: rfq.guestEmail || "N/A",
+            companyName: rfq.guestCompanyName || "N/A",
+            phone: rfq.guestPhone || "N/A",
+          };
+        }
+
+        const items = await ctx.db
+          .query("rfqItems")
+          .withIndex("by_rfq", (q) => q.eq("rfqId", rfq._id))
+          .collect();
+
+        const itemsWithProduct = await Promise.all(
+          items.map(async (item) => {
+            const product = await ctx.db.get(item.productId);
+            return {
+              ...item,
+              product: product || null,
+            };
+          }),
+        );
+
+        // Get sent quotations for this RFQ
+        const sentQuotations = await ctx.db
+          .query("sentQuotations")
+          .withIndex("by_rfq", (q) => q.eq("rfqId", rfq._id))
+          .collect();
+
+        // Enrich sent quotations with vendor and product info
+        const quotationsWithDetails = await Promise.all(
+          sentQuotations.map(async (quote) => {
+            const vendor = await ctx.db.get(quote.vendorId);
+            const product = await ctx.db.get(quote.productId);
+
+            // Get vendor rating
+            const vendorRatings = await ctx.db
+              .query("ratings")
+              .withIndex("by_vendor", (q) => q.eq("vendorId", quote.vendorId))
+              .collect();
+
+            const avgRating =
+              vendorRatings.length > 0
+                ? vendorRatings.reduce((sum, r) => sum + r.rating, 0) /
+                  vendorRatings.length
+                : 0;
+
+            return {
+              ...quote,
+              vendor: vendor
+                ? {
+                    name: vendor.name,
+                    email: vendor.email,
+                    companyName: vendor.companyName || "N/A",
+                    phone: vendor.phone || "N/A",
+                    averageRating: avgRating,
+                    totalRatings: vendorRatings.length,
+                  }
+                : null,
+              product: product
+                ? {
+                    name: product.name,
+                    image: product.image,
+                  }
+                : null,
+            };
+          }),
+        );
+
+        return {
+          ...rfq,
+          buyer: buyerInfo,
+          items: itemsWithProduct,
+          sentQuotations: quotationsWithDetails,
+          quotationCount: quotationsWithDetails.length,
+        };
+      }),
+    );
   },
 });

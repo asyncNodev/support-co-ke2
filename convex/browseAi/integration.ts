@@ -1,14 +1,14 @@
 "use node";
 
-import { v } from "convex/values";
-import { action, internalAction } from "../_generated/server";
+import { ConvexError, v } from "convex/values";
+
 import { api, internal } from "../_generated/api";
-import { ConvexError } from "convex/values";
 import type { Id } from "../_generated/dataModel";
+import { action, internalAction } from "../_generated/server";
 
 /**
  * Browse.ai Integration
- * 
+ *
  * This integration allows scraping product data and vendor quotations
  * from various sources using browse.ai robots.
  */
@@ -44,7 +44,7 @@ interface BrowseAITaskResponse {
 async function fetchBrowseAITask(
   apiKey: string,
   robotId: string,
-  taskId: string
+  taskId: string,
 ): Promise<BrowseAIRobotResult> {
   const response = await fetch(
     `https://api.browse.ai/v2/robots/${robotId}/tasks/${taskId}`,
@@ -52,23 +52,27 @@ async function fetchBrowseAITask(
       headers: {
         Authorization: `Bearer ${apiKey}`,
       },
-    }
+    },
   );
 
   if (!response.ok) {
     if (response.status === 401) {
-      throw new Error("Browse.ai API authentication failed. Please verify your API key is correct.");
+      throw new Error(
+        "Browse.ai API authentication failed. Please verify your API key is correct.",
+      );
     }
     if (response.status === 403) {
-      throw new Error("Access forbidden. You may not have permission to access this robot or task. Verify the robot ID and task ID are correct and belong to your browse.ai account.");
+      throw new Error(
+        "Access forbidden. You may not have permission to access this robot or task. Verify the robot ID and task ID are correct and belong to your browse.ai account.",
+      );
     }
     throw new Error(
-      `Browse.ai API error: ${response.status} ${response.statusText}`
+      `Browse.ai API error: ${response.status} ${response.statusText}`,
     );
   }
 
   const data = (await response.json()) as BrowseAITaskResponse;
-  
+
   // Handle both response structures
   let task;
   if (data.result.robotTasks?.items) {
@@ -108,7 +112,10 @@ export const syncProducts = action({
     categoryId: v.id("categories"),
     listName: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
     success: boolean;
     syncedCount: number;
     productIds: Id<"products">[];
@@ -133,7 +140,8 @@ export const syncProducts = action({
     const apiKey = process.env.BROWSE_AI_API_KEY;
     if (!apiKey) {
       throw new ConvexError({
-        message: "Browse.ai API key not configured. Please add BROWSE_AI_API_KEY to App Settings → Environment Variables.",
+        message:
+          "Browse.ai API key not configured. Please add BROWSE_AI_API_KEY to App Settings → Environment Variables.",
         code: "NOT_IMPLEMENTED",
       });
     }
@@ -143,14 +151,16 @@ export const syncProducts = action({
 
       // Get the list name (default to "products")
       const listName = args.listName || "products";
-      const availableLists = result.capturedLists ? Object.keys(result.capturedLists) : [];
-      
+      const availableLists = result.capturedLists
+        ? Object.keys(result.capturedLists)
+        : [];
+
       // Log available lists for debugging
       console.log("Available captured lists:", availableLists);
       console.log("Looking for list:", listName);
 
       const productsList = result.capturedLists?.[listName] || [];
-      
+
       if (productsList.length === 0) {
         throw new ConvexError({
           message: `No items found in list "${listName}". Available lists: ${availableLists.join(", ") || "none"}`,
@@ -160,14 +170,18 @@ export const syncProducts = action({
 
       const syncedProducts = [];
       for (const item of productsList) {
-        const productId: Id<"products"> = await ctx.runMutation(api.products.createProduct, {
-          name: item.name || "Unknown Product",
-          categoryId: args.categoryId,
-          description: item.description || "",
-          image: item.image,
-          sku: item.sku,
-          specifications: item.specifications,
-        });
+        const productId: Id<"products"> = await ctx.runMutation(
+          api.products.createProduct,
+          {
+            name: item.name || "Unknown Product",
+            categoryId: args.categoryId,
+            description: item.description || "",
+            image: item.image,
+            sku: item.sku,
+            specifications: item.specifications,
+            price: item.price !== undefined ? parseFloat(item.price) || 0 : 0,
+          },
+        );
         syncedProducts.push(productId);
       }
 
@@ -178,20 +192,24 @@ export const syncProducts = action({
         availableLists,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to sync products from browse.ai";
-      
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to sync products from browse.ai";
+
       // Provide more helpful error messages for common issues
       if (errorMessage.includes("401")) {
         throw new ConvexError({
-          message: "Browse.ai API authentication failed. Please verify your BROWSE_AI_API_KEY in App Settings → Environment Variables is correct.",
+          message:
+            "Browse.ai API authentication failed. Please verify your BROWSE_AI_API_KEY in App Settings → Environment Variables is correct.",
           code: "EXTERNAL_SERVICE_ERROR",
         });
       }
-      
+
       if (error instanceof ConvexError) {
         throw error;
       }
-      
+
       throw new ConvexError({
         message: errorMessage,
         code: "EXTERNAL_SERVICE_ERROR",
@@ -211,7 +229,10 @@ export const syncVendorQuotations = action({
     productId: v.id("products"),
     listName: v.optional(v.string()),
   },
-  handler: async (ctx, args): Promise<{
+  handler: async (
+    ctx,
+    args,
+  ): Promise<{
     success: boolean;
     syncedCount: number;
     quotationIds: Id<"vendorQuotations">[];
@@ -236,7 +257,8 @@ export const syncVendorQuotations = action({
     const apiKey = process.env.BROWSE_AI_API_KEY;
     if (!apiKey) {
       throw new ConvexError({
-        message: "Browse.ai API key not configured. Please add BROWSE_AI_API_KEY to App Settings → Environment Variables.",
+        message:
+          "Browse.ai API key not configured. Please add BROWSE_AI_API_KEY to App Settings → Environment Variables.",
         code: "NOT_IMPLEMENTED",
       });
     }
@@ -246,14 +268,16 @@ export const syncVendorQuotations = action({
 
       // Get the list name (default to "quotations")
       const listName = args.listName || "quotations";
-      const availableLists = result.capturedLists ? Object.keys(result.capturedLists) : [];
-      
+      const availableLists = result.capturedLists
+        ? Object.keys(result.capturedLists)
+        : [];
+
       // Log available lists for debugging
       console.log("Available captured lists:", availableLists);
       console.log("Looking for list:", listName);
 
       const quotationsList = result.capturedLists?.[listName] || [];
-      
+
       if (quotationsList.length === 0) {
         throw new ConvexError({
           message: `No items found in list "${listName}". Available lists: ${availableLists.join(", ") || "none"}`,
@@ -284,7 +308,7 @@ export const syncVendorQuotations = action({
               productPhoto: item.photo,
               productDescription: item.description,
               brand: item.brand,
-            }
+            },
           );
           syncedQuotations.push(quotationId);
         }
@@ -297,19 +321,23 @@ export const syncVendorQuotations = action({
         availableLists,
       };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Failed to sync quotations from browse.ai";
-      
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to sync quotations from browse.ai";
+
       if (errorMessage.includes("401")) {
         throw new ConvexError({
-          message: "Browse.ai API authentication failed. Please verify your BROWSE_AI_API_KEY in App Settings → Environment Variables is correct.",
+          message:
+            "Browse.ai API authentication failed. Please verify your BROWSE_AI_API_KEY in App Settings → Environment Variables is correct.",
           code: "EXTERNAL_SERVICE_ERROR",
         });
       }
-      
+
       if (error instanceof ConvexError) {
         throw error;
       }
-      
+
       throw new ConvexError({
         message: errorMessage,
         code: "EXTERNAL_SERVICE_ERROR",
@@ -346,7 +374,8 @@ export const triggerRobot = action({
     const apiKey = process.env.BROWSE_AI_API_KEY;
     if (!apiKey) {
       throw new ConvexError({
-        message: "Browse.ai API key not configured. Please add BROWSE_AI_API_KEY to App Settings → Environment Variables.",
+        message:
+          "Browse.ai API key not configured. Please add BROWSE_AI_API_KEY to App Settings → Environment Variables.",
         code: "NOT_IMPLEMENTED",
       });
     }
@@ -363,25 +392,27 @@ export const triggerRobot = action({
           body: JSON.stringify({
             inputParameters: args.inputParameters || {},
           }),
-        }
+        },
       );
 
       if (!response.ok) {
         const statusText = response.statusText;
         if (response.status === 401) {
           throw new ConvexError({
-            message: "Browse.ai API authentication failed. Please verify your BROWSE_AI_API_KEY in App Settings → Environment Variables is correct.",
+            message:
+              "Browse.ai API authentication failed. Please verify your BROWSE_AI_API_KEY in App Settings → Environment Variables is correct.",
             code: "EXTERNAL_SERVICE_ERROR",
           });
         }
         if (response.status === 403) {
           throw new ConvexError({
-            message: "Access forbidden. This could mean: 1) You don't own this robot, 2) Your browse.ai plan doesn't allow API access, or 3) You've hit rate limits. Please verify the robot ID and your browse.ai plan.",
+            message:
+              "Access forbidden. This could mean: 1) You don't own this robot, 2) Your browse.ai plan doesn't allow API access, or 3) You've hit rate limits. Please verify the robot ID and your browse.ai plan.",
             code: "EXTERNAL_SERVICE_ERROR",
           });
         }
         throw new Error(
-          `Browse.ai API error: ${response.status} ${statusText}`
+          `Browse.ai API error: ${response.status} ${statusText}`,
         );
       }
 
@@ -427,7 +458,8 @@ export const getTaskStatus = action({
     const apiKey = process.env.BROWSE_AI_API_KEY;
     if (!apiKey) {
       throw new ConvexError({
-        message: "Browse.ai API key not configured. Please add BROWSE_AI_API_KEY to App Settings → Environment Variables.",
+        message:
+          "Browse.ai API key not configured. Please add BROWSE_AI_API_KEY to App Settings → Environment Variables.",
         code: "NOT_IMPLEMENTED",
       });
     }
@@ -439,25 +471,27 @@ export const getTaskStatus = action({
           headers: {
             Authorization: `Bearer ${apiKey}`,
           },
-        }
+        },
       );
 
       if (!response.ok) {
         const statusText = response.statusText;
         if (response.status === 401) {
           throw new ConvexError({
-            message: "Browse.ai API authentication failed. Please verify your BROWSE_AI_API_KEY in App Settings → Environment Variables is correct.",
+            message:
+              "Browse.ai API authentication failed. Please verify your BROWSE_AI_API_KEY in App Settings → Environment Variables is correct.",
             code: "EXTERNAL_SERVICE_ERROR",
           });
         }
         if (response.status === 403) {
           throw new ConvexError({
-            message: "Access forbidden. You may not have permission to access this robot or task. Verify the robot ID and task ID are correct and belong to your browse.ai account.",
+            message:
+              "Access forbidden. You may not have permission to access this robot or task. Verify the robot ID and task ID are correct and belong to your browse.ai account.",
             code: "EXTERNAL_SERVICE_ERROR",
           });
         }
         throw new Error(
-          `Browse.ai API error: ${response.status} ${statusText}`
+          `Browse.ai API error: ${response.status} ${statusText}`,
         );
       }
 
