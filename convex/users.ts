@@ -1,21 +1,14 @@
 import { ConvexError, v } from "convex/values";
 
 import type { Id } from "./_generated/dataModel.d.ts";
-import { internalQuery, mutation, query } from "./_generated/server";
+import { action, internalQuery, mutation, query } from "./_generated/server";
+import { validateToken } from "./authActions";
 
 export const getCurrentUser = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return null;
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
-
+  args: { token: v.string() },
+  handler: async (ctx: any, args: { token: string }) => {
+    // Directly validate the token here (implement your validation logic)
+    const user = await ctx.runAction(validateToken, { token: args.token });
     return user;
   },
 });
@@ -64,11 +57,10 @@ export const updateQuotationPreference = mutation({
   },
 });
 
-export const createUser = mutation({
+export const registerUser = mutation({
   args: {
-    name: v.string(),
-    email: v.string(),
-    authId: v.string(),
+    userId: v.id("users"),
+    name: v.optional(v.string()),
     role: v.union(v.literal("admin"), v.literal("vendor"), v.literal("buyer")),
     companyName: v.optional(v.string()),
     phone: v.optional(v.string()),
@@ -79,18 +71,8 @@ export const createUser = mutation({
     cr12Certificate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const userId = await ctx.db.insert("users", {
-      authId: args.authId,
-      email: args.email,
-      passwordHash: "", // Password hash should be set during registration ?????
+    console.log("userId: ", args.userId);
+    await ctx.db.patch(args.userId, {
       name: args.name,
       role: args.role,
       verified: false,
@@ -105,7 +87,26 @@ export const createUser = mutation({
       registeredAt: Date.now(),
     });
 
-    return userId;
+    return true;
+    // const newUser = await ctx.db.insert("users", {
+    //   authId: args.authId,
+    //   email: args.email,
+    //   passwordHash: "", // Password hash should be set during registration ?????
+    //   name: args.name,
+    //   role: args.role,
+    //   verified: false,
+    //   status: args.role === "admin" ? "approved" : "pending",
+    //   companyName: args.companyName,
+    //   phone: args.phone,
+    //   address: args.address,
+    //   latitude: args.latitude,
+    //   longitude: args.longitude,
+    //   categories: args.categories,
+    //   cr12Certificate: args.cr12Certificate,
+    //   registeredAt: Date.now(),
+    // });
+
+    // return newUser;
   },
 });
 

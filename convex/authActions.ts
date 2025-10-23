@@ -85,7 +85,8 @@ export const login = action({
     const valid = await bcrypt.compare(args.password, user.passwordHash);
     if (!valid) throw new Error("Invalid credentials");
     const token = generateJWT({ userId: user._id, email: user.email });
-    return { token, user };
+    const { passwordHash, ...userWithoutPassword } = user as any;
+    return { token, user: userWithoutPassword };
   },
 });
 
@@ -100,6 +101,7 @@ export const validateToken = action({
     { token },
   ): Promise<ValidateTokenResponse> => {
     try {
+      console.log("Validating token111:", token);
       const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
       // Fetch user from DB
       const user = await ctx.runQuery(internal.auth.getUserById, {

@@ -80,8 +80,7 @@ import VendorRatingDisplay from "@/components/VendorRatingDisplay.tsx";
 
 export default function VendorDashboard() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-  const currentUser = useQuery(api.users.getCurrentUser, {});
+  const { user, isAuthenticated } = useAuth();
   const categories = useQuery(api.categories.getCategories, {});
   const products = useQuery(api.products.getProducts, {});
   const myQuotations = useQuery(api.vendorQuotations.getMyQuotations, {});
@@ -147,6 +146,7 @@ export default function VendorDashboard() {
   const createQuotation = useMutation(api.vendorQuotations.createQuotation);
   const deleteQuotation = useMutation(api.vendorQuotations.deleteQuotation);
 
+  useEffect(() => {});
   // Handle redirects in useEffect
   useEffect(() => {
     if (!isAuthenticated) {
@@ -155,17 +155,17 @@ export default function VendorDashboard() {
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
-    if (currentUser && currentUser.role !== "vendor") {
+    if (user && user.role !== "vendor") {
       navigate("/");
     }
-  }, [currentUser, navigate]);
+  }, [user, navigate]);
 
-  if (!currentUser) {
+  if (!user) {
     return <div className="p-8">Loading...</div>;
   }
 
   // Check approval status
-  if (currentUser.status === "rejected") {
+  if (user.status === "rejected") {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-md">
@@ -186,7 +186,7 @@ export default function VendorDashboard() {
     );
   }
 
-  if (currentUser.status === "pending") {
+  if (user.status === "pending") {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-md">
@@ -208,7 +208,7 @@ export default function VendorDashboard() {
   }
 
   // Check vendor verification
-  if (!currentUser.verified) {
+  if (!user.verified) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -299,7 +299,7 @@ export default function VendorDashboard() {
             <div>
               <h1 className="text-2xl font-bold">Vendor Dashboard</h1>
               <p className="text-sm text-muted-foreground">
-                {currentUser.companyName || currentUser.name}
+                {user.companyName || user.name}
               </p>
             </div>
             <div className="flex gap-2">
@@ -1228,7 +1228,7 @@ export default function VendorDashboard() {
         open={catalogScannerOpen}
         onOpenChange={setCatalogScannerOpen}
         userRole="vendor"
-        vendorId={currentUser?._id}
+        vendorId={user?._id as Id<"users">}
       />
     </div>
   );

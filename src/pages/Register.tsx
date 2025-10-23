@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { api } from "@/convex/_generated/api";
-import { useMutation } from "convex/react";
+import type { Id } from "convex/_generated/dataModel";
+import { useMutation, useQuery } from "convex/react";
 import { Building2, Loader2, MapPin, ShoppingCart, Upload } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
-import { useAuth } from "@/hooks/use-auth.ts";
+import { useUser } from "@/hooks/use-auth.ts";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,8 +23,8 @@ import AppHeader from "@/components/AppHeader";
 
 export default function Register() {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
-  const createUser = useMutation(api.users.createUser);
+  const { isLoading, isAuthenticated, user } = useAuth();
+  const registerUser = useMutation(api.users.registerUser);
 
   const [selectedRole, setSelectedRole] = useState<"buyer" | "vendor" | null>(
     null,
@@ -38,11 +40,18 @@ export default function Register() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    console.log("authContext:", isLoading, isAuthenticated);
+
+    if (!isLoading && !isAuthenticated) {
+      console.log("Navigating to /");
       navigate("/");
     }
-  }, [isAuthenticated, navigate]);
+  }, [isLoading, isAuthenticated, navigate]);
 
+  // Wait for loading to finish
+  // if (isLoading) {
+  //   return null; // or return <Loader2 className="mx-auto animate-spin" />
+  // }
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
       toast.error("Geolocation is not supported by your browser");
@@ -98,11 +107,19 @@ export default function Register() {
 
     setIsSubmitting(true);
 
+    if (!user?._id) {
+      toast.error("Please try signing in again.");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      await createUser({
-        authId: "test-authId", // Add this line to include authId
-        name: name || user?.name || "Unknown",
-        email: user?.email || "unknown@example.com",
+      console.log("user._id: ", user._id);
+
+      // if (user)
+      registerUser({
+        userId: user._id as Id<"users">, // Now guaranteed to be defined
+        name: name || user?.name || "",
         role: selectedRole,
         companyName: companyName || undefined,
         phone: phone || undefined,
@@ -110,28 +127,35 @@ export default function Register() {
         cr12Certificate: cr12Url || undefined,
         latitude: latitude || undefined,
         longitude: longitude || undefined,
-      });
+        categories: selectedRole === "vendor" ? [] : undefined,
+      })
+        .then((result) => {
+          toast.success(
+            "Registration successful! Please wait for admin approval to use all features.",
+          );
 
-      toast.success("Registration successful!");
-
-      // Redirect based on role
-      if (selectedRole === "vendor") {
-        navigate("/vendor");
-      } else {
-        navigate("/buyer");
-      }
+          // Redirect based on role
+          if (selectedRole === "vendor") {
+            navigate("/vendor");
+          } else {
+            navigate("/buyer");
+          }
+        })
+        .catch((error) => {
+          toast.error("Registration failed");
+          console.error(error);
+        })
+        .finally(() => {
+          setIsSubmitting(false);
+        });
     } catch (error) {
       toast.error("Registration failed");
       console.error(error);
-    } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (!isAuthenticated || !user) {
-    return null;
-  }
-
+  console.log("rendering register page for user:", user);
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
@@ -270,15 +294,15 @@ export default function Register() {
                   <Button
                     type="button"
                     variant="outline"
+                    className="flex-1"
                     onClick={() => setSelectedRole(null)}
-                    className="w-full"
                   >
                     Back
                   </Button>
                   <Button
                     type="submit"
+                    className="flex-1"
                     disabled={isSubmitting}
-                    className="w-full"
                   >
                     {isSubmitting
                       ? "Creating Account..."

@@ -6,6 +6,7 @@ import { SignInButton } from "@/components/ui/signin";
 import { SignUpButton } from "@/components/ui/signup";
 
 export default function AppHeader() {
+  // const user = useUser();
   const { user } = useAuth();
 
   return (
@@ -45,9 +46,6 @@ export default function AppHeader() {
 
           {/* Auth Buttons */}
           <div className="flex items-center gap-2 shrink-0">
-            <Authenticated>
-              <SignUpButton />
-            </Authenticated>
             <Unauthenticated>
               <SignUpButton />
             </Unauthenticated>
