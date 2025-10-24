@@ -155,7 +155,6 @@ export default function Register() {
     }
   };
 
-  console.log("rendering register page for user:", user);
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />

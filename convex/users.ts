@@ -5,11 +5,10 @@ import { action, internalQuery, mutation, query } from "./_generated/server";
 import { validateToken } from "./authActions";
 
 export const getCurrentUser = query({
-  args: { token: v.string() },
-  handler: async (ctx: any, args: { token: string }) => {
+  args: {},
+  handler: async (ctx: any) => {
     // Directly validate the token here (implement your validation logic)
-    const user = await ctx.runAction(validateToken, { token: args.token });
-    return user;
+    return null;
   },
 });
 

@@ -111,6 +111,7 @@ export const syncProducts = action({
     taskId: v.string(),
     categoryId: v.id("categories"),
     listName: v.optional(v.string()),
+    token: v.string(),
   },
   handler: async (
     ctx,
@@ -129,8 +130,16 @@ export const syncProducts = action({
       });
     }
 
-    const user = await ctx.runQuery(api.users.getCurrentUser, {});
-    if (!user || user.role !== "admin") {
+    // const user = await ctx.runQuery(api.users.getCurrentUser, {
+    //   token: args.token,
+    // });
+    const user = await ctx.runAction(api.authActions.validateToken, {
+      token: args.token,
+    });
+    // Type assertion to include 'role' property
+    const userWithRole = user as typeof user & { role?: string };
+
+    if (!userWithRole || userWithRole.role !== "admin") {
       throw new ConvexError({
         message: "Only admins can sync products",
         code: "FORBIDDEN",
@@ -228,6 +237,7 @@ export const syncVendorQuotations = action({
     vendorId: v.id("users"),
     productId: v.id("products"),
     listName: v.optional(v.string()),
+    token: v.string(),
   },
   handler: async (
     ctx,
@@ -246,8 +256,20 @@ export const syncVendorQuotations = action({
       });
     }
 
-    const user = await ctx.runQuery(api.users.getCurrentUser, {});
-    if (!user || (user.role !== "admin" && user.role !== "vendor")) {
+    // const user = await ctx.runQuery(api.users.getCurrentUser, {
+    //   token: args.token,
+    // });
+    const user = await ctx.runAction(api.authActions.validateToken, {
+      token: args.token,
+    });
+
+    // Type assertion to include 'role' property
+    const userWithRole = user as typeof user & { role?: string };
+
+    if (
+      !userWithRole ||
+      (userWithRole.role !== "admin" && userWithRole.role !== "vendor")
+    ) {
       throw new ConvexError({
         message: "Only admins and vendors can sync quotations",
         code: "FORBIDDEN",
@@ -353,6 +375,7 @@ export const triggerRobot = action({
   args: {
     robotId: v.string(),
     inputParameters: v.optional(v.record(v.string(), v.string())),
+    token: v.string(),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -363,8 +386,17 @@ export const triggerRobot = action({
       });
     }
 
-    const user = await ctx.runQuery(api.users.getCurrentUser, {});
-    if (!user || user.role !== "admin") {
+    // const user = await ctx.runQuery(api.users.getCurrentUser, {
+    //   token: args.token,
+    // });
+    const user = await ctx.runAction(api.authActions.validateToken, {
+      token: args.token,
+    });
+
+    // Type assertion to include 'role' property
+    const userWithRole = user as typeof user & { role?: string };
+
+    if (!userWithRole || userWithRole.role !== "admin") {
       throw new ConvexError({
         message: "Only admins can trigger robots",
         code: "FORBIDDEN",
