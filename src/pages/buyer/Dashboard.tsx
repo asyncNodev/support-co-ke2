@@ -59,11 +59,11 @@ import GroupBuyCard from "./_components/GroupBuyCard.tsx";
 
 export default function BuyerDashboard() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-  const currentUser = useQuery(
-    api.users.getCurrentUser,
-    isAuthenticated ? {} : "skip",
-  );
+  const { user, isAuthenticated } = useAuth();
+  // const currentUser = useQuery(
+  //   api.users.getCurrentUser,
+  //   isAuthenticated ? {} : "skip",
+  // );
   const myRFQs = useQuery(api.rfqs.getMyRFQs, isAuthenticated ? {} : "skip");
   const myQuotations = useQuery(
     api.rfqs.getMyQuotationsSent,
@@ -107,24 +107,22 @@ export default function BuyerDashboard() {
 
   // Handle redirects in useEffect
   useEffect(() => {
-    if (isAuthenticated && currentUser && currentUser.role !== "buyer") {
+    if (isAuthenticated && user && user.role !== "buyer") {
       navigate("/");
     }
-  }, [isAuthenticated, currentUser, navigate]);
+  }, [isAuthenticated, user, navigate]);
 
   useEffect(() => {
-    if (isAuthenticated && currentUser === null) {
+    if (isAuthenticated && user === null) {
       navigate("/register");
     }
-  }, [isAuthenticated, currentUser, navigate]);
+  }, [isAuthenticated, user, navigate]);
 
   const isPending =
-    currentUser === undefined ||
-    myRFQs === undefined ||
-    myQuotations === undefined;
+    user === undefined || myRFQs === undefined || myQuotations === undefined;
 
   // Check approval status
-  if (currentUser?.status === "rejected") {
+  if (user?.status === "rejected") {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-md">
@@ -145,7 +143,7 @@ export default function BuyerDashboard() {
     );
   }
 
-  if (currentUser?.status === "pending") {
+  if (user?.status === "pending") {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <Card className="max-w-md">
@@ -238,7 +236,7 @@ export default function BuyerDashboard() {
               <Link to="/browse">Browse Products</Link>
             </Button>
             <div className="text-sm">
-              <p className="font-medium">{currentUser?.name}</p>
+              <p className="font-medium">{user?.name}</p>
               <p className="text-muted-foreground">Buyer</p>
             </div>
           </div>

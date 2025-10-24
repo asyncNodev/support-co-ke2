@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -60,6 +61,7 @@ import { Textarea } from "@/components/ui/textarea";
 import CatalogScanner from "@/components/CatalogScanner.tsx";
 
 export default function AdminDashboard() {
+  const { user, isAuthenticated } = useAuth();
   const products = useQuery(api.products.getProducts, {});
   const categories = useQuery(api.categories.getCategories, {});
   const users = useQuery(api.users.getAllUsers, {});
@@ -205,7 +207,13 @@ export default function AdminDashboard() {
       });
       toast.success("Product created successfully");
       setAddProductOpen(false);
-      setNewProduct({ name: "", categoryId: "", description: "", image: "", price: 0 });
+      setNewProduct({
+        name: "",
+        categoryId: "",
+        description: "",
+        image: "",
+        price: 0,
+      });
     } catch (error) {
       toast.error("Failed to create product");
     }
@@ -321,7 +329,10 @@ export default function AdminDashboard() {
       return;
     }
     try {
-      const result = await triggerRobot({ robotId: browseAiRobotId });
+      const result = await triggerRobot({
+        robotId: browseAiRobotId,
+        token: localStorage.getItem("authToken") || "",
+      });
       setBrowseAiTaskId(result.taskId);
       toast.success(`Robot triggered successfully. Task ID: ${result.taskId}`);
     } catch (error) {
@@ -357,6 +368,7 @@ export default function AdminDashboard() {
         taskId: browseAiTaskId,
         categoryId: browseAiCategoryId as Id<"categories">,
         listName: browseAiProductListName,
+        token: localStorage.getItem("authToken") || "",
       });
       toast.success(`Synced ${result.syncedCount} products successfully`);
     } catch (error) {
@@ -383,6 +395,7 @@ export default function AdminDashboard() {
         vendorId: browseAiVendorId as Id<"users">,
         productId: browseAiProductId as Id<"products">,
         listName: browseAiQuotationListName,
+        token: localStorage.getItem("authToken") || "",
       });
       toast.success(`Synced ${result.syncedCount} quotations from Browse.ai`);
     } catch (error) {
