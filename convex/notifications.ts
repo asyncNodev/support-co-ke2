@@ -1,19 +1,12 @@
 import { ConvexError, v } from "convex/values";
+
 import { mutation, query } from "./_generated/server";
 
 // Get user notifications
 export const getMyNotifications = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return [];
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
 
     if (!user) {
       return [];
@@ -33,14 +26,6 @@ export const markAsRead = mutation({
     notificationId: v.id("notifications"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
     const notification = await ctx.db.get(args.notificationId);
     if (!notification) {
       throw new ConvexError({
@@ -57,20 +42,9 @@ export const markAsRead = mutation({
 
 // Mark all notifications as read
 export const markAllAsRead = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
 
     if (!user) {
       throw new ConvexError({
@@ -96,17 +70,17 @@ export const markAllAsRead = mutation({
 
 // Get unread notification count
 export const getUnreadCount = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return 0;
-    }
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    // if (!identity) {
+    //   return 0;
+    // }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+    // const user = await ctx.db
+    //   .query("users")
+    //   .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+    //   .first();
 
     if (!user) {
       return 0;

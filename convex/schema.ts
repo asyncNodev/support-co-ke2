@@ -57,7 +57,7 @@ export default defineSchema({
     latitude: v.optional(v.number()),
     longitude: v.optional(v.number()),
     categories: v.optional(v.array(v.id("categories"))),
-    registeredAt: v.number(),
+    registeredAt: v.optional(v.number()),
     quotationPreference: v.optional(
       v.union(
         v.literal("registered_hospitals_only"),

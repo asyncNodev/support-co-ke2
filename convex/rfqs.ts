@@ -1,3 +1,4 @@
+import { useDebugValue } from "react";
 import { ConvexError, v } from "convex/values";
 
 import { internal } from "./_generated/api";
@@ -89,44 +90,46 @@ export const submitRFQ = mutation({
       }),
     ),
     expectedDeliveryTime: v.string(),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
+    // const identity = await ctx.auth.getUserIdentity();
+    // if (!identity) {
+    //   throw new ConvexError({
+    //     message: "User not logged in",
+    //     code: "UNAUTHENTICATED",
+    //   });
+    // }
 
-    let user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+    // let user = await ctx.db
+    //   .query("users")
+    //   .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
+    //   .first();
 
-    // Auto-create buyer if doesn't exist
-    if (!user) {
-      const userId = await ctx.db.insert("users", {
-        authId: identity.tokenIdentifier,
-        email: identity.email ?? "unknown@example.com",
-        passwordHash: "", // No password for OAuth users
-        name: identity.name ?? "Unknown User",
-        role: "buyer",
-        verified: true,
-        status: "approved",
-        registeredAt: Date.now(),
-      });
-      user = await ctx.db.get(userId);
-      if (!user) {
-        throw new ConvexError({
-          message: "Failed to create user",
-          code: "INTERNAL_ERROR",
-        });
-      }
-    }
+    // // Auto-create buyer if doesn't exist
+    // if (!user) {
+    //   const userId = await ctx.db.insert("users", {
+    //     authId: identity.tokenIdentifier,
+    //     email: identity.email ?? "unknown@example.com",
+    //     passwordHash: "", // No password for OAuth users
+    //     name: identity.name ?? "Unknown User",
+    //     role: "buyer",
+    //     verified: true,
+    //     status: "approved",
+    //     registeredAt: Date.now(),
+    //   });
+    //   user = await ctx.db.get(userId);
+    //   if (!user) {
+    //     throw new ConvexError({
+    //       message: "Failed to create user",
+    //       code: "INTERNAL_ERROR",
+    //     });
+    //   }
+    // }
 
+    const user = await ctx.db.get(args.userId);
     // Allow both buyers and vendors (brokers) to submit RFQs
-    if (user.role !== "buyer" && user.role !== "vendor") {
+    if (!user || (user.role !== "buyer" && user.role !== "vendor")) {
       throw new ConvexError({
         message: "Only buyers and vendors can submit RFQs",
         code: "FORBIDDEN",
@@ -286,17 +289,9 @@ export const submitRFQ = mutation({
 
 // Get buyer's RFQs
 export const getMyRFQs = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return [];
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
 
     if (!user || (user.role !== "buyer" && user.role !== "vendor")) {
       return [];
@@ -339,20 +334,9 @@ export const getMyRFQs = query({
 
 // Get RFQ details with quotations
 export const getRFQDetails = query({
-  args: { rfqId: v.id("rfqs") },
+  args: { rfqId: v.id("rfqs"), userId: v.id("users") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+    const user = await ctx.db.get(args.userId);
 
     if (!user) {
       throw new ConvexError({
@@ -447,14 +431,6 @@ export const markQuotationOpened = mutation({
     quotationId: v.id("sentQuotations"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
     const quotation = await ctx.db.get(args.quotationId);
     if (!quotation) {
       throw new ConvexError({
@@ -471,20 +447,9 @@ export const markQuotationOpened = mutation({
 
 // Get buyer's quotations they received
 export const getMyQuotationsReceived = query({
-  args: {},
+  args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+    const user = await ctx.db.get(args.userId);
 
     if (!user) {
       throw new ConvexError({
@@ -531,20 +496,9 @@ export const getMyQuotationsReceived = query({
 
 // Get vendor's sent quotations
 export const getMyQuotationsSent = query({
-  args: {},
+  args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+    const user = await ctx.db.get(args.userId);
 
     if (!user) {
       throw new ConvexError({
@@ -588,20 +542,9 @@ export const getMyQuotationsSent = query({
 
 // New query specifically for vendors to see their sent quotations
 export const getMyVendorQuotationsSent = query({
-  args: {},
+  args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+    const user = await ctx.db.get(args.userId);
 
     if (!user) {
       throw new ConvexError({
@@ -655,17 +598,9 @@ export const getMyVendorQuotationsSent = query({
 
 // Get pending RFQs with anonymous buyer info (for vendors)
 export const getPendingRFQs = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return [];
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
 
     if (!user || user.role !== "vendor") {
       return [];
@@ -738,20 +673,9 @@ export const getPendingRFQs = query({
 
 // Choose quotation
 export const chooseQuotation = mutation({
-  args: { sentQuotationId: v.id("sentQuotations") },
+  args: { sentQuotationId: v.id("sentQuotations"), userId: v.id("users") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not authenticated",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+    const user = await ctx.db.get(args.userId);
 
     if (!user || (user.role !== "buyer" && user.role !== "vendor")) {
       throw new ConvexError({
@@ -830,20 +754,10 @@ export const declineQuotation = mutation({
   args: {
     sentQuotationId: v.id("sentQuotations"),
     reason: v.string(),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not authenticated",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+    const user = await ctx.db.get(args.userId);
 
     if (!user || (user.role !== "buyer" && user.role !== "vendor")) {
       throw new ConvexError({
@@ -887,20 +801,9 @@ export const declineQuotation = mutation({
 
 // Get all RFQs for admin (with full details)
 export const getAllRFQsForAdmin = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const admin = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db.get(args.userId);
 
     if (!admin || admin.role !== "admin") {
       throw new ConvexError({

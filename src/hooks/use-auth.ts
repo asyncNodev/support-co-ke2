@@ -58,12 +58,15 @@ type UseUserProps = {
 };
 
 export function useUser({ shouldRedirect }: UseUserProps = {}) {
-  const { user, isLoading, isAuthenticated, signinRedirect } = useAuth();
+  const { user, isLoading, isAuthenticated, signinRedirect, registerRedirect } =
+    useAuth();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated && shouldRedirect) {
       signinRedirect();
     }
+    console.log("user.role:", user?.role);
+    if (!user?.role) registerRedirect();
   }, [isLoading, isAuthenticated, shouldRedirect, signinRedirect]);
 
   return useMemo(() => {

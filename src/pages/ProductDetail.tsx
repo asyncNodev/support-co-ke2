@@ -30,13 +30,14 @@ import AppHeader from "@/components/AppHeader";
 export default function ProductDetail() {
   const { categorySlug, productSlug, id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth() as { user: User | null };
+  const { user } = useAuth() as { user: any };
+
   const { isAuthenticated } = useAuth();
   // const user = useQuery(api.users.getuser, {});
 
   const notifications = useQuery(
     api.notifications.getMyNotifications,
-    isAuthenticated ? {} : "skip",
+    isAuthenticated && user?._id ? { userId: user._id } : "skip",
   );
 
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
@@ -195,6 +196,7 @@ export default function ProductDetail() {
           },
         ],
         expectedDeliveryTime: expectedDelivery,
+        userId: user?._id,
       });
 
       toast.success("RFQ submitted successfully!");

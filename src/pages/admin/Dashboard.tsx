@@ -61,14 +61,17 @@ import { Textarea } from "@/components/ui/textarea";
 import CatalogScanner from "@/components/CatalogScanner.tsx";
 
 export default function AdminDashboard() {
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth() as { user: any };
   const products = useQuery(api.products.getProducts, {});
   const categories = useQuery(api.categories.getCategories, {});
-  const users = useQuery(api.users.getAllUsers, {});
-  const allRfqs = useQuery(api.rfqs.getAllRFQsForAdmin, {});
+  const users = useQuery(
+    api.users.getAllUsers,
+    user?._id ? { userId: user._id } : "skip"
+  );
+  const allRfqs = useQuery(api.rfqs.getAllRFQsForAdmin, { userId: user?._id });
   const allQuotations = useQuery(
     api.vendorQuotations.getAllQuotationsForAdmin,
-    {},
+    { userId: user?._id },
   );
   const marketIntelligence = useQuery(api.analytics.getMarketIntelligence, {});
 
@@ -77,7 +80,9 @@ export default function AdminDashboard() {
   const createCategory = useMutation(api.categories.createCategory);
   const deleteCategory = useMutation(api.categories.deleteCategory);
   const verifyUser = useMutation(api.users.verifyUser);
-  const findDuplicates = useQuery(api.products.findDuplicateProducts);
+  const findDuplicates = useQuery(api.products.findDuplicateProducts, {
+    userId: user?._id,
+  });
   const removeDuplicates = useMutation(api.products.removeDuplicateProducts);
   const generateSlugs = useMutation(api.products.generateAllSlugs);
   const assignCategoriesToVendor = useMutation(
@@ -95,7 +100,9 @@ export default function AdminDashboard() {
 
   const approveUser = useMutation(api.users.approveUser);
   const rejectUser = useMutation(api.users.rejectUser);
-  const pendingUsers = useQuery(api.users.getPendingUsers, {});
+  const pendingUsers = useQuery(api.users.getPendingUsers, {
+    userId: user?._id,
+  });
 
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
@@ -204,6 +211,7 @@ export default function AdminDashboard() {
         description: newProduct.description,
         image: newProduct.image || undefined,
         price: newProduct.price ?? 0,
+        userId: user?._id,
       });
       toast.success("Product created successfully");
       setAddProductOpen(false);
@@ -222,7 +230,7 @@ export default function AdminDashboard() {
   const handleDeleteProduct = async (productId: Id<"products">) => {
     if (confirm("Are you sure you want to delete this product?")) {
       try {
-        await deleteProduct({ productId });
+        await deleteProduct({ productId: productId, userId: user?._id });
         toast.success("Product deleted successfully");
       } catch (error) {
         toast.error("Failed to delete product");
@@ -236,7 +244,7 @@ export default function AdminDashboard() {
       return;
     }
     try {
-      await createCategory(newCategory);
+      await createCategory({ ...newCategory, userId: user?._id });
       toast.success("Category created successfully");
       setAddCategoryOpen(false);
       setNewCategory({ name: "", description: "" });
@@ -248,7 +256,7 @@ export default function AdminDashboard() {
   const handleDeleteCategory = async (categoryId: Id<"categories">) => {
     if (confirm("Are you sure you want to delete this category?")) {
       try {
-        await deleteCategory({ categoryId });
+        await deleteCategory({ categoryId, userId: user?._id });
         toast.success("Category deleted successfully");
       } catch (error) {
         toast.error("Failed to delete category");
@@ -289,6 +297,7 @@ export default function AdminDashboard() {
       await assignCategories({
         vendorId: selectedVendor,
         categories: selectedCategories,
+        userId: user?._id,
       });
       toast.success("Categories assigned successfully");
       setAssignDialogOpen(false);
@@ -407,7 +416,7 @@ export default function AdminDashboard() {
 
   const handleSaveSettings = async () => {
     try {
-      await updateSiteSettings({ settings: settingsForm });
+      await updateSiteSettings({ settings: settingsForm, userId: user?._id });
       toast.success("Site settings saved successfully!");
     } catch (error) {
       toast.error("Failed to save settings");
@@ -434,7 +443,7 @@ export default function AdminDashboard() {
 
   const handleRemoveDuplicates = async () => {
     try {
-      const result = await removeDuplicates({});
+      const result = await removeDuplicates({ userId: user?._id });
       toast.success(`Removed ${result.removedCount} duplicate products`);
     } catch (error) {
       toast.error("Failed to remove duplicates");
@@ -443,7 +452,7 @@ export default function AdminDashboard() {
 
   const handleGenerateSlugs = async () => {
     try {
-      const result = await generateSlugs({});
+      const result = await generateSlugs({ userId: user?._id });
       toast.success(result.message);
     } catch (error) {
       toast.error("Failed to generate slugs");
@@ -452,8 +461,6 @@ export default function AdminDashboard() {
 
   const vendors = users?.filter((u) => u.role === "vendor") || [];
   const buyers = users?.filter((u) => u.role === "buyer") || [];
-
-  const [activeTab, setActiveTab] = useState("users");
 
   return (
     <div className="min-h-screen bg-background">
@@ -516,199 +523,24 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Tabs Navigation */}
-        <div className="border-b">
-          <div className="flex overflow-x-auto gap-1 pb-px">
-            {[
-              "users",
-              "products",
-              "categories",
-              "rfqs",
-              "market-intel",
-              "site-settings",
-            ].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                  activeTab === tab
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                }`}
-              >
-                {tab
-                  .split("-")
-                  .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                  .join(" ")}
-              </button>
-            ))}
-          </div>
-        </div>
+        <Tabs defaultValue="products" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="products">Products</TabsTrigger>
+            <TabsTrigger value="categories">Categories</TabsTrigger>
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="rfqs">RFQs</TabsTrigger>
+            <TabsTrigger value="quotations">Quotations</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="market-intelligence">
+              <BarChart3 className="mr-2 size-4" />
+              Market Intelligence
+            </TabsTrigger>
+            <TabsTrigger value="browse-ai">Browse.ai</TabsTrigger>
+            <TabsTrigger value="approvals">Pending Approvals</TabsTrigger>
+            <TabsTrigger value="site-settings">Site Settings</TabsTrigger>
+          </TabsList>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {activeTab === "users" && (
-            <>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Vendors</CardTitle>
-                  <CardDescription>
-                    Manage vendor accounts and category assignments
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {vendors.map((vendor) => (
-                      <div
-                        key={vendor._id}
-                        className="flex items-center justify-between p-4 border rounded-lg"
-                      >
-                        <div className="flex-1">
-                          <p className="font-medium">{vendor.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {vendor.email}
-                          </p>
-                          {vendor.companyName && (
-                            <p className="text-sm text-muted-foreground">
-                              {vendor.companyName}
-                            </p>
-                          )}
-                          {vendor.phone && (
-                            <p className="text-sm text-muted-foreground">
-                              Phone: {vendor.phone}
-                            </p>
-                          )}
-                          <div className="flex gap-2 mt-2">
-                            <Badge
-                              variant={
-                                vendor.verified ? "default" : "destructive"
-                              }
-                            >
-                              {vendor.verified ? "Verified" : "Unverified"}
-                            </Badge>
-                            {vendor.categories &&
-                              vendor.categories.length > 0 && (
-                                <Badge variant="outline">
-                                  {vendor.categories.length}{" "}
-                                  {vendor.categories.length === 1
-                                    ? "Category"
-                                    : "Categories"}
-                                </Badge>
-                              )}
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleViewDetails(vendor._id)}
-                          >
-                            View Details
-                          </Button>
-                          {!vendor.verified && (
-                            <Button
-                              size="sm"
-                              onClick={() => handleVerifyUser(vendor._id)}
-                            >
-                              Verify
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              handleOpenAssignCategories(vendor._id)
-                            }
-                          >
-                            Assign Categories
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant={vendor.verified ? "outline" : "default"}
-                            onClick={() => handleToggleStatus(vendor._id)}
-                          >
-                            {vendor.verified ? "Disable" : "Enable"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDeleteUser(vendor._id)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Buyers</CardTitle>
-                  <CardDescription>Manage buyer accounts</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {buyers.map((buyer) => (
-                      <div
-                        key={buyer._id}
-                        className="flex items-center justify-between p-4 border rounded-lg"
-                      >
-                        <div className="flex-1">
-                          <p className="font-medium">{buyer.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {buyer.email}
-                          </p>
-                          {buyer.companyName && (
-                            <p className="text-sm text-muted-foreground">
-                              {buyer.companyName}
-                            </p>
-                          )}
-                          {buyer.phone && (
-                            <p className="text-sm text-muted-foreground">
-                              Phone: {buyer.phone}
-                            </p>
-                          )}
-                          <div className="flex gap-2 mt-2">
-                            <Badge
-                              variant={buyer.verified ? "default" : "secondary"}
-                            >
-                              {buyer.verified ? "Active" : "Inactive"}
-                            </Badge>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleViewDetails(buyer._id)}
-                          >
-                            View Details
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant={buyer.verified ? "outline" : "default"}
-                            onClick={() => handleToggleStatus(buyer._id)}
-                          >
-                            {buyer.verified ? "Disable" : "Enable"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleDeleteUser(buyer._id)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </>
-          )}
-
-          {activeTab === "products" && (
+          <TabsContent value="products" className="space-y-4">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -915,9 +747,9 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-          )}
+          </TabsContent>
 
-          {activeTab === "categories" && (
+          <TabsContent value="categories" className="space-y-4">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -1009,9 +841,167 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-          )}
+          </TabsContent>
 
-          {activeTab === "rfqs" && (
+          <TabsContent value="users" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Vendors</CardTitle>
+                <CardDescription>
+                  Manage vendor accounts and category assignments
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {vendors.map((vendor) => (
+                    <div
+                      key={vendor._id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium">{vendor.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {vendor.email}
+                        </p>
+                        {vendor.companyName && (
+                          <p className="text-sm text-muted-foreground">
+                            {vendor.companyName}
+                          </p>
+                        )}
+                        {vendor.phone && (
+                          <p className="text-sm text-muted-foreground">
+                            Phone: {vendor.phone}
+                          </p>
+                        )}
+                        <div className="flex gap-2 mt-2">
+                          <Badge
+                            variant={
+                              vendor.verified ? "default" : "destructive"
+                            }
+                          >
+                            {vendor.verified ? "Verified" : "Unverified"}
+                          </Badge>
+                          {vendor.categories &&
+                            vendor.categories.length > 0 && (
+                              <Badge variant="outline">
+                                {vendor.categories.length}{" "}
+                                {vendor.categories.length === 1
+                                  ? "Category"
+                                  : "Categories"}
+                              </Badge>
+                            )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewDetails(vendor._id)}
+                        >
+                          View Details
+                        </Button>
+                        {!vendor.verified && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleVerifyUser(vendor._id)}
+                          >
+                            Verify
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleOpenAssignCategories(vendor._id)}
+                        >
+                          Assign Categories
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={vendor.verified ? "outline" : "default"}
+                          onClick={() => handleToggleStatus(vendor._id)}
+                        >
+                          {vendor.verified ? "Disable" : "Enable"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteUser(vendor._id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Buyers</CardTitle>
+                <CardDescription>Manage buyer accounts</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {buyers.map((buyer) => (
+                    <div
+                      key={buyer._id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium">{buyer.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {buyer.email}
+                        </p>
+                        {buyer.companyName && (
+                          <p className="text-sm text-muted-foreground">
+                            {buyer.companyName}
+                          </p>
+                        )}
+                        {buyer.phone && (
+                          <p className="text-sm text-muted-foreground">
+                            Phone: {buyer.phone}
+                          </p>
+                        )}
+                        <div className="flex gap-2 mt-2">
+                          <Badge
+                            variant={buyer.verified ? "default" : "secondary"}
+                          >
+                            {buyer.verified ? "Active" : "Inactive"}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewDetails(buyer._id)}
+                        >
+                          View Details
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={buyer.verified ? "outline" : "default"}
+                          onClick={() => handleToggleStatus(buyer._id)}
+                        >
+                          {buyer.verified ? "Disable" : "Enable"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDeleteUser(buyer._id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="rfqs" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>All RFQs</CardTitle>
@@ -1318,9 +1308,275 @@ export default function AdminDashboard() {
                 )}
               </CardContent>
             </Card>
-          )}
+          </TabsContent>
 
-          {activeTab === "market-intel" && (
+          <TabsContent value="quotations" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Quotations</CardTitle>
+                <CardDescription>
+                  View all quotations submitted by vendors (pre-filled and
+                  on-demand)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!allQuotations ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-20 bg-muted animate-pulse rounded-md"
+                      />
+                    ))}
+                  </div>
+                ) : allQuotations.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">No quotations found</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {allQuotations.map((quotation) => (
+                      <Card key={quotation._id} className="overflow-hidden">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="text-base">
+                                {quotation.product?.name || "Unknown Product"}
+                              </CardTitle>
+                              <CardDescription className="text-xs mt-1">
+                                {new Date(
+                                  quotation.createdAt,
+                                ).toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </CardDescription>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                  quotation.quotationType === "pre-filled"
+                                    ? "bg-purple-100 text-purple-800"
+                                    : "bg-blue-100 text-blue-800"
+                                }`}
+                              >
+                                {quotation.quotationType === "pre-filled"
+                                  ? "Pre-filled"
+                                  : "On-Demand"}
+                              </span>
+                              {quotation.source === "auto-scraped" && (
+                                <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
+                                  Auto-scraped
+                                </span>
+                              )}
+                              <span
+                                className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                  quotation.active
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
+                                {quotation.active ? "Active" : "Inactive"}
+                              </span>
+                            </div>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-0 space-y-4">
+                          {/* Vendor Information */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b">
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">
+                                Vendor
+                              </p>
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {quotation.vendor?.name || "Unknown"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {quotation.vendor?.companyName || "N/A"}
+                                </p>
+                                {quotation.vendor &&
+                                  quotation.vendor.totalRatings > 0 && (
+                                    <div className="flex items-center gap-1 mt-1">
+                                      <span className="text-xs">
+                                        ⭐{" "}
+                                        {quotation.vendor.averageRating.toFixed(
+                                          1,
+                                        )}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground">
+                                        ({quotation.vendor.totalRatings}{" "}
+                                        ratings)
+                                      </span>
+                                    </div>
+                                  )}
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">
+                                Contact
+                              </p>
+                              <p className="text-sm">
+                                {quotation.vendor?.email || "N/A"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Product Information */}
+                          <div className="flex items-center gap-3 p-2 bg-muted/50 rounded-md">
+                            {quotation.product?.image && (
+                              <img
+                                src={quotation.product.image}
+                                alt={quotation.product?.name || "Product"}
+                                className="w-16 h-16 object-cover rounded"
+                              />
+                            )}
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">
+                                {quotation.product?.name || "Unknown Product"}
+                              </p>
+                              {quotation.brand && (
+                                <p className="text-xs text-muted-foreground">
+                                  Brand: {quotation.brand}
+                                </p>
+                              )}
+                              {quotation.product?.description && (
+                                <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                                  {quotation.product.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Quotation Details */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">
+                                Price
+                              </p>
+                              <p className="text-sm font-medium">
+                                KES {quotation.price.toLocaleString()}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">
+                                Quantity
+                              </p>
+                              <p className="text-sm">{quotation.quantity}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">
+                                Delivery Time
+                              </p>
+                              <p className="text-sm">
+                                {quotation.deliveryTime}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">
+                                Warranty
+                              </p>
+                              <p className="text-sm">
+                                {quotation.warrantyPeriod}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Additional Details */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+                            <div>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">
+                                Payment Terms
+                              </p>
+                              <p className="text-sm capitalize">
+                                {quotation.paymentTerms}
+                              </p>
+                            </div>
+                            {quotation.countryOfOrigin && (
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground mb-1">
+                                  Country of Origin
+                                </p>
+                                <p className="text-sm">
+                                  {quotation.countryOfOrigin}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* RFQ Details (if on-demand) */}
+                          {quotation.rfq && (
+                            <div className="pt-4 border-t">
+                              <p className="text-xs font-medium text-muted-foreground mb-2">
+                                In Response To RFQ
+                              </p>
+                              <div className="p-3 bg-blue-50 rounded-md">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="text-sm font-medium">
+                                      {quotation.rfq.buyer?.name ||
+                                        "Unknown Buyer"}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {quotation.rfq.buyer?.companyName ||
+                                        "N/A"}
+                                    </p>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">
+                                    RFQ #{quotation.rfq._id?.slice(-8)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Analytics</CardTitle>
+                <CardDescription>Overview of platform activity</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total RFQs</p>
+                    <p className="text-2xl font-bold">
+                      {marketIntelligence?.overview.totalRFQs || 0}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Total Quotations
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {marketIntelligence?.overview.totalQuotations || 0}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Total Orders
+                    </p>
+                    <p className="text-2xl font-bold">
+                      {marketIntelligence?.overview.totalOrders || 0}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="market-intelligence" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Market Intelligence Report</CardTitle>
@@ -1517,9 +1773,402 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-          )}
+          </TabsContent>
 
-          {activeTab === "site-settings" && (
+          <TabsContent value="browse-ai" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Globe className="size-6" />
+                  <div>
+                    <CardTitle>Browse.ai Integration</CardTitle>
+                    <CardDescription>
+                      Automatically scrape and import products and quotations
+                      using browse.ai robots
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* API Key Status */}
+                <div className="rounded-lg border p-4 bg-muted/50">
+                  <p className="text-sm font-medium mb-2">Setup Instructions</p>
+                  <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>
+                      Get your API key from{" "}
+                      <a
+                        href="https://browse.ai/dashboard/api-keys"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline"
+                      >
+                        browse.ai dashboard
+                      </a>
+                    </li>
+                    <li>
+                      Create a robot on browse.ai to scrape product or quotation
+                      data
+                    </li>
+                    <li>
+                      Add your browse.ai API key to{" "}
+                      <strong>App Settings → Environment Variables</strong> as{" "}
+                      <code className="px-1 py-0.5 bg-background rounded">
+                        BROWSE_AI_API_KEY
+                      </code>
+                    </li>
+                    <li>
+                      Refresh this page after adding the environment variable
+                    </li>
+                    <li>
+                      Run your robot manually in browse.ai (or use the trigger
+                      button below)
+                    </li>
+                    <li>
+                      Copy the Task ID from browse.ai and use it to sync data
+                    </li>
+                  </ol>
+                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-800">
+                    <p className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-1">
+                      💡 Tip: Use existing tasks
+                    </p>
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                      You don't need to trigger robots via the API. Just run
+                      them in the browse.ai dashboard and use the Task ID to
+                      sync data. This avoids API permissions issues.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Trigger Robot */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <PlayCircle className="size-5 text-primary" />
+                    <h3 className="font-semibold">Trigger Robot (Optional)</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    You can trigger a robot to run, or skip this step and use an
+                    existing task ID from a robot you've already run in the
+                    browse.ai dashboard.
+                  </p>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>Robot ID</Label>
+                      <Input
+                        value={browseAiRobotId}
+                        onChange={(e) => setBrowseAiRobotId(e.target.value)}
+                        placeholder="Enter browse.ai robot ID"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Find this in your browse.ai dashboard under the robot's
+                        settings
+                      </p>
+                    </div>
+                    <Button onClick={handleTriggerRobot}>
+                      <PlayCircle className="size-4 mr-2" />
+                      Trigger Robot
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Check Task Status */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="size-5 text-primary" />
+                    <h3 className="font-semibold">Check Task Status</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Check if a task has completed successfully before syncing
+                    data.
+                  </p>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>Task ID</Label>
+                      <Input
+                        value={browseAiTaskId}
+                        onChange={(e) => setBrowseAiTaskId(e.target.value)}
+                        placeholder="Enter browse.ai task ID"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Find this in your browse.ai dashboard under Monitoring →
+                        Tasks, or use the Task ID from triggering a robot above
+                      </p>
+                    </div>
+                    <Button onClick={handleCheckTaskStatus} variant="outline">
+                      Check Status
+                    </Button>
+                    {taskStatus && (
+                      <div className="rounded-lg border p-4">
+                        <p className="text-sm font-medium">Task Status</p>
+                        <Badge
+                          variant={
+                            taskStatus === "successful"
+                              ? "default"
+                              : "secondary"
+                          }
+                        >
+                          {taskStatus}
+                        </Badge>
+                        {taskStatus !== "successful" && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Wait for the task to complete before syncing data
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Sync Products */}
+                <div className="space-y-4 border-t pt-6">
+                  <div className="flex items-center gap-2">
+                    <Package className="size-5 text-primary" />
+                    <h3 className="font-semibold">Sync Products</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Import products from a completed browse.ai task. Your robot
+                    should capture a list named "{browseAiProductListName}" with
+                    fields: name, description, image, sku, specifications.
+                  </p>
+                  <div className="rounded-lg border p-3 bg-muted/30">
+                    <p className="text-xs font-medium mb-1">
+                      Expected Data Structure:
+                    </p>
+                    <pre className="text-xs text-muted-foreground overflow-x-auto">
+                      {`{
+  "capturedLists": {
+    "${browseAiProductListName}": [
+      {
+        "name": "Hospital Bed",
+        "description": "Electric hospital bed",
+        "image": "https://...",
+        "sku": "HB-001",
+        "specifications": "Dimensions: ..."
+      }
+    ]
+  }
+}`}
+                    </pre>
+                  </div>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>List Name</Label>
+                      <Input
+                        value={browseAiProductListName}
+                        onChange={(e) =>
+                          setBrowseAiProductListName(e.target.value)
+                        }
+                        placeholder="products"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        The name of the captured list in your browse.ai robot
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Category</Label>
+                      <Select
+                        value={browseAiCategoryId}
+                        onValueChange={setBrowseAiCategoryId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category for products" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories?.map((cat) => (
+                            <SelectItem key={cat._id} value={cat._id}>
+                              {cat.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button onClick={handleSyncProducts}>
+                      <Package className="size-4 mr-2" />
+                      Sync Products
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Sync Vendor Quotations */}
+                <div className="space-y-4 border-t pt-6">
+                  <div className="flex items-center gap-2">
+                    <Tag className="size-5 text-primary" />
+                    <h3 className="font-semibold">Sync Vendor Quotations</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Import vendor quotations from a completed browse.ai task.
+                    Your robot should capture a list named "
+                    {browseAiQuotationListName}" with fields: price, quantity,
+                    paymentTerms, deliveryTime, warrantyPeriod, countryOfOrigin,
+                    specifications, photo, description, brand.
+                  </p>
+                  <div className="rounded-lg border p-3 bg-muted/30">
+                    <p className="text-xs font-medium mb-1">
+                      Expected Data Structure:
+                    </p>
+                    <pre className="text-xs text-muted-foreground overflow-x-auto">
+                      {`{
+  "capturedLists": {
+    "${browseAiQuotationListName}": [
+      {
+        "price": "25000",
+        "quantity": "1",
+        "paymentTerms": "credit",
+        "deliveryTime": "2 weeks",
+        "warrantyPeriod": "1 year",
+        "countryOfOrigin": "Kenya",
+        "specifications": "Model XYZ",
+        "photo": "https://...",
+        "description": "High quality...",
+        "brand": "MedEquip"
+      }
+    ]
+  }
+}`}
+                    </pre>
+                  </div>
+                  <div className="grid gap-4">
+                    <div>
+                      <Label>List Name</Label>
+                      <Input
+                        value={browseAiQuotationListName}
+                        onChange={(e) =>
+                          setBrowseAiQuotationListName(e.target.value)
+                        }
+                        placeholder="quotations"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        The name of the captured list in your browse.ai robot
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Vendor</Label>
+                      <Select
+                        value={browseAiVendorId}
+                        onValueChange={setBrowseAiVendorId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select vendor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {vendors.map((vendor) => (
+                            <SelectItem key={vendor._id} value={vendor._id}>
+                              {vendor.name} - {vendor.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Product</Label>
+                      <Select
+                        value={browseAiProductId}
+                        onValueChange={setBrowseAiProductId}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select product" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products?.map((product) => (
+                            <SelectItem key={product._id} value={product._id}>
+                              {product.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button onClick={handleSyncQuotations}>
+                      <Tag className="size-4 mr-2" />
+                      Sync Quotations
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Pending Approvals Tab */}
+          <TabsContent value="approvals" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Pending User Approvals</CardTitle>
+                <CardDescription>
+                  Review and approve new user registrations
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {pendingUsers && pendingUsers.length > 0 ? (
+                  <div className="space-y-4">
+                    {pendingUsers.map((user) => (
+                      <Card key={user._id}>
+                        <CardContent className="pt-6">
+                          <div className="flex items-start justify-between">
+                            <div className="space-y-2 flex-1">
+                              <div>
+                                <p className="font-semibold">{user.name}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {user.email}
+                                </p>
+                              </div>
+                              <div className="flex gap-2">
+                                <Badge>{user.role}</Badge>
+                                <Badge variant="outline">Pending</Badge>
+                              </div>
+                              {user.companyName && (
+                                <p className="text-sm">
+                                  <span className="text-muted-foreground">
+                                    Company:
+                                  </span>{" "}
+                                  {user.companyName}
+                                </p>
+                              )}
+                              {user.phone && (
+                                <p className="text-sm">
+                                  <span className="text-muted-foreground">
+                                    Phone:
+                                  </span>{" "}
+                                  {user.phone}
+                                </p>
+                              )}
+                              {user.address && (
+                                <p className="text-sm">
+                                  <span className="text-muted-foreground">
+                                    Address:
+                                  </span>{" "}
+                                  {user.address}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => handleApproveUser(user._id)}
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleRejectUser(user._id)}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No pending approvals
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Site Settings Tab */}
+          <TabsContent value="site-settings">
             <Card>
               <CardHeader>
                 <CardTitle>Site Settings</CardTitle>
@@ -1798,8 +2447,8 @@ export default function AdminDashboard() {
                 )}
               </CardContent>
             </Card>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </main>
 
       <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>

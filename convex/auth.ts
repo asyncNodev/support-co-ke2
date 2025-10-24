@@ -16,7 +16,7 @@ export const createUser = internalMutation({
       authId: "test-authId",
       status: "pending",
       verified: false,
-      registeredAt: Date.now(),
+      // registeredAt: Date.now(),
     });
   },
 });

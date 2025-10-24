@@ -1,24 +1,13 @@
-import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { ConvexError, v } from "convex/values";
+
 import { internal } from "./_generated/api";
-import { ConvexError } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 // Get approval requests for a specific approver
 export const getMyApprovalRequests = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
 
     if (!user) {
       throw new ConvexError({
@@ -38,7 +27,7 @@ export const getMyApprovalRequests = query({
       requests.map(async (request) => {
         const rfq = await ctx.db.get(request.rfqId);
         const requestedBy = await ctx.db.get(request.requestedBy);
-        
+
         // Get RFQ items
         const items = await ctx.db
           .query("rfqItems")
@@ -52,7 +41,7 @@ export const getMyApprovalRequests = query({
               ...item,
               product,
             };
-          })
+          }),
         );
 
         return {
@@ -61,7 +50,7 @@ export const getMyApprovalRequests = query({
           requestedBy,
           items: itemsWithProducts,
         };
-      })
+      }),
     );
 
     return requestsWithDetails;
@@ -87,7 +76,7 @@ export const getApprovalHistory = query({
           approver,
           requestedBy,
         };
-      })
+      }),
     );
 
     return history;
@@ -96,20 +85,9 @@ export const getApprovalHistory = query({
 
 // Get approvers in the organization
 export const getOrganizationApprovers = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.userId);
 
     if (!currentUser?.companyName) {
       return [];
@@ -122,12 +100,14 @@ export const getOrganizationApprovers = query({
         q.and(
           q.eq(q.field("companyName"), currentUser.companyName),
           q.neq(q.field("organizationRole"), "none"),
-          q.neq(q.field("organizationRole"), undefined)
-        )
+          q.neq(q.field("organizationRole"), undefined),
+        ),
       )
       .collect();
 
-    return approvers.sort((a, b) => (a.approvalLevel ?? 0) - (b.approvalLevel ?? 0));
+    return approvers.sort(
+      (a, b) => (a.approvalLevel ?? 0) - (b.approvalLevel ?? 0),
+    );
   },
 });
 
@@ -136,20 +116,10 @@ export const submitForApproval = mutation({
   args: {
     rfqId: v.id("rfqs"),
     estimatedValue: v.number(),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+    const user = await ctx.db.get(args.userId);
 
     if (!user) {
       throw new ConvexError({
@@ -173,13 +143,13 @@ export const submitForApproval = mutation({
         q.and(
           q.eq(q.field("companyName"), user.companyName),
           q.neq(q.field("organizationRole"), "none"),
-          q.neq(q.field("organizationRole"), undefined)
-        )
+          q.neq(q.field("organizationRole"), undefined),
+        ),
       )
       .collect();
 
     const sortedApprovers = approvers.sort(
-      (a, b) => (a.approvalLevel ?? 0) - (b.approvalLevel ?? 0)
+      (a, b) => (a.approvalLevel ?? 0) - (b.approvalLevel ?? 0),
     );
 
     // Create approval requests for all approvers
@@ -232,21 +202,10 @@ export const respondToApprovalRequest = mutation({
     requestId: v.id("approvalRequests"),
     decision: v.union(v.literal("approved"), v.literal("rejected")),
     comments: v.optional(v.string()),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
-
+    const user = await ctx.db.get(args.userId);
     if (!user) {
       throw new ConvexError({
         message: "User not found",
@@ -325,7 +284,8 @@ export const respondToApprovalRequest = mutation({
           userId: request.requestedBy,
           type: "rfq_needs_quotation",
           title: "RFQ Fully Approved!",
-          message: "Your RFQ has been approved by all approvers and sent to vendors.",
+          message:
+            "Your RFQ has been approved by all approvers and sent to vendors.",
           read: false,
           relatedId: request.rfqId,
           createdAt: Date.now(),

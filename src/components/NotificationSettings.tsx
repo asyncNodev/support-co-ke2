@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
 export default function NotificationSettings() {
-  const { user } = useAuth() as { user: User | null };
+  const { user } = useAuth() as { user: any };
   const updatePreferences = useMutation(
     api.users.updateNotificationPreferences,
   );
@@ -38,10 +38,16 @@ export default function NotificationSettings() {
     try {
       if (type === "whatsapp") {
         setWhatsappEnabled(value);
-        await updatePreferences({ whatsappNotifications: value });
+        await updatePreferences({
+          whatsappNotifications: value,
+          userId: user?._id,
+        });
       } else {
         setEmailEnabled(value);
-        await updatePreferences({ emailNotifications: value });
+        await updatePreferences({
+          emailNotifications: value,
+          userId: user?._id,
+        });
       }
       toast.success("Notification preferences updated");
     } catch (error) {

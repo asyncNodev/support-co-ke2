@@ -1,27 +1,17 @@
-import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { ConvexError, v } from "convex/values";
+
 import { internal } from "./_generated/api";
-import { ConvexError } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 // Create order when quotation is chosen
 export const createOrder = mutation({
   args: {
     rfqId: v.id("rfqs"),
     quotationId: v.id("sentQuotations"),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+    const user = await ctx.db.get(args.userId);
 
     if (!user) {
       throw new ConvexError({
@@ -78,15 +68,11 @@ export const createOrder = mutation({
 
 // Get orders for buyer
 export const getMyOrders = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+    // if (!identity) return [];
 
     if (!user) return [];
 
@@ -106,7 +92,7 @@ export const getMyOrders = query({
           vendorName: vendor?.companyName || vendor?.name,
           productName: product?.name,
         };
-      })
+      }),
     );
 
     return ordersWithDetails;
@@ -115,15 +101,11 @@ export const getMyOrders = query({
 
 // Get orders for vendor
 export const getVendorOrders = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    // if (!identity) return [];
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+    const user = await ctx.db.get(args.userId);
 
     if (!user) return [];
 
@@ -145,7 +127,7 @@ export const getVendorOrders = query({
           buyerEmail: buyer?.email,
           productName: product?.name,
         };
-      })
+      }),
     );
 
     return ordersWithDetails;
@@ -161,26 +143,16 @@ export const updateOrderStatus = mutation({
       v.literal("processing"),
       v.literal("shipped"),
       v.literal("delivered"),
-      v.literal("cancelled")
+      v.literal("cancelled"),
     ),
     trackingNumber: v.optional(v.string()),
     estimatedDeliveryDate: v.optional(v.number()),
     deliveryNotes: v.optional(v.string()),
     cancelReason: v.optional(v.string()),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+    const user = await ctx.db.get(args.userId);
 
     if (!user) {
       throw new ConvexError({
@@ -209,7 +181,9 @@ export const updateOrderStatus = mutation({
     await ctx.db.patch(args.orderId, {
       status: args.status,
       ...(args.trackingNumber && { trackingNumber: args.trackingNumber }),
-      ...(args.estimatedDeliveryDate && { estimatedDeliveryDate: args.estimatedDeliveryDate }),
+      ...(args.estimatedDeliveryDate && {
+        estimatedDeliveryDate: args.estimatedDeliveryDate,
+      }),
       ...(args.deliveryNotes && { deliveryNotes: args.deliveryNotes }),
       ...(args.cancelReason && { cancelReason: args.cancelReason }),
       ...(args.status === "delivered" && { actualDeliveryDate: Date.now() }),
@@ -220,12 +194,12 @@ export const updateOrderStatus = mutation({
     const statusMessages: Record<string, string> = {
       confirmed: "Your order has been confirmed by the vendor",
       processing: "Your order is being processed",
-      shipped: args.trackingNumber 
-        ? `Your order has been shipped. Tracking: ${args.trackingNumber}` 
+      shipped: args.trackingNumber
+        ? `Your order has been shipped. Tracking: ${args.trackingNumber}`
         : "Your order has been shipped",
       delivered: "Your order has been delivered",
-      cancelled: args.cancelReason 
-        ? `Your order has been cancelled. Reason: ${args.cancelReason}` 
+      cancelled: args.cancelReason
+        ? `Your order has been cancelled. Reason: ${args.cancelReason}`
         : "Your order has been cancelled",
     };
 
@@ -259,14 +233,6 @@ export const uploadProofOfDelivery = mutation({
     proofOfDelivery: v.string(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
     const order = await ctx.db.get(args.orderId);
     if (!order) {
       throw new ConvexError({
@@ -288,20 +254,10 @@ export const uploadProofOfDelivery = mutation({
 export const confirmDelivery = mutation({
   args: {
     orderId: v.id("orders"),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+    const user = await ctx.db.get(args.userId);
 
     if (!user) {
       throw new ConvexError({
@@ -349,15 +305,9 @@ export const confirmDelivery = mutation({
 
 // Get order statistics
 export const getOrderStats = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return null;
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
 
     if (!user) return null;
 
@@ -365,15 +315,18 @@ export const getOrderStats = query({
     const orders = await ctx.db
       .query("orders")
       .withIndex(isVendor ? "by_vendor" : "by_buyer", (q) =>
-        q.eq(isVendor ? "vendorId" : "buyerId", user._id)
+        q.eq(isVendor ? "vendorId" : "buyerId", user._id),
       )
       .collect();
 
     const totalOrders = orders.length;
-    const totalValue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
+    const totalValue = orders.reduce(
+      (sum, order) => sum + order.totalAmount,
+      0,
+    );
     const delivered = orders.filter((o) => o.status === "delivered").length;
     const inProgress = orders.filter((o) =>
-      ["ordered", "confirmed", "processing", "shipped"].includes(o.status)
+      ["ordered", "confirmed", "processing", "shipped"].includes(o.status),
     ).length;
 
     return {

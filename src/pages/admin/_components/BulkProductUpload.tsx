@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAuth } from "@/hooks/use-auth.ts";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +31,7 @@ export function BulkProductUpload({
   open,
   onOpenChange,
 }: BulkProductUploadProps) {
+  const { user } = useAuth() as { user: any };
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadResults, setUploadResults] = useState<{
@@ -181,7 +183,10 @@ export function BulkProductUpload({
       }
 
       // Bulk create products
-      const result = await bulkCreateProducts({ products: productsToCreate });
+      const result = await bulkCreateProducts({
+        products: productsToCreate,
+        userId: user?._id,
+      });
 
       setUploadResults({
         created: result.created,

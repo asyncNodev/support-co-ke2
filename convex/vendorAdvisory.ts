@@ -1,18 +1,11 @@
-import { query } from "./_generated/server";
 import { v } from "convex/values";
 
-export const getVendorAdvisory = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+import { query } from "./_generated/server";
 
-    const vendor = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+export const getVendorAdvisory = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const vendor = await ctx.db.get(args.userId);
 
     if (!vendor || vendor.role !== "vendor") {
       return { advice: [], insights: {}, bestPractices: [] };
@@ -30,18 +23,20 @@ export const getVendorAdvisory = query({
       .collect();
 
     const wonQuotations = sentQuotations.filter((q) => q.chosen);
-    const winRate = sentQuotations.length > 0 
-      ? (wonQuotations.length / sentQuotations.length) * 100 
-      : 0;
+    const winRate =
+      sentQuotations.length > 0
+        ? (wonQuotations.length / sentQuotations.length) * 100
+        : 0;
 
     const ratings = await ctx.db
       .query("ratings")
       .withIndex("by_vendor", (q) => q.eq("vendorId", vendor._id))
       .collect();
 
-    const avgRating = ratings.length > 0
-      ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
-      : 0;
+    const avgRating =
+      ratings.length > 0
+        ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length
+        : 0;
 
     const orders = await ctx.db
       .query("orders")
@@ -60,13 +55,15 @@ export const getVendorAdvisory = query({
           quoteSent: sq.sentAt,
           responseTime: sq.sentAt - rfq.createdAt,
         };
-      })
+      }),
     );
 
     const validResponses = rfqsWithQuotes.filter((r) => r !== null);
-    const avgResponseTime = validResponses.length > 0
-      ? validResponses.reduce((sum, r) => sum + (r?.responseTime || 0), 0) / validResponses.length
-      : 0;
+    const avgResponseTime =
+      validResponses.length > 0
+        ? validResponses.reduce((sum, r) => sum + (r?.responseTime || 0), 0) /
+          validResponses.length
+        : 0;
     const avgResponseHours = avgResponseTime / (1000 * 60 * 60);
 
     // Get market data for comparison
@@ -77,14 +74,16 @@ export const getVendorAdvisory = query({
 
     const allSentQuotes = await ctx.db.query("sentQuotations").collect();
     const allWonQuotes = allSentQuotes.filter((q) => q.chosen);
-    const marketWinRate = allSentQuotes.length > 0
-      ? (allWonQuotes.length / allSentQuotes.length) * 100
-      : 25;
+    const marketWinRate =
+      allSentQuotes.length > 0
+        ? (allWonQuotes.length / allSentQuotes.length) * 100
+        : 25;
 
     const allRatings = await ctx.db.query("ratings").collect();
-    const marketAvgRating = allRatings.length > 0
-      ? allRatings.reduce((sum, r) => sum + r.rating, 0) / allRatings.length
-      : 4.0;
+    const marketAvgRating =
+      allRatings.length > 0
+        ? allRatings.reduce((sum, r) => sum + r.rating, 0) / allRatings.length
+        : 4.0;
 
     // Generate personalized advice
     const advice = [];
@@ -124,7 +123,8 @@ export const getVendorAdvisory = query({
           "Offer bundle deals or volume discounts",
           "Check if your payment terms are too strict (consider offering credit)",
         ],
-        expectedResult: "Competitive pricing can double or triple your win rate",
+        expectedResult:
+          "Competitive pricing can double or triple your win rate",
       });
     }
 
@@ -144,7 +144,8 @@ export const getVendorAdvisory = query({
           "Aim to respond within 6 hours - ideally within 2 hours",
           "Use templates for common products to save time",
         ],
-        expectedResult: "Responding within 6 hours can increase win rate by 25%",
+        expectedResult:
+          "Responding within 6 hours can increase win rate by 25%",
       });
     }
 
@@ -221,7 +222,8 @@ export const getVendorAdvisory = query({
           "Respond professionally to any negative feedback",
           "Use ratings to identify and fix service issues",
         ],
-        expectedResult: "10+ ratings with 4+ stars significantly boosts credibility",
+        expectedResult:
+          "10+ ratings with 4+ stars significantly boosts credibility",
       });
     }
 
@@ -281,9 +283,14 @@ export const getVendorAdvisory = query({
         activeVendors: allVendors.length,
       },
       opportunities: {
-        potentialRevenue: sentQuotations.length > 0 
-          ? Math.round((totalRevenue / wonQuotations.length) * sentQuotations.length * (marketWinRate / 100))
-          : 0,
+        potentialRevenue:
+          sentQuotations.length > 0
+            ? Math.round(
+                (totalRevenue / wonQuotations.length) *
+                  sentQuotations.length *
+                  (marketWinRate / 100),
+              )
+            : 0,
         missedDeals: sentQuotations.length - wonQuotations.length,
       },
     };
@@ -292,37 +299,44 @@ export const getVendorAdvisory = query({
     const bestPractices = [
       {
         title: "The 6-Hour Rule",
-        description: "Top vendors respond to RFQs within 6 hours. First responders have 2x higher win rates.",
+        description:
+          "Top vendors respond to RFQs within 6 hours. First responders have 2x higher win rates.",
         difficulty: "Easy",
       },
       {
         title: "Competitive Pricing with Value",
-        description: "Win rate sweet spot is 25-35%. Lower = priced too high. Higher = priced too low. Find your balance.",
+        description:
+          "Win rate sweet spot is 25-35%. Lower = priced too high. Higher = priced too low. Find your balance.",
         difficulty: "Medium",
       },
       {
         title: "Professional Quotations",
-        description: "Include high-quality photos, detailed specifications, clear warranty terms, and flexible payment options.",
+        description:
+          "Include high-quality photos, detailed specifications, clear warranty terms, and flexible payment options.",
         difficulty: "Easy",
       },
       {
         title: "Build Relationships",
-        description: "Follow up after deliveries, ask for feedback, resolve issues quickly. Repeat customers are gold.",
+        description:
+          "Follow up after deliveries, ask for feedback, resolve issues quickly. Repeat customers are gold.",
         difficulty: "Medium",
       },
       {
         title: "Catalog Everything",
-        description: "Have 50+ products in your catalog with pre-filled prices. More products = more opportunities.",
+        description:
+          "Have 50+ products in your catalog with pre-filled prices. More products = more opportunities.",
         difficulty: "Medium",
       },
       {
         title: "Group Buying",
-        description: "Join group buy opportunities early - they convert to large orders with bulk pricing advantages.",
+        description:
+          "Join group buy opportunities early - they convert to large orders with bulk pricing advantages.",
         difficulty: "Easy",
       },
       {
         title: "Excellence Compounds",
-        description: "4.5+ star ratings allow premium pricing. Poor ratings require discounting. Quality pays off long-term.",
+        description:
+          "4.5+ star ratings allow premium pricing. Poor ratings require discounting. Quality pays off long-term.",
         difficulty: "Hard",
       },
     ];

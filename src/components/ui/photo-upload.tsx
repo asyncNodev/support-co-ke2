@@ -1,20 +1,35 @@
 import { useRef, useState } from "react";
+import type { Id } from "@/convex/_generated/dataModel";
+import { useMutation } from "convex/react";
+import type { FunctionReference } from "convex/server";
+import { Loader2, Upload, X } from "lucide-react";
+import { toast } from "sonner";
+
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, X, Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import { useMutation } from "convex/react";
-import type { FunctionReference } from "convex/server";
 
 type PhotoUploadProps = {
   value?: string;
   onChange: (url: string) => void;
   label?: string;
-  uploadUrlMutation: FunctionReference<"mutation", "public", Record<string, never>, string>;
+  uploadUrlMutation: FunctionReference<
+    "mutation",
+    "public",
+    { userId: Id<"users"> },
+    string,
+    string | undefined
+  >;
 };
 
-export function PhotoUpload({ value, onChange, label = "Photo", uploadUrlMutation }: PhotoUploadProps) {
+export function PhotoUpload({
+  value,
+  onChange,
+  label = "Photo",
+  uploadUrlMutation,
+}: PhotoUploadProps) {
+  const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const generateUploadUrl = useMutation(uploadUrlMutation);
@@ -39,7 +54,9 @@ export function PhotoUpload({ value, onChange, label = "Photo", uploadUrlMutatio
 
     try {
       // Step 1: Get upload URL
-      const postUrl = await generateUploadUrl();
+      const postUrl = await generateUploadUrl({
+        userId: user?._id as Id<"users">,
+      });
 
       // Step 2: Upload file
       const result = await fetch(postUrl, {
@@ -75,7 +92,7 @@ export function PhotoUpload({ value, onChange, label = "Photo", uploadUrlMutatio
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
-      
+
       {value ? (
         <div className="relative">
           <img
@@ -124,7 +141,7 @@ export function PhotoUpload({ value, onChange, label = "Photo", uploadUrlMutatio
           </Button>
         </div>
       )}
-      
+
       <Input
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}

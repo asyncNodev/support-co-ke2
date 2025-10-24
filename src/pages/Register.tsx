@@ -23,7 +23,7 @@ import AppHeader from "@/components/AppHeader";
 
 export default function Register() {
   const navigate = useNavigate();
-  const { isLoading, isAuthenticated, user } = useAuth();
+  const { isLoading, isAuthenticated, user, logout } = useAuth();
   const registerUser = useMutation(api.users.registerUser);
 
   const [selectedRole, setSelectedRole] = useState<"buyer" | "vendor" | null>(
@@ -129,12 +129,13 @@ export default function Register() {
             "Registration successful! Please wait for admin approval to use all features.",
           );
 
-          // Redirect based on role
-          if (selectedRole === "vendor") {
-            navigate("/vendor");
-          } else {
-            navigate("/buyer");
-          }
+          logout();
+          // // Redirect based on role
+          // if (selectedRole === "vendor") {
+          //   navigate("/vendor");
+          // } else {
+          //   navigate("/buyer");
+          // }
         })
         .catch((error) => {
           toast.error("Registration failed");

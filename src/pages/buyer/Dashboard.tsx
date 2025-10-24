@@ -59,20 +59,30 @@ import GroupBuyCard from "./_components/GroupBuyCard.tsx";
 
 export default function BuyerDashboard() {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
-  const myRFQs = useQuery(api.rfqs.getMyRFQs, isAuthenticated ? {} : "skip");
+  const { isAuthenticated } = useAuth();
+  const { user } = useAuth() as { user: any };
+  const myRFQs = useQuery(
+    api.rfqs.getMyRFQs,
+    isAuthenticated && user?._id ? { userId: user._id } : "skip",
+  );
   const myQuotations = useQuery(
     api.rfqs.getMyQuotationsSent,
-    isAuthenticated ? {} : "skip",
+    isAuthenticated && user?._id ? { userId: user._id } : "skip",
   );
   const activeGroupBuys = useQuery(api.groupBuys.getActiveGroupBuys, {});
-  const myGroupBuys = useQuery(api.groupBuys.getMyGroupBuys, {});
+  const myGroupBuys = useQuery(api.groupBuys.getMyGroupBuys, {
+    userId: user?._id,
+  });
 
-  const myApprovalRequests = useQuery(api.approvals.getMyApprovalRequests, {});
+  const myApprovalRequests = useQuery(api.approvals.getMyApprovalRequests, {
+    userId: user?._id,
+  });
 
-  const approvalRequests = useQuery(api.approvals.getMyApprovalRequests, {});
-  const myOrders = useQuery(api.orders.getMyOrders, {});
-  const orderStats = useQuery(api.orders.getOrderStats, {});
+  const approvalRequests = useQuery(api.approvals.getMyApprovalRequests, {
+    userId: user?._id,
+  });
+  const myOrders = useQuery(api.orders.getMyOrders, { userId: user?._id });
+  const orderStats = useQuery(api.orders.getOrderStats, { userId: user?._id });
 
   const approveQuotation = useMutation(api.rfqs.chooseQuotation);
   const respondToApproval = useMutation(api.approvals.respondToApprovalRequest);
@@ -99,7 +109,6 @@ export default function BuyerDashboard() {
   const [declineReason, setDeclineReason] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState("quotations");
 
   // Handle redirects in useEffect
   useEffect(() => {
@@ -109,7 +118,7 @@ export default function BuyerDashboard() {
   }, [isAuthenticated, user, navigate]);
 
   useEffect(() => {
-    if (isAuthenticated && user === null) {
+    if (isAuthenticated && !user?.role) {
       navigate("/register");
     }
   }, [isAuthenticated, user, navigate]);
@@ -165,7 +174,10 @@ export default function BuyerDashboard() {
 
   const handleApprove = async (quotationId: Id<"sentQuotations">) => {
     try {
-      await approveQuotation({ sentQuotationId: quotationId });
+      await approveQuotation({
+        sentQuotationId: quotationId,
+        userId: user?._id,
+      });
       toast.success(
         "Quotation approved! Vendor contact information has been shared.",
       );
@@ -192,6 +204,7 @@ export default function BuyerDashboard() {
       await declineQuotation({
         sentQuotationId: declineDialog.quotationId,
         reason: declineReason,
+        userId: user?._id,
       });
       toast.success("Quotation declined");
       setDeclineDialog({ open: false, quotationId: null });
@@ -243,34 +256,39 @@ export default function BuyerDashboard() {
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-3xl font-bold mb-8">Buyer Dashboard</h1>
 
-        {/* Tabs */}
-        <div className="border-b">
-          <div className="flex overflow-x-auto gap-1 pb-px">
-            {["quotations", "rfqs", "group-buys", "approvals", "orders"].map(
-              (tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
-                    activeTab === tab
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                  }`}
-                >
-                  {tab
-                    .split("-")
-                    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-                    .join(" ")}
-                </button>
-              ),
-            )}
-          </div>
-        </div>
+        <Tabs defaultValue="quotations" className="space-y-6">
+          <TabsList className="grid grid-cols-5 lg:grid-cols-6">
+            <TabsTrigger value="quotations" className="gap-2">
+              <FileText className="size-4" />
+              Quotations
+              {myQuotations && myQuotations.length > 0 && (
+                <Badge variant="secondary">{myQuotations.length}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="rfqs">
+              <FileText className="size-4 mr-2" />
+              <span className="hidden sm:inline">My RFQs</span>
+              <span className="sm:hidden">RFQs</span>
+            </TabsTrigger>
+            <TabsTrigger value="groupbuys">
+              <Users className="size-4 mr-2" />
+              <span className="hidden sm:inline">Group Buys</span>
+              <span className="sm:hidden">Groups</span>
+            </TabsTrigger>
+            <TabsTrigger value="approvals">
+              <CheckCircle2 className="size-4 mr-2" />
+              <span className="hidden sm:inline">Approvals</span>
+              <span className="sm:hidden">Approve</span>
+            </TabsTrigger>
+            <TabsTrigger value="orders">
+              <Package className="size-4 mr-2" />
+              <span className="hidden sm:inline">Orders</span>
+              <span className="sm:hidden">Orders</span>
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Tab Content */}
-        <div className="space-y-6">
           {/* Quotations Tab */}
-          {activeTab === "quotations" && (
+          <TabsContent value="quotations">
             <Card>
               <CardHeader>
                 <CardTitle>Received Quotations</CardTitle>
@@ -412,10 +430,10 @@ export default function BuyerDashboard() {
                 )}
               </CardContent>
             </Card>
-          )}
+          </TabsContent>
 
           {/* RFQs Tab */}
-          {activeTab === "rfqs" && (
+          <TabsContent value="rfqs">
             <Card>
               <CardHeader>
                 <CardTitle>My RFQs</CardTitle>
@@ -494,10 +512,10 @@ export default function BuyerDashboard() {
                 )}
               </CardContent>
             </Card>
-          )}
+          </TabsContent>
 
           {/* Group Buys Tab */}
-          {activeTab === "group-buys" && (
+          <TabsContent value="groupbuys">
             <div className="space-y-6">
               {/* Available Group Buys Section */}
               <div>
@@ -536,101 +554,11 @@ export default function BuyerDashboard() {
                   </div>
                 )}
               </div>
-
-              {/* Group Buy Opportunities Section */}
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold">
-                    Group Buy Opportunities
-                  </h3>
-                  <Badge variant="outline">
-                    {activeGroupBuys?.length || 0} Active
-                  </Badge>
-                </div>
-
-                {!activeGroupBuys || activeGroupBuys.length === 0 ? (
-                  <Card>
-                    <CardContent className="text-center py-12">
-                      <Users className="size-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground mb-4">
-                        No group buy opportunities at the moment
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Check back later for new opportunities
-                      </p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="grid gap-4">
-                    {activeGroupBuys.map((opportunity) => {
-                      // Derive missing fields from available data
-                      const groupSize = opportunity.participants?.length ?? 0;
-                      const pricePerUnit = opportunity.product?.price ?? 0;
-                      const totalPrice = groupSize * pricePerUnit;
-
-                      return (
-                        <Card key={opportunity._id}>
-                          <CardHeader>
-                            <CardTitle>{opportunity.title}</CardTitle>
-                            <CardDescription>
-                              {opportunity.description}
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-2">
-                              <div className="flex justify-between">
-                                <span className="text-sm text-muted-foreground">
-                                  Group Size:
-                                </span>
-                                <span className="font-medium">
-                                  {groupSize} units
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-sm text-muted-foreground">
-                                  Price per unit:
-                                </span>
-                                <span className="font-medium">
-                                  KES {pricePerUnit.toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-sm text-muted-foreground">
-                                  Total price:
-                                </span>
-                                <span className="font-medium">
-                                  KES {totalPrice.toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-sm text-muted-foreground">
-                                  Deadline:
-                                </span>
-                                <span className="font-medium">
-                                  {opportunity.deadline}
-                                </span>
-                              </div>
-                            </div>
-                            <Button
-                              className="w-full mt-4"
-                              onClick={() => {
-                                toast.info("Join this group buy opportunity");
-                              }}
-                            >
-                              Join Group Buy
-                            </Button>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
             </div>
-          )}
+          </TabsContent>
 
           {/* Approvals Tab */}
-          {activeTab === "approvals" && (
+          <TabsContent value="approvals" className="space-y-6">
             <div className="space-y-6">
               <div>
                 <div className="flex items-center justify-between mb-4">
@@ -789,10 +717,10 @@ export default function BuyerDashboard() {
                   )}
               </div>
             </div>
-          )}
+          </TabsContent>
 
           {/* Orders Tab */}
-          {activeTab === "orders" && (
+          <TabsContent value="orders" className="space-y-6">
             <div className="space-y-6">
               {/* Order Statistics */}
               {orderStats && (
@@ -1075,8 +1003,8 @@ export default function BuyerDashboard() {
                 )}
               </div>
             </div>
-          )}
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Decline Dialog */}
@@ -1178,6 +1106,7 @@ export default function BuyerDashboard() {
                         ? "approved"
                         : "rejected",
                     comments: approvalComments,
+                    userId: user?._id,
                   });
                   toast.success(
                     showApprovalDialog.action === "approve"

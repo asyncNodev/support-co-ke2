@@ -39,6 +39,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   signinRedirect: () => void; // Add this line
+  registerRedirect: () => void; // Add this line
   signup: (email: string, password: string, name: string) => Promise<void>; // Add this line
 }
 
@@ -47,6 +48,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  // const navigate = useNavigate();
 
   useEffect(() => {
     // Check for stored token and validate
@@ -74,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signinRedirect = () => {
     // Redirect to your login page or external auth provider
-    window.location.href = "/login";
+    window.location.href = "/";
   };
 
   const registerRedirect = () => {
@@ -123,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("authToken", loginResult.token);
       localStorage.setItem("user", JSON.stringify(loginResult.user));
       setUser(loginResult.user as User);
+      window.location.href = "/register";
     } catch (error: any) {
       console.error("Signup error:", error);
       throw new Error(error.message || "Failed to create account");
@@ -137,6 +140,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("authToken", result.token);
     localStorage.setItem("user", JSON.stringify(result.user));
     setUser(result.user);
+    if (!result.user?.role) {
+      registerRedirect();
+    }
+    if (user && user.role === "admin") {
+      window.location.href = "/admin";
+    } else if (user && user.role === "vendor") {
+      window.location.href = "/vendor";
+    } else if (user && user.role === "buyer") {
+      window.location.href = "/buyer";
+    }
+
     console.log("Logged in user:", result.user);
   };
 
@@ -155,6 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isAuthenticated: Boolean(user && user._id),
         signinRedirect,
+        registerRedirect,
         signup,
       }}
     >
