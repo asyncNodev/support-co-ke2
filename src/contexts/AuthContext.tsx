@@ -57,21 +57,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // useEffect(() => {
+  //   // Listen for Convex reconnect events if possible
+  //   // Or set up a timer to revalidate every X seconds
+  //   const interval = setInterval(() => {
+  //     const token = localStorage.getItem("authToken");
+  //     if (token) {
+  //       validateAndFetchUser(token);
+  //     }
+  //   }, 10000); // every 10 seconds
+
+  //   return () => clearInterval(interval);
+  // }, []);
+
   const signinRedirect = () => {
     // Redirect to your login page or external auth provider
     window.location.href = "/login";
   };
 
+  const registerRedirect = () => {
+    window.location.href = "/register";
+  };
+
   async function validateAndFetchUser(token: string) {
+    console.log("Validating token:", token);
     try {
       // Make sure api.auth.validateToken exists and is exported from your Convex backend
       // Make sure validateToken is defined in your api.authActions
       const result = await convex.action(api.authActions.validateToken, {
         token,
       });
+      console.log("Validated user:", result);
       setUser(result.user as User);
     } catch {
       localStorage.removeItem("authToken");
+      localStorage.removeItem("user");
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -99,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Store the token and user data
       localStorage.setItem("authToken", loginResult.token);
+      localStorage.setItem("user", JSON.stringify(loginResult.user));
       setUser(loginResult.user as User);
     } catch (error: any) {
       console.error("Signup error:", error);
@@ -112,11 +133,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
     });
     localStorage.setItem("authToken", result.token);
+    localStorage.setItem("user", JSON.stringify(result.user));
     setUser(result.user);
+    console.log("Logged in user:", result.user);
   };
 
   const logout = () => {
     localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
     setUser(null);
   };
 
@@ -127,7 +151,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         logout,
         isLoading,
-        isAuthenticated: !!user,
+        isAuthenticated: Boolean(user && user._id),
         signinRedirect,
         signup,
       }}

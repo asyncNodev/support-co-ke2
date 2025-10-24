@@ -1,5 +1,4 @@
-import { useAuth } from "@/contexts/AuthContext";
-
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,7 +10,7 @@ import {
 import { SignupForm } from "@/components/SignupForm";
 
 export function SignUpButton() {
-  const { user, logout } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   if (user) {
     return <></>;

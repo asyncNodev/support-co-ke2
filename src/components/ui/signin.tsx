@@ -1,5 +1,6 @@
-import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react";
 
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,7 +12,16 @@ import {
 import { LoginForm } from "@/components/LoginForm";
 
 export function SignInButton() {
-  const { user, logout } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
+
+  useEffect(() => {
+    // window.alert("Auth state changed");
+    console.log("Auth state changed:", { user, isAuthenticated });
+  }, [user, isAuthenticated]);
+
+  // if (isLoading) {
+  //   return null;ß
+  // }
 
   if (user) {
     return <Button onClick={logout}>Sign Out</Button>;

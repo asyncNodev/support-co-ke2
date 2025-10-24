@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext.tsx";
+import { GoogleLogin } from "@react-oauth/google";
+import type { CredentialResponse } from "@react-oauth/google";
+import { jwtDecode } from "jwt-decode";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +29,23 @@ export function LoginForm() {
       toast.error("Invalid email or password");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  type GoogleJwtPayload = {
+    email: string;
+    name: string;
+    [key: string]: any;
+  };
+
+  const handleGoogleLogin = async (credentialResponse: CredentialResponse) => {
+    if (credentialResponse.credential) {
+      const user = jwtDecode<GoogleJwtPayload>(credentialResponse.credential);
+      // console.log("User Info:", user);
+      await login(user.email, "");
+      toast.success("Logged in with Google");
+    } else {
+      console.error("No credential received from Google login.");
     }
   };
 
@@ -67,7 +87,7 @@ export function LoginForm() {
       </h2>
 
       <div className="space-y-4">
-        <Button
+        {/* <Button
           type="button"
           onClick={handleGoogle}
           disabled={isLoading}
@@ -99,7 +119,11 @@ export function LoginForm() {
             />
           </svg>
           <span className="font-medium">Continue with Google</span>
-        </Button>
+        </Button> */}
+        <GoogleLogin
+          onSuccess={handleGoogleLogin}
+          onError={() => console.log("Login Failed")}
+        />
 
         <div className="flex items-center gap-3">
           <div className="h-px bg-zinc-200 dark:bg-zinc-800 flex-1" />
@@ -117,12 +141,11 @@ export function LoginForm() {
           <Input
             id="email"
             type="email"
-            placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
             autoComplete="email"
-            className="w-full"
+            className="w-full placeholder-zinc-400"
           />
         </div>
 
@@ -136,12 +159,11 @@ export function LoginForm() {
           <Input
             id="password"
             type="password"
-            placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
             autoComplete="current-password"
-            className="w-full"
+            className="w-full placeholder-zinc-400"
           />
         </div>
 

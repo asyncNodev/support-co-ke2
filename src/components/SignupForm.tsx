@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext.tsx";
+import { GoogleLogin } from "@react-oauth/google";
+import type { CredentialResponse } from "@react-oauth/google";
+import { jwtDecode } from "jwt-decode";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -11,6 +14,7 @@ export function SignupForm() {
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const auth = useAuth() as any;
   const { signup } = auth;
 
@@ -32,6 +36,23 @@ export function SignupForm() {
     }
   };
 
+  type GoogleJwtPayload = {
+    email: string;
+    name: string;
+    [key: string]: any;
+  };
+
+  const handleGoogleLogin = async (credentialResponse: CredentialResponse) => {
+    if (credentialResponse.credential) {
+      const user = jwtDecode<GoogleJwtPayload>(credentialResponse.credential);
+      // console.log("User Info:", user);
+      await signup(user.email, "", user.name);
+      toast.success("Signed up with Google");
+    } else {
+      console.error("No credential received from Google login.");
+    }
+  };
+
   return (
     <form
       onSubmit={handleSubmit}
@@ -42,7 +63,7 @@ export function SignupForm() {
       </h2>
 
       <div className="space-y-4">
-        <Button
+        {/* <Button
           type="button"
           // onClick={handleGoogle}
           disabled={isLoading}
@@ -74,7 +95,11 @@ export function SignupForm() {
             />
           </svg>
           <span className="font-medium">Continue with Google</span>
-        </Button>
+        </Button> */}
+        <GoogleLogin
+          onSuccess={handleGoogleLogin}
+          onError={() => console.log("Login Failed")}
+        />
 
         <div className="flex items-center gap-3">
           <div className="h-px bg-zinc-200 dark:bg-zinc-800 flex-1" />
@@ -126,16 +151,58 @@ export function SignupForm() {
           >
             Password
           </label>
-          <Input
-            id="password"
-            type="password"
-            // placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            className="w-full"
-          />
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              className="w-full pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute inset-y-0 right-0 px-2 flex items-center text-zinc-400 hover:text-zinc-600 transition-colors"
+              tabIndex={-1}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                // Eye-off icon (hidden)
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-3 w-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M13.875 18.825A10.05 10.05 0 0112 19c-5.523 0-10-4.477-10-10 0-1.657.336-3.236.938-4.675M15 12a3 3 0 11-6 0 3 3 0 016 0zm6.062-4.675A9.956 9.956 0 0122 9c0 5.523-4.477 10-10 10a9.956 9.956 0 01-4.675-.938M3 3l18 18"
+                  />
+                </svg>
+              ) : (
+                // Eye icon (visible)
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-3 w-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm7-2c0 5.523-4.477 10-10 10S2 15.523 2 10 6.477 0 12 0s10 4.477 10 10z"
+                  />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
 
         {error && (
