@@ -70,7 +70,6 @@ export const registerUser = mutation({
     cr12Certificate: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    console.log("userId: ", args.userId);
     await ctx.db.patch(args.userId, {
       name: args.name,
       role: args.role,

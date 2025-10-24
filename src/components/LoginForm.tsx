@@ -41,7 +41,6 @@ export function LoginForm() {
   const handleGoogleLogin = async (credentialResponse: CredentialResponse) => {
     if (credentialResponse.credential) {
       const user = jwtDecode<GoogleJwtPayload>(credentialResponse.credential);
-      // console.log("User Info:", user);
       await login(user.email, "");
       toast.success("Logged in with Google");
     } else {

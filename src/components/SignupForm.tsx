@@ -45,7 +45,6 @@ export function SignupForm() {
   const handleGoogleLogin = async (credentialResponse: CredentialResponse) => {
     if (credentialResponse.credential) {
       const user = jwtDecode<GoogleJwtPayload>(credentialResponse.credential);
-      // console.log("User Info:", user);
       await signup(user.email, "", user.name);
       toast.success("Signed up with Google");
     } else {

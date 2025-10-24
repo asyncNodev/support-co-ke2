@@ -101,7 +101,7 @@ export const validateToken = action({
     { token },
   ): Promise<ValidateTokenResponse> => {
     try {
-      console.log("Validating token111:", token);
+      console.log("Validating tokens:", token);
       const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
       // Fetch user from DB
       const user = await ctx.runQuery(internal.auth.getUserById, {

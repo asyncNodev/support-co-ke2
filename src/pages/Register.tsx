@@ -40,10 +40,7 @@ export default function Register() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    console.log("authContext:", isLoading, isAuthenticated);
-
     if (!isLoading && !isAuthenticated) {
-      console.log("Navigating to /");
       navigate("/");
     }
   }, [isLoading, isAuthenticated, navigate]);
@@ -114,8 +111,6 @@ export default function Register() {
     }
 
     try {
-      console.log("user._id: ", user._id);
-
       // if (user)
       registerUser({
         userId: user._id as Id<"users">, // Now guaranteed to be defined

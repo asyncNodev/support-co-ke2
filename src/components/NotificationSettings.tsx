@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { User } from "@/contexts/AuthContext.tsx";
 import { api } from "@/convex/_generated/api";
 import { useMutation, useQuery } from "convex/react";
 import { Bell, CheckCircle, Mail, MessageCircle } from "lucide-react";
@@ -16,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 
 export default function NotificationSettings() {
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth() as { user: User | null };
   const updatePreferences = useMutation(
     api.users.updateNotificationPreferences,
   );
