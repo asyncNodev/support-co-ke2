@@ -1,14 +1,23 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useMutation } from "convex/react";
+import { Users } from "lucide-react";
+import { toast } from "sonner";
+
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Users } from "lucide-react";
-import { toast } from "sonner";
 
 type CreateGroupBuyDialogProps = {
   productId: Id<"products">;
@@ -36,6 +45,11 @@ export default function CreateGroupBuyDialog({
 
   const createGroupBuy = useMutation(api.groupBuys.createGroupBuy);
 
+  // TODO: Replace this with your actual user context/hook
+  // For example, useAuth() or useUser() depending on your app
+  // Here is a placeholder:
+  const userId = undefined as Id<"users"> | undefined; // <-- Replace with actual user id
+
   const handleCreate = async () => {
     if (formData.initialQuantity < 1) {
       toast.error("Initial quantity must be at least 1");
@@ -52,11 +66,18 @@ export default function CreateGroupBuyDialog({
       return;
     }
 
+    if (!userId) {
+      toast.error("User not authenticated");
+      return;
+    }
+
     setIsCreating(true);
     try {
-      const deadline = Date.now() + formData.daysUntilDeadline * 24 * 60 * 60 * 1000;
+      const deadline =
+        Date.now() + formData.daysUntilDeadline * 24 * 60 * 60 * 1000;
 
       await createGroupBuy({
+        userId,
         productId,
         title: formData.title,
         description: formData.description || undefined,
@@ -102,7 +123,8 @@ export default function CreateGroupBuyDialog({
         <DialogHeader>
           <DialogTitle>Create Group Buy</DialogTitle>
           <DialogDescription>
-            Invite other hospitals to join and save money through bulk purchasing
+            Invite other hospitals to join and save money through bulk
+            purchasing
           </DialogDescription>
         </DialogHeader>
 
@@ -112,7 +134,9 @@ export default function CreateGroupBuyDialog({
             <Input
               id="title"
               value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, title: e.target.value })
+              }
               placeholder="Group Buy: Hospital Beds"
             />
           </div>
@@ -122,7 +146,9 @@ export default function CreateGroupBuyDialog({
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               placeholder="Looking for high-quality hospital beds for expansion project..."
               rows={3}
             />
@@ -136,7 +162,12 @@ export default function CreateGroupBuyDialog({
                 type="number"
                 min="1"
                 value={formData.initialQuantity}
-                onChange={(e) => setFormData({ ...formData, initialQuantity: parseInt(e.target.value) || 1 })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    initialQuantity: parseInt(e.target.value) || 1,
+                  })
+                }
               />
               <p className="text-xs text-muted-foreground">Units you need</p>
             </div>
@@ -148,7 +179,12 @@ export default function CreateGroupBuyDialog({
                 type="number"
                 min={formData.initialQuantity}
                 value={formData.targetQuantity}
-                onChange={(e) => setFormData({ ...formData, targetQuantity: parseInt(e.target.value) || 10 })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    targetQuantity: parseInt(e.target.value) || 10,
+                  })
+                }
               />
               <p className="text-xs text-muted-foreground">Total goal</p>
             </div>
@@ -162,9 +198,16 @@ export default function CreateGroupBuyDialog({
                 type="number"
                 min="2"
                 value={formData.minimumParticipants}
-                onChange={(e) => setFormData({ ...formData, minimumParticipants: parseInt(e.target.value) || 3 })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    minimumParticipants: parseInt(e.target.value) || 3,
+                  })
+                }
               />
-              <p className="text-xs text-muted-foreground">Required to activate</p>
+              <p className="text-xs text-muted-foreground">
+                Required to activate
+              </p>
             </div>
 
             <div className="space-y-2">
@@ -175,7 +218,12 @@ export default function CreateGroupBuyDialog({
                 min="1"
                 max="90"
                 value={formData.daysUntilDeadline}
-                onChange={(e) => setFormData({ ...formData, daysUntilDeadline: parseInt(e.target.value) || 14 })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    daysUntilDeadline: parseInt(e.target.value) || 14,
+                  })
+                }
               />
               <p className="text-xs text-muted-foreground">Days from now</p>
             </div>
