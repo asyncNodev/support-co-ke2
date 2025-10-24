@@ -28,7 +28,7 @@ export function SignupForm() {
       toast.success("Signed up successfully");
       window.location.href = "/register";
     } catch (err: any) {
-      console.log(err);
+      // console.log(err);
       setError("Invalid email or password");
       toast.error("Invalid email or password");
     } finally {

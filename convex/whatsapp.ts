@@ -1,8 +1,9 @@
 "use node";
 
 import { v } from "convex/values";
-import { action, internalAction } from "./_generated/server";
+
 import { internal } from "./_generated/api";
+import { action, internalAction } from "./_generated/server";
 
 // Send WhatsApp message via Twilio
 export const sendWhatsAppMessage = internalAction({
@@ -13,7 +14,7 @@ export const sendWhatsAppMessage = internalAction({
   handler: async (ctx, args) => {
     // Only send if phone number is provided
     if (!args.to) {
-      console.log("No phone number provided, skipping WhatsApp message");
+      // console.log("No phone number provided, skipping WhatsApp message");
       return { success: false, error: "No phone number" };
     }
 
@@ -31,7 +32,7 @@ export const sendWhatsAppMessage = internalAction({
       const fromNumber = process.env.TWILIO_WHATSAPP_NUMBER; // e.g., whatsapp:+14155238886
 
       if (!accountSid || !authToken || !fromNumber) {
-        console.log("Twilio credentials not configured, skipping WhatsApp message");
+        // console.log("Twilio credentials not configured, skipping WhatsApp message");
         return { success: false, error: "Twilio not configured" };
       }
 
@@ -40,7 +41,9 @@ export const sendWhatsAppMessage = internalAction({
       const response = await fetch(twilioUrl, {
         method: "POST",
         headers: {
-          "Authorization": "Basic " + Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
+          Authorization:
+            "Basic " +
+            Buffer.from(`${accountSid}:${authToken}`).toString("base64"),
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: new URLSearchParams({
@@ -57,10 +60,10 @@ export const sendWhatsAppMessage = internalAction({
       }
 
       const data = await response.json();
-      console.log("WhatsApp message sent successfully:", data.sid);
+      // console.log("WhatsApp message sent successfully:", data.sid);
       return { success: true, messageSid: data.sid };
     } catch (error) {
-      console.error("Error sending WhatsApp message:", error);
+      // console.error("Error sending WhatsApp message:", error);
       return { success: false, error: String(error) };
     }
   },
@@ -74,8 +77,10 @@ export const notifyVendorNewRFQ = internalAction({
     productNames: v.array(v.string()),
   },
   handler: async (ctx, args) => {
-    const vendor = await ctx.runQuery(internal.users.getUserById, { userId: args.vendorId });
-    
+    const vendor = await ctx.runQuery(internal.users.getUserById, {
+      userId: args.vendorId,
+    });
+
     if (!vendor || !vendor.phone || !vendor.whatsappNotifications) {
       return;
     }
@@ -108,8 +113,10 @@ export const notifyBuyerNewQuotation = internalAction({
     price: v.number(),
   },
   handler: async (ctx, args) => {
-    const buyer = await ctx.runQuery(internal.users.getUserById, { userId: args.buyerId });
-    
+    const buyer = await ctx.runQuery(internal.users.getUserById, {
+      userId: args.buyerId,
+    });
+
     if (!buyer || !buyer.phone || !buyer.whatsappNotifications) {
       return;
     }
@@ -143,8 +150,10 @@ export const notifyVendorQuotationChosen = internalAction({
     buyerEmail: v.string(),
   },
   handler: async (ctx, args) => {
-    const vendor = await ctx.runQuery(internal.users.getUserById, { userId: args.vendorId });
-    
+    const vendor = await ctx.runQuery(internal.users.getUserById, {
+      userId: args.vendorId,
+    });
+
     if (!vendor || !vendor.phone || !vendor.whatsappNotifications) {
       return;
     }
@@ -179,7 +188,7 @@ export const notifyAdminNewRegistration = internalAction({
   handler: async (ctx, args) => {
     // Get admin phone numbers
     const admins = await ctx.runQuery(internal.users.getAdminUsers, {});
-    
+
     for (const admin of admins) {
       if (!admin.phone || !admin.whatsappNotifications) {
         continue;
@@ -212,8 +221,10 @@ export const notifyBuyerGroupBuying = internalAction({
     potentialSavings: v.number(),
   },
   handler: async (ctx, args) => {
-    const buyer = await ctx.runQuery(internal.users.getUserById, { userId: args.buyerId });
-    
+    const buyer = await ctx.runQuery(internal.users.getUserById, {
+      userId: args.buyerId,
+    });
+
     if (!buyer || !buyer.phone || !buyer.whatsappNotifications) {
       return;
     }

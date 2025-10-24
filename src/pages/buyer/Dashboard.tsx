@@ -163,7 +163,7 @@ export default function BuyerDashboard() {
               Your account is pending admin approval. You will be notified once
               your account is approved.
             </p>
-            <Button variant="outline" onClick={() => navigate("/")}>
+            <Button variant="outline" onClick={() => navigate("/browse")}>
               Browse as Guest
             </Button>
           </CardContent>

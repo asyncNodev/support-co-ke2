@@ -128,8 +128,10 @@ export default function Register() {
           toast.success(
             "Registration successful! Please wait for admin approval to use all features.",
           );
-
-          logout();
+          // i want to make delay about 2 seconds here before logout
+          setTimeout(() => {
+            logout();
+          }, 2000);
           // // Redirect based on role
           // if (selectedRole === "vendor") {
           //   navigate("/vendor");

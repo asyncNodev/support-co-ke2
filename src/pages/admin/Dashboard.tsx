@@ -62,11 +62,13 @@ import CatalogScanner from "@/components/CatalogScanner.tsx";
 
 export default function AdminDashboard() {
   const { user } = useAuth() as { user: any };
+  const adminId = user?._id;
+  const { logout } = useAuth();
   const products = useQuery(api.products.getProducts, {});
   const categories = useQuery(api.categories.getCategories, {});
   const users = useQuery(
     api.users.getAllUsers,
-    user?._id ? { userId: user._id } : "skip"
+    user?._id ? { userId: user._id } : "skip",
   );
   const allRfqs = useQuery(api.rfqs.getAllRFQsForAdmin, { userId: user?._id });
   const allQuotations = useQuery(
@@ -266,7 +268,7 @@ export default function AdminDashboard() {
 
   const handleVerifyUser = async (userId: Id<"users">) => {
     try {
-      await verifyUser({ userId });
+      await verifyUser({ userId, adminId });
       toast.success("User verified successfully");
     } catch (error) {
       toast.error("Failed to verify user");
@@ -274,13 +276,13 @@ export default function AdminDashboard() {
   };
 
   const handleOpenAssignCategories = (vendorId: Id<"users">) => {
-    console.log("Opening assign categories for vendor:", vendorId);
+    // console.log("Opening assign categories for vendor:", vendorId);
     const vendor = users?.find((u) => u._id === vendorId);
-    console.log("Found vendor:", vendor);
+    // console.log("Found vendor:", vendor);
     setSelectedVendor(vendorId);
     setSelectedCategories(vendor?.categories || []);
     setAssignDialogOpen(true);
-    console.log("Dialog should be open now");
+    // console.log("Dialog should be open now");
   };
 
   const handleToggleCategory = (categoryId: Id<"categories">) => {
@@ -314,7 +316,7 @@ export default function AdminDashboard() {
   const handleDeleteUser = async (userId: Id<"users">) => {
     if (confirm("Are you sure you want to delete this user?")) {
       try {
-        await deleteUserMutation({ userId });
+        await deleteUserMutation({ userId, adminId });
         toast.success("User deleted successfully");
       } catch (error) {
         toast.error("Failed to delete user");
@@ -324,7 +326,7 @@ export default function AdminDashboard() {
 
   const handleToggleStatus = async (userId: Id<"users">) => {
     try {
-      await toggleStatus({ userId });
+      await toggleStatus({ userId, adminId });
       toast.success("User status updated successfully");
     } catch (error) {
       toast.error("Failed to update user status");
@@ -425,7 +427,7 @@ export default function AdminDashboard() {
 
   const handleApproveUser = async (userId: Id<"users">) => {
     try {
-      await approveUser({ userId });
+      await approveUser({ userId, adminId });
       toast.success("User approved successfully!");
     } catch (error) {
       toast.error("Failed to approve user");
@@ -434,7 +436,7 @@ export default function AdminDashboard() {
 
   const handleRejectUser = async (userId: Id<"users">) => {
     try {
-      await rejectUser({ userId });
+      await rejectUser({ userId, adminId });
       toast.success("User rejected");
     } catch (error) {
       toast.error("Failed to reject user");
@@ -471,6 +473,7 @@ export default function AdminDashboard() {
               <Settings className="size-6" />
               Admin Dashboard
             </h1>
+            <Button onClick={logout}>Sign Out</Button>
           </div>
         </div>
       </header>

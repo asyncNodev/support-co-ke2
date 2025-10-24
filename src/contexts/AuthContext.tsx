@@ -84,14 +84,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   async function validateAndFetchUser(token: string) {
-    console.log("Validating token:", token);
+    // console.log("Validating token:", token);
     try {
       // Make sure api.auth.validateToken exists and is exported from your Convex backend
       // Make sure validateToken is defined in your api.authActions
       const result = await convex.action(api.authActions.validateToken, {
         token,
       });
-      console.log("Validated user:", result);
+      // console.log("Validated user:", result);
       setUser(result.user as User);
     } catch {
       localStorage.removeItem("authToken");
@@ -151,13 +151,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.location.href = "/buyer";
     }
 
-    console.log("Logged in user:", result.user);
+    // console.log("Logged in user:", result.user);
   };
 
   const logout = () => {
     localStorage.removeItem("authToken");
     localStorage.removeItem("user");
     setUser(null);
+    window.location.href = "/";
   };
 
   return (

@@ -165,8 +165,8 @@ export const syncProducts = action({
         : [];
 
       // Log available lists for debugging
-      console.log("Available captured lists:", availableLists);
-      console.log("Looking for list:", listName);
+      // console.log("Available captured lists:", availableLists);
+      // console.log("Looking for list:", listName);
 
       const productsList = result.capturedLists?.[listName] || [];
 
@@ -296,8 +296,8 @@ export const syncVendorQuotations = action({
         : [];
 
       // Log available lists for debugging
-      console.log("Available captured lists:", availableLists);
-      console.log("Looking for list:", listName);
+      // console.log("Available captured lists:", availableLists);
+      // console.log("Looking for list:", listName);
 
       const quotationsList = result.capturedLists?.[listName] || [];
 
