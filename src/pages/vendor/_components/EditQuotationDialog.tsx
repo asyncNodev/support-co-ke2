@@ -1,15 +1,29 @@
-import { useState, useEffect } from "react";
-import { useMutation } from "convex/react";
+import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useMutation } from "convex/react";
+import { toast } from "sonner";
+
+import { useAuth } from "@/hooks/use-auth.ts";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PhotoUpload } from "@/components/ui/photo-upload";
-import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 type Quotation = {
   _id: Id<"vendorQuotations">;
@@ -31,9 +45,13 @@ type EditQuotationDialogProps = {
   onOpenChange: (open: boolean) => void;
 };
 
-export function EditQuotationDialog({ quotation, open, onOpenChange }: EditQuotationDialogProps) {
+export function EditQuotationDialog({
+  quotation,
+  open,
+  onOpenChange,
+}: EditQuotationDialogProps) {
   const updateQuotation = useMutation(api.vendorQuotations.updateQuotation);
-
+  const { user } = useAuth() as { user: any };
   const [formData, setFormData] = useState({
     price: "",
     quantity: "",
@@ -83,6 +101,7 @@ export function EditQuotationDialog({ quotation, open, onOpenChange }: EditQuota
         productDescription: formData.productDescription || undefined,
         productPhoto: formData.productPhoto || undefined,
         productSpecifications: formData.productSpecifications || undefined,
+        userId: user._id,
       });
       toast.success("Quotation updated successfully");
       onOpenChange(false);
@@ -113,7 +132,9 @@ export function EditQuotationDialog({ quotation, open, onOpenChange }: EditQuota
               <Input
                 type="number"
                 value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, price: e.target.value })
+                }
                 placeholder="4500"
               />
             </div>
@@ -123,7 +144,9 @@ export function EditQuotationDialog({ quotation, open, onOpenChange }: EditQuota
               <Input
                 type="number"
                 value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, quantity: e.target.value })
+                }
                 placeholder="100"
               />
             </div>
@@ -133,7 +156,9 @@ export function EditQuotationDialog({ quotation, open, onOpenChange }: EditQuota
             <Label>Brand</Label>
             <Input
               value={formData.brand}
-              onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, brand: e.target.value })
+              }
               placeholder="Philips, Siemens, etc."
             />
           </div>
@@ -143,7 +168,9 @@ export function EditQuotationDialog({ quotation, open, onOpenChange }: EditQuota
               <Label>Payment Terms *</Label>
               <Select
                 value={formData.paymentTerms}
-                onValueChange={(v: "cash" | "credit") => setFormData({ ...formData, paymentTerms: v })}
+                onValueChange={(v: "cash" | "credit") =>
+                  setFormData({ ...formData, paymentTerms: v })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -159,7 +186,9 @@ export function EditQuotationDialog({ quotation, open, onOpenChange }: EditQuota
               <Label>Delivery Time *</Label>
               <Input
                 value={formData.deliveryTime}
-                onChange={(e) => setFormData({ ...formData, deliveryTime: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, deliveryTime: e.target.value })
+                }
                 placeholder="3-5 days"
               />
             </div>
@@ -170,7 +199,9 @@ export function EditQuotationDialog({ quotation, open, onOpenChange }: EditQuota
               <Label>Warranty Period *</Label>
               <Input
                 value={formData.warrantyPeriod}
-                onChange={(e) => setFormData({ ...formData, warrantyPeriod: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, warrantyPeriod: e.target.value })
+                }
                 placeholder="12 months"
               />
             </div>
@@ -179,7 +210,9 @@ export function EditQuotationDialog({ quotation, open, onOpenChange }: EditQuota
               <Label>Country of Origin</Label>
               <Input
                 value={formData.countryOfOrigin}
-                onChange={(e) => setFormData({ ...formData, countryOfOrigin: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, countryOfOrigin: e.target.value })
+                }
                 placeholder="Kenya, China, USA, etc."
               />
             </div>
@@ -189,7 +222,9 @@ export function EditQuotationDialog({ quotation, open, onOpenChange }: EditQuota
             <Label>Product Description</Label>
             <Textarea
               value={formData.productDescription}
-              onChange={(e) => setFormData({ ...formData, productDescription: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, productDescription: e.target.value })
+              }
               placeholder="Detailed product description"
               rows={3}
             />
@@ -206,7 +241,12 @@ export function EditQuotationDialog({ quotation, open, onOpenChange }: EditQuota
             <Label>Product Specifications</Label>
             <Textarea
               value={formData.productSpecifications}
-              onChange={(e) => setFormData({ ...formData, productSpecifications: e.target.value })}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  productSpecifications: e.target.value,
+                })
+              }
               placeholder="Technical specifications"
               rows={3}
             />

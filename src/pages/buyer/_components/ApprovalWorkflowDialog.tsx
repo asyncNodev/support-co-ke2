@@ -1,8 +1,20 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useMutation, useQuery } from "convex/react";
+import { CheckCircle2, Clock, User, XCircle } from "lucide-react";
+import { toast } from "sonner";
+
+import { useAuth } from "@/hooks/use-auth.ts";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -11,13 +23,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, Clock, User, XCircle } from "lucide-react";
-import { toast } from "sonner";
 
 type ApprovalWorkflowDialogProps = {
   open: boolean;
@@ -42,7 +50,10 @@ export default function ApprovalWorkflowDialog({
   const [estimatedValue, setEstimatedValue] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const approvers = useQuery(api.approvals.getOrganizationApprovers, {});
+  const { user } = useAuth() as { user: any };
+  const approvers = useQuery(api.approvals.getOrganizationApprovers, {
+    userId: user?._id ? user._id : "skip",
+  });
   const approvalHistory = useQuery(api.approvals.getApprovalHistory, { rfqId });
   const submitForApproval = useMutation(api.approvals.submitForApproval);
 
@@ -57,6 +68,7 @@ export default function ApprovalWorkflowDialog({
       await submitForApproval({
         rfqId,
         estimatedValue: parseFloat(estimatedValue),
+        userId: user?._id ? user._id : "skip",
       });
       toast.success("RFQ submitted for approval");
       onOpenChange(false);
@@ -77,8 +89,9 @@ export default function ApprovalWorkflowDialog({
         <DialogHeader>
           <DialogTitle>Submit RFQ for Approval</DialogTitle>
           <DialogDescription>
-            This RFQ requires approval before being sent to vendors. Enter the estimated total value
-            and it will be routed to the appropriate approvers.
+            This RFQ requires approval before being sent to vendors. Enter the
+            estimated total value and it will be routed to the appropriate
+            approvers.
           </DialogDescription>
         </DialogHeader>
 
@@ -90,16 +103,20 @@ export default function ApprovalWorkflowDialog({
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="text-sm">
-                <span className="font-medium">Items:</span> {rfqItems.length} products
+                <span className="font-medium">Items:</span> {rfqItems.length}{" "}
+                products
               </div>
               <div className="text-sm">
-                <span className="font-medium">Total Quantity:</span> {totalQuantity} units
+                <span className="font-medium">Total Quantity:</span>{" "}
+                {totalQuantity} units
               </div>
               <div className="space-y-1 mt-3">
                 {rfqItems.map((item) => (
                   <div key={item._id} className="text-sm flex justify-between">
                     <span>{item.product?.name || "Unknown Product"}</span>
-                    <span className="text-muted-foreground">Qty: {item.quantity}</span>
+                    <span className="text-muted-foreground">
+                      Qty: {item.quantity}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -109,7 +126,8 @@ export default function ApprovalWorkflowDialog({
           {/* Estimated Value */}
           <div className="space-y-2">
             <Label htmlFor="estimatedValue">
-              Estimated Total Value (KES) <span className="text-destructive">*</span>
+              Estimated Total Value (KES){" "}
+              <span className="text-destructive">*</span>
             </Label>
             <Input
               id="estimatedValue"
@@ -142,7 +160,9 @@ export default function ApprovalWorkflowDialog({
                         {index + 1}
                       </div>
                       <div className="flex-1">
-                        <div className="font-medium text-sm">{approver.name}</div>
+                        <div className="font-medium text-sm">
+                          {approver.name}
+                        </div>
                         <div className="text-xs text-muted-foreground capitalize">
                           {approver.organizationRole?.replace(/_/g, " ")}
                         </div>
@@ -168,7 +188,10 @@ export default function ApprovalWorkflowDialog({
               <CardContent>
                 <div className="space-y-3">
                   {approvalHistory.map((history) => (
-                    <div key={history._id} className="flex items-start gap-3 pb-3 border-b last:border-0">
+                    <div
+                      key={history._id}
+                      className="flex items-start gap-3 pb-3 border-b last:border-0"
+                    >
                       <div className="mt-1">
                         {history.status === "approved" ? (
                           <CheckCircle2 className="size-5 text-green-600" />
@@ -180,7 +203,9 @@ export default function ApprovalWorkflowDialog({
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{history.approver?.name}</span>
+                          <span className="font-medium text-sm">
+                            {history.approver?.name}
+                          </span>
                           <Badge
                             variant={
                               history.status === "approved"
@@ -218,8 +243,12 @@ export default function ApprovalWorkflowDialog({
               <CardContent className="pt-6">
                 <div className="text-center text-muted-foreground">
                   <User className="size-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">No approvers configured in your organization.</p>
-                  <p className="text-xs mt-1">Contact your admin to set up approval workflow.</p>
+                  <p className="text-sm">
+                    No approvers configured in your organization.
+                  </p>
+                  <p className="text-xs mt-1">
+                    Contact your admin to set up approval workflow.
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -232,7 +261,12 @@ export default function ApprovalWorkflowDialog({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isSubmitting || !estimatedValue || !approvers || approvers.length === 0}
+            disabled={
+              isSubmitting ||
+              !estimatedValue ||
+              !approvers ||
+              approvers.length === 0
+            }
           >
             {isSubmitting ? "Submitting..." : "Submit for Approval"}
           </Button>

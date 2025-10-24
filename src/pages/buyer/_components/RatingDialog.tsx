@@ -1,7 +1,11 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useMutation } from "convex/react";
+import { Star, ThumbsDown, ThumbsUp } from "lucide-react";
+import { toast } from "sonner";
+
+import { useAuth } from "@/hooks/use-auth.ts";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,10 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Star, ThumbsUp, ThumbsDown } from "lucide-react";
-import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
 
 type RatingDialogProps = {
   vendorId: Id<"users">;
@@ -33,19 +35,22 @@ export default function RatingDialog({
   onOpenChange,
   orderValue,
 }: RatingDialogProps) {
+  const { user } = useAuth() as { user: any };
   const [overallRating, setOverallRating] = useState(0);
   const [overallHover, setOverallHover] = useState(0);
-  
+
   const [deliveryRating, setDeliveryRating] = useState(0);
   const [deliveryHover, setDeliveryHover] = useState(0);
-  
+
   const [communicationRating, setCommunicationRating] = useState(0);
   const [communicationHover, setCommunicationHover] = useState(0);
-  
+
   const [qualityRating, setQualityRating] = useState(0);
   const [qualityHover, setQualityHover] = useState(0);
-  
-  const [wouldRecommend, setWouldRecommend] = useState<boolean | undefined>(undefined);
+
+  const [wouldRecommend, setWouldRecommend] = useState<boolean | undefined>(
+    undefined,
+  );
   const [review, setReview] = useState("");
 
   const submitRating = useMutation(api.ratings.submitRating);
@@ -67,6 +72,7 @@ export default function RatingDialog({
         qualityRating: qualityRating || undefined,
         wouldRecommend,
         orderValue,
+        userId: user._id,
       });
       toast.success("Thank you for your rating!");
       onOpenChange(false);
@@ -127,7 +133,8 @@ export default function RatingDialog({
         <DialogHeader>
           <DialogTitle>Rate Your Experience with {vendorName}</DialogTitle>
           <DialogDescription>
-            Help other hospitals make informed decisions by sharing your experience
+            Help other hospitals make informed decisions by sharing your
+            experience
           </DialogDescription>
         </DialogHeader>
 

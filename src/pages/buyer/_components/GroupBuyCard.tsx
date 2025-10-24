@@ -1,17 +1,40 @@
 import { useState } from "react";
-import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useMutation } from "convex/react";
+import { formatDistanceToNow } from "date-fns";
+import {
+  AlertCircle,
+  Calendar,
+  Package,
+  TrendingUp,
+  Users,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { useAuth } from "@/hooks/use-auth.ts";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Users, Calendar, TrendingUp, Package, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
+import { Progress } from "@/components/ui/progress";
 
 type GroupBuy = {
   _id: Id<"groupBuys">;
@@ -41,6 +64,7 @@ export default function GroupBuyCard({ groupBuy, onJoin }: GroupBuyCardProps) {
   const [quantity, setQuantity] = useState(1);
   const [isJoining, setIsJoining] = useState(false);
   const joinGroupBuy = useMutation(api.groupBuys.joinGroupBuy);
+  const { user } = useAuth() as { user: any };
 
   const handleJoin = async () => {
     if (quantity < 1) {
@@ -53,6 +77,7 @@ export default function GroupBuyCard({ groupBuy, onJoin }: GroupBuyCardProps) {
       await joinGroupBuy({
         groupBuyId: groupBuy._id,
         quantity,
+        userId: user?._id,
       });
       toast.success("Successfully joined group buy!");
       setOpen(false);
@@ -91,7 +116,9 @@ export default function GroupBuyCard({ groupBuy, onJoin }: GroupBuyCardProps) {
           )}
         </div>
         {groupBuy.description && (
-          <p className="text-sm text-muted-foreground mt-2">{groupBuy.description}</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            {groupBuy.description}
+          </p>
         )}
       </CardHeader>
 
@@ -106,7 +133,9 @@ export default function GroupBuyCard({ groupBuy, onJoin }: GroupBuyCardProps) {
           </div>
           <Progress value={Math.min(groupBuy.progress, 100)} className="h-2" />
           <p className="text-xs text-muted-foreground mt-1">
-            {groupBuy.progress >= 100 ? "Target reached!" : `${Math.round(groupBuy.progress)}% of target`}
+            {groupBuy.progress >= 100
+              ? "Target reached!"
+              : `${Math.round(groupBuy.progress)}% of target`}
           </p>
         </div>
 
@@ -116,7 +145,9 @@ export default function GroupBuyCard({ groupBuy, onJoin }: GroupBuyCardProps) {
             <Users className="size-4 text-primary" />
             <div>
               <p className="text-xs text-muted-foreground">Participants</p>
-              <p className="text-sm font-semibold">{groupBuy.participantCount}</p>
+              <p className="text-sm font-semibold">
+                {groupBuy.participantCount}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -124,7 +155,9 @@ export default function GroupBuyCard({ groupBuy, onJoin }: GroupBuyCardProps) {
             <div>
               <p className="text-xs text-muted-foreground">Time Left</p>
               <p className="text-sm font-semibold">
-                {groupBuy.daysLeft === 0 ? "Today" : `${groupBuy.daysLeft} days`}
+                {groupBuy.daysLeft === 0
+                  ? "Today"
+                  : `${groupBuy.daysLeft} days`}
               </p>
             </div>
           </div>
@@ -150,8 +183,11 @@ export default function GroupBuyCard({ groupBuy, onJoin }: GroupBuyCardProps) {
           <div className="flex items-start gap-2 text-xs text-muted-foreground">
             <AlertCircle className="size-4 mt-0.5" />
             <p>
-              Needs {groupBuy.minimumParticipants - groupBuy.participantCount} more{" "}
-              {groupBuy.minimumParticipants - groupBuy.participantCount === 1 ? "participant" : "participants"}{" "}
+              Needs {groupBuy.minimumParticipants - groupBuy.participantCount}{" "}
+              more{" "}
+              {groupBuy.minimumParticipants - groupBuy.participantCount === 1
+                ? "participant"
+                : "participants"}{" "}
               to activate
             </p>
           </div>
@@ -170,8 +206,8 @@ export default function GroupBuyCard({ groupBuy, onJoin }: GroupBuyCardProps) {
               <DialogTitle>Join Group Buy</DialogTitle>
               <DialogDescription>
                 Join {groupBuy.participantCount} other{" "}
-                {groupBuy.participantCount === 1 ? "hospital" : "hospitals"} and save up to{" "}
-                {potentialSavings}% on bulk pricing
+                {groupBuy.participantCount === 1 ? "hospital" : "hospitals"} and
+                save up to {potentialSavings}% on bulk pricing
               </DialogDescription>
             </DialogHeader>
 
@@ -194,11 +230,15 @@ export default function GroupBuyCard({ groupBuy, onJoin }: GroupBuyCardProps) {
               <div className="bg-muted rounded-lg p-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span>Current total:</span>
-                  <span className="font-semibold">{groupBuy.currentQuantity} units</span>
+                  <span className="font-semibold">
+                    {groupBuy.currentQuantity} units
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span>After you join:</span>
-                  <span className="font-semibold">{groupBuy.currentQuantity + quantity} units</span>
+                  <span className="font-semibold">
+                    {groupBuy.currentQuantity + quantity} units
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm text-green-600 dark:text-green-400">
                   <span>Estimated savings:</span>
