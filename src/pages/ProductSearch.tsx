@@ -1,10 +1,13 @@
-import { useSearchParams, useNavigate } from "react-router-dom";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Package, Search } from "lucide-react";
 import { useState } from "react";
+import type { User } from "@/contexts/AuthContext";
+import { api } from "@/convex/_generated/api";
+import { useQuery } from "convex/react";
+import { Package, Search } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import AppHeader from "@/components/AppHeader";
 import RFQChatbot from "@/components/RFQChatbot";
@@ -14,15 +17,18 @@ export default function ProductSearch() {
   const navigate = useNavigate();
   const query = searchParams.get("q") || "";
 
+  const { user } = useAuth() as {
+    user: User | null;
+  };
   const allProducts = useQuery(api.products.getProducts, {});
-  const currentUser = useQuery(api.users.getCurrentUser, {});
 
   const [searchInput, setSearchInput] = useState(query);
 
   // Filter products by search query
-  const products = allProducts?.filter((product) =>
-    product.name.toLowerCase().includes(query.toLowerCase())
-  ) || [];
+  const products =
+    allProducts?.filter((product) =>
+      product.name.toLowerCase().includes(query.toLowerCase()),
+    ) || [];
 
   const getDashboardLink = () => {
     if (!currentUser) return "/";

@@ -60,10 +60,6 @@ import GroupBuyCard from "./_components/GroupBuyCard.tsx";
 export default function BuyerDashboard() {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
-  // const currentUser = useQuery(
-  //   api.users.getCurrentUser,
-  //   isAuthenticated ? {} : "skip",
-  // );
   const myRFQs = useQuery(api.rfqs.getMyRFQs, isAuthenticated ? {} : "skip");
   const myQuotations = useQuery(
     api.rfqs.getMyQuotationsSent,

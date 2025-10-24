@@ -1,18 +1,22 @@
-import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Search } from "lucide-react";
-import { useQuery } from "convex/react";
+import { useEffect, useRef, useState } from "react";
+import type { User } from "@/contexts/AuthContext";
 import { api } from "@/convex/_generated/api";
-import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth.ts";
+import { useQuery } from "convex/react";
+import { Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+
+import { useAuth } from "@/hooks/use-auth.ts";
+import { Button } from "@/components/ui/button";
 import AppHeader from "@/components/AppHeader";
 import RFQChatbot from "@/components/RFQChatbot";
 
 export default function Index() {
   const navigate = useNavigate();
   const { isAuthenticated, signinRedirect } = useAuth();
-  const currentUser = useQuery(api.users.getCurrentUser, {});
+  const { user } = useAuth() as {
+    user: User | null;
+  };
   const products = useQuery(api.products.getProducts, {});
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -25,7 +29,7 @@ export default function Index() {
       signinRedirect();
       return;
     }
-    if (!currentUser) {
+    if (!user) {
       navigate("/register");
       return;
     }
@@ -38,16 +42,17 @@ export default function Index() {
       signinRedirect();
       return;
     }
-    if (!currentUser) {
+    if (!user) {
       navigate("/register");
       return;
     }
     navigate("/vendor");
   };
 
-  const suggestions = products?.filter((p) =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
-  ).slice(0, 5) || [];
+  const suggestions =
+    products
+      ?.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+      .slice(0, 5) || [];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +71,10 @@ export default function Index() {
   // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(event.target as Node)
+      ) {
         setShowSuggestions(false);
       }
     };
@@ -98,7 +106,9 @@ export default function Index() {
                   setSearchQuery(e.target.value);
                   setShowSuggestions(e.target.value.length > 0);
                 }}
-                onFocus={() => searchQuery.length > 0 && setShowSuggestions(true)}
+                onFocus={() =>
+                  searchQuery.length > 0 && setShowSuggestions(true)
+                }
                 placeholder="Search for medical supplies (e.g. Hospital Bed, Wheelchair)..."
                 className="w-full pl-16 pr-6 py-6 text-lg rounded-xl border-2 border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               />
@@ -148,7 +158,10 @@ export default function Index() {
       {/* Footer */}
       <footer className="border-t mt-20">
         <div className="container mx-auto px-4 py-8 text-center text-sm text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} Medical Supplies Kenya. All rights reserved.</p>
+          <p>
+            &copy; {new Date().getFullYear()} Medical Supplies Kenya. All rights
+            reserved.
+          </p>
         </div>
       </footer>
 

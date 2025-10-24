@@ -1,21 +1,22 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { useQuery, useMutation } from "convex/react";
+import { useEffect, useState } from "react";
+import type { User } from "@/contexts/AuthContext.tsx";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel.d.ts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import GuestRFQDialog from "@/pages/_components/GuestRFQDialog";
+import CreateGroupBuyDialog from "@/pages/buyer/_components/CreateGroupBuyDialog.tsx";
+import GroupBuyCard from "@/pages/buyer/_components/GroupBuyCard.tsx";
+import { useMutation, useQuery } from "convex/react";
+import { ArrowLeft, Bell, ShoppingCart } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
+
+import { addToRFQCart, getRFQCart } from "@/lib/rfq-cart.ts";
+import { useAuth } from "@/hooks/use-auth.ts";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/hooks/use-auth.ts";
-import { ShoppingCart, Bell, ArrowLeft } from "lucide-react";
-import { addToRFQCart, getRFQCart } from "@/lib/rfq-cart.ts";
-import { toast } from "sonner";
-import { useState, useEffect } from "react";
-import AppHeader from "@/components/AppHeader";
-import GuestRFQDialog from "@/pages/_components/GuestRFQDialog";
-import GroupBuyCard from "@/pages/buyer/_components/GroupBuyCard.tsx";
-import CreateGroupBuyDialog from "@/pages/buyer/_components/CreateGroupBuyDialog.tsx";
 import {
   Select,
   SelectContent,
@@ -24,45 +25,49 @@ import {
   SelectValue,
 } from "@/components/ui/select.tsx";
 import { Separator } from "@/components/ui/separator.tsx";
+import AppHeader from "@/components/AppHeader";
 
 export default function ProductDetail() {
   const { categorySlug, productSlug, id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth() as { user: User | null };
   const { isAuthenticated } = useAuth();
-  const currentUser = useQuery(api.users.getCurrentUser, {});
+  // const user = useQuery(api.users.getuser, {});
 
   const notifications = useQuery(
     api.notifications.getMyNotifications,
-    isAuthenticated ? {} : "skip"
+    isAuthenticated ? {} : "skip",
   );
 
   const unreadCount = notifications?.filter((n) => !n.read).length || 0;
 
   // Determine if productSlug is actually an ID
-  const isProductSlugAnId = productSlug && (productSlug.startsWith("jd") || productSlug.startsWith("k9"));
+  const isProductSlugAnId =
+    productSlug &&
+    (productSlug.startsWith("jd") || productSlug.startsWith("k9"));
   const actualProductId = id || (isProductSlugAnId ? productSlug : null);
   const actualProductSlug = !isProductSlugAnId ? productSlug : null;
 
   // Try to get product by slug first
   const productBySlug = useQuery(
     api.products.getProductBySlug,
-    actualProductSlug ? { slug: actualProductSlug } : "skip"
+    actualProductSlug ? { slug: actualProductSlug } : "skip",
   );
 
   // Fall back to ID-based lookup
   const productById = useQuery(
     api.products.getProduct,
-    actualProductId ? { productId: actualProductId as Id<"products"> } : "skip"
+    actualProductId ? { productId: actualProductId as Id<"products"> } : "skip",
   );
 
   const displayProduct = productBySlug || productById;
-  
+
   const submitRFQ = useMutation(api.rfqs.submitRFQ);
 
   // Get group buys for this product
   const groupBuysForProduct = useQuery(
     api.groupBuys.getGroupBuysForProduct,
-    displayProduct ? { productId: displayProduct._id } : "skip"
+    displayProduct ? { productId: displayProduct._id } : "skip",
   );
 
   const [quantity, setQuantity] = useState("");
@@ -75,79 +80,86 @@ export default function ProductDetail() {
     if (displayProduct) {
       const title = `${displayProduct.name} - supply.co.ke`;
       const description = displayProduct.description.substring(0, 160);
-      
+
       document.title = title;
-      
+
       // Update meta description
       let metaDescription = document.querySelector('meta[name="description"]');
       if (!metaDescription) {
-        metaDescription = document.createElement('meta');
-        metaDescription.setAttribute('name', 'description');
+        metaDescription = document.createElement("meta");
+        metaDescription.setAttribute("name", "description");
         document.head.appendChild(metaDescription);
       }
-      metaDescription.setAttribute('content', description);
-      
+      metaDescription.setAttribute("content", description);
+
       // Update Open Graph tags
       let ogTitle = document.querySelector('meta[property="og:title"]');
       if (!ogTitle) {
-        ogTitle = document.createElement('meta');
-        ogTitle.setAttribute('property', 'og:title');
+        ogTitle = document.createElement("meta");
+        ogTitle.setAttribute("property", "og:title");
         document.head.appendChild(ogTitle);
       }
-      ogTitle.setAttribute('content', title);
-      
-      let ogDescription = document.querySelector('meta[property="og:description"]');
+      ogTitle.setAttribute("content", title);
+
+      let ogDescription = document.querySelector(
+        'meta[property="og:description"]',
+      );
       if (!ogDescription) {
-        ogDescription = document.createElement('meta');
-        ogDescription.setAttribute('property', 'og:description');
+        ogDescription = document.createElement("meta");
+        ogDescription.setAttribute("property", "og:description");
         document.head.appendChild(ogDescription);
       }
-      ogDescription.setAttribute('content', description);
-      
+      ogDescription.setAttribute("content", description);
+
       if (displayProduct.image) {
         let ogImage = document.querySelector('meta[property="og:image"]');
         if (!ogImage) {
-          ogImage = document.createElement('meta');
-          ogImage.setAttribute('property', 'og:image');
+          ogImage = document.createElement("meta");
+          ogImage.setAttribute("property", "og:image");
           document.head.appendChild(ogImage);
         }
-        ogImage.setAttribute('content', displayProduct.image);
+        ogImage.setAttribute("content", displayProduct.image);
       }
-      
+
       // Add structured data (JSON-LD) for product
-      let structuredDataScript = document.querySelector('script[type="application/ld+json"]#product-structured-data');
+      let structuredDataScript = document.querySelector(
+        'script[type="application/ld+json"]#product-structured-data',
+      );
       if (!structuredDataScript) {
-        structuredDataScript = document.createElement('script');
-        structuredDataScript.setAttribute('type', 'application/ld+json');
-        structuredDataScript.setAttribute('id', 'product-structured-data');
+        structuredDataScript = document.createElement("script");
+        structuredDataScript.setAttribute("type", "application/ld+json");
+        structuredDataScript.setAttribute("id", "product-structured-data");
         document.head.appendChild(structuredDataScript);
       }
-      
+
       const structuredData = {
         "@context": "https://schema.org/",
         "@type": "Product",
-        "name": displayProduct.name,
-        "description": displayProduct.description,
-        "image": displayProduct.image || "https://supply.co.ke/logo.png",
-        "sku": displayProduct.sku || displayProduct._id,
-        "offers": {
+        name: displayProduct.name,
+        description: displayProduct.description,
+        image: displayProduct.image || "https://supply.co.ke/logo.png",
+        sku: displayProduct.sku || displayProduct._id,
+        offers: {
           "@type": "AggregateOffer",
-          "priceCurrency": "KES",
-          "availability": "https://schema.org/InStock",
-          "seller": {
+          priceCurrency: "KES",
+          availability: "https://schema.org/InStock",
+          seller: {
             "@type": "Organization",
-            "name": "supply.co.ke"
-          }
-        }
+            name: "supply.co.ke",
+          },
+        },
       };
-      
+
       structuredDataScript.textContent = JSON.stringify(structuredData);
     }
-    
+
     // Cleanup on unmount
     return () => {
-      document.title = "supply.co.ke - New Era in Medical Equipment Procurement";
-      const structuredDataScript = document.querySelector('script[type="application/ld+json"]#product-structured-data');
+      document.title =
+        "supply.co.ke - New Era in Medical Equipment Procurement";
+      const structuredDataScript = document.querySelector(
+        'script[type="application/ld+json"]#product-structured-data',
+      );
       if (structuredDataScript) {
         structuredDataScript.remove();
       }
@@ -155,10 +167,10 @@ export default function ProductDetail() {
   }, [displayProduct]);
 
   const getDashboardLink = () => {
-    if (!currentUser) return "/";
-    if (currentUser.role === "admin") return "/admin";
-    if (currentUser.role === "vendor") return "/vendor";
-    if (currentUser.role === "buyer") return "/buyer";
+    // if (!user) return "/";
+    // if (user.role === "admin") return "/admin";
+    // if (user.role === "vendor") return "/vendor";
+    // if (user.role === "buyer") return "/buyer";
     return "/";
   };
 
@@ -241,7 +253,9 @@ export default function ProductDetail() {
                 {/* RFQ Form */}
                 <div className="md:w-1/2 space-y-6">
                   <div>
-                    <h2 className="text-2xl font-bold mb-2">{displayProduct.name}</h2>
+                    <h2 className="text-2xl font-bold mb-2">
+                      {displayProduct.name}
+                    </h2>
                   </div>
 
                   {/* Quantity Input */}
@@ -261,7 +275,10 @@ export default function ProductDetail() {
                   {/* Expected Delivery Time */}
                   <div className="space-y-2">
                     <Label>Expected Delivery Time *</Label>
-                    <Select value={expectedDelivery} onValueChange={setExpectedDelivery}>
+                    <Select
+                      value={expectedDelivery}
+                      onValueChange={setExpectedDelivery}
+                    >
                       <SelectTrigger className="w-full text-lg">
                         <SelectValue placeholder="Select delivery time" />
                       </SelectTrigger>
@@ -300,13 +317,17 @@ export default function ProductDetail() {
                           <span className="w-full border-t" />
                         </div>
                         <div className="relative flex justify-center text-xs uppercase">
-                          <span className="bg-background px-2 text-muted-foreground">Or</span>
+                          <span className="bg-background px-2 text-muted-foreground">
+                            Or
+                          </span>
                         </div>
                       </div>
                       <Button
                         onClick={() => {
                           if (!quantity || !expectedDelivery) {
-                            toast.error("Please fill in quantity and expected delivery date");
+                            toast.error(
+                              "Please fill in quantity and expected delivery date",
+                            );
                             return;
                           }
                           setShowGuestDialog(true);
@@ -317,8 +338,12 @@ export default function ProductDetail() {
                         Submit as Guest (Limited Vendors)
                       </Button>
                       <p className="text-xs text-muted-foreground text-center">
-                        💡 <strong>Note:</strong> Guest submissions may receive fewer vendor responses. 
-                        <a href="/register" className="underline ml-1">Register</a> to reach more vendors and track quotations.
+                        💡 <strong>Note:</strong> Guest submissions may receive
+                        fewer vendor responses.
+                        <a href="/register" className="underline ml-1">
+                          Register
+                        </a>{" "}
+                        to reach more vendors and track quotations.
                       </p>
                     </div>
                   )}
@@ -333,9 +358,11 @@ export default function ProductDetail() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-2xl font-bold">Active Group Buys</h3>
-                  <p className="text-muted-foreground">Join other hospitals and save money</p>
+                  <p className="text-muted-foreground">
+                    Join other hospitals and save money
+                  </p>
                 </div>
-                {isAuthenticated && currentUser && displayProduct && (
+                {isAuthenticated && user && displayProduct && (
                   <CreateGroupBuyDialog
                     productId={displayProduct._id}
                     productName={displayProduct.name}
@@ -344,35 +371,38 @@ export default function ProductDetail() {
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 {groupBuysForProduct.map((groupBuy) => (
-                  <GroupBuyCard key={groupBuy._id} groupBuy={{ ...groupBuy, product: displayProduct }} />
+                  <GroupBuyCard
+                    key={groupBuy._id}
+                    groupBuy={{ ...groupBuy, product: displayProduct }}
+                  />
                 ))}
               </div>
             </div>
           )}
 
           {/* Start Group Buy CTA */}
-          {isAuthenticated && currentUser && displayProduct && (!groupBuysForProduct || groupBuysForProduct.length === 0) && (
-            <Card className="mt-8 border-2 border-dashed">
-              <CardContent className="text-center py-12">
-                <h3 className="text-xl font-bold mb-2">Want to Save More?</h3>
-                <p className="text-muted-foreground mb-4">
-                  Start a group buy and invite other hospitals to join for better bulk pricing
-                </p>
-                <CreateGroupBuyDialog
-                  productId={displayProduct._id}
-                  productName={displayProduct.name}
-                  trigger={
-                    <Button size="lg">
-                      Start Group Buy
-                    </Button>
-                  }
-                />
-              </CardContent>
-            </Card>
-          )}
+          {isAuthenticated &&
+            user &&
+            displayProduct &&
+            (!groupBuysForProduct || groupBuysForProduct.length === 0) && (
+              <Card className="mt-8 border-2 border-dashed">
+                <CardContent className="text-center py-12">
+                  <h3 className="text-xl font-bold mb-2">Want to Save More?</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Start a group buy and invite other hospitals to join for
+                    better bulk pricing
+                  </p>
+                  <CreateGroupBuyDialog
+                    productId={displayProduct._id}
+                    productName={displayProduct.name}
+                    trigger={<Button size="lg">Start Group Buy</Button>}
+                  />
+                </CardContent>
+              </Card>
+            )}
         </div>
       </main>
-      
+
       {/* Guest RFQ Dialog */}
       {displayProduct && expectedDelivery && (
         <GuestRFQDialog

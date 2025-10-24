@@ -1,16 +1,20 @@
-import { useNavigate } from "react-router-dom";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import NotificationSettings from "@/components/NotificationSettings";
-import { useAuth } from "@/hooks/use-auth";
 import { useEffect } from "react";
+import type { User } from "@/contexts/AuthContext";
+import { api } from "@/convex/_generated/api";
+import { useQuery } from "convex/react";
+import { ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import NotificationSettings from "@/components/NotificationSettings";
 
 export default function NotificationSettingsPage() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
-  const currentUser = useQuery(api.users.getCurrentUser, isAuthenticated ? {} : "skip");
+  const { user, isAuthenticated } = useAuth() as {
+    user: User | null;
+    isAuthenticated: boolean;
+  };
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -19,14 +23,14 @@ export default function NotificationSettingsPage() {
   }, [isAuthenticated, navigate]);
 
   const getDashboardLink = () => {
-    if (!currentUser) return "/";
-    if (currentUser.role === "admin") return "/admin";
-    if (currentUser.role === "vendor") return "/vendor";
-    if (currentUser.role === "buyer") return "/buyer";
+    if (!user) return "/";
+    if (user.role === "admin") return "/admin";
+    if (user.role === "vendor") return "/vendor";
+    if (user.role === "buyer") return "/buyer";
     return "/";
   };
 
-  if (!currentUser) {
+  if (!user) {
     return null;
   }
 

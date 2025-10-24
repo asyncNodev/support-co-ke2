@@ -7,7 +7,7 @@ import { convex } from "@/lib/convex";
 
 // Note: Ensure to handle token expiration and refreshing as needed.
 
-interface User {
+export interface User {
   _id: string;
   authId: string;
   email: string;
