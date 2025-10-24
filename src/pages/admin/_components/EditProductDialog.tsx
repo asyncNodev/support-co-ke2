@@ -4,6 +4,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,6 +36,7 @@ export function EditProductDialog({
   open,
   onOpenChange,
 }: EditProductDialogProps) {
+  const { user } = useAuth() as { user: any };
   const product = useQuery(
     api.products.getProduct,
     productId ? { productId } : "skip",
@@ -85,6 +87,7 @@ export function EditProductDialog({
         sku: formData.sku || undefined,
         specifications: formData.specifications || undefined,
         price,
+        userId: user?._id,
       });
       toast.success("Product updated successfully");
       onOpenChange(false);

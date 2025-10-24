@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,6 +67,7 @@ export default function CatalogScanner({
   open,
   onOpenChange,
 }: CatalogScannerProps) {
+  const { user } = useAuth() as { user: any };
   const [isScanning, setIsScanning] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
@@ -189,6 +191,7 @@ export default function CatalogScanner({
               specifications: product.specifications || "",
               sku: product.sku,
               price: product.price ?? 0,
+              userId: user?._id,
             });
             successCount++;
           } else if (userRole === "vendor" && vendorId) {
@@ -200,6 +203,7 @@ export default function CatalogScanner({
               specifications: product.specifications || "",
               sku: product.sku,
               price: product.price ?? 0,
+              userId: user?._id,
             });
 
             // Create pre-filled quotation
@@ -211,6 +215,7 @@ export default function CatalogScanner({
               deliveryTime: "2-4 weeks",
               warrantyPeriod: "1 year",
               brand: product.brand,
+              userId: user?._id,
             });
             successCount++;
           }

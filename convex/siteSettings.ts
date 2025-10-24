@@ -1,6 +1,6 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
+
 import { mutation, query } from "./_generated/server";
-import { ConvexError } from "convex/values";
 
 const DEFAULT_SETTINGS = {
   logoUrl: "https://cdn.hercules.app/file_bqE3zk4Ry0XmWJeiuCRNP3vv",
@@ -24,11 +24,11 @@ export const getSiteSettings = query({
   handler: async (ctx): Promise<Record<string, string>> => {
     const settings = await ctx.db.query("siteSettings").collect();
     const settingsMap: Record<string, string> = { ...DEFAULT_SETTINGS };
-    
+
     for (const setting of settings) {
       settingsMap[setting.key] = setting.value;
     }
-    
+
     return settingsMap;
   },
 });
@@ -36,20 +36,10 @@ export const getSiteSettings = query({
 export const updateSiteSettings = mutation({
   args: {
     settings: v.record(v.string(), v.string()),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "Not authenticated",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+    const user = await ctx.db.get(args.userId);
 
     if (!user || user.role !== "admin") {
       throw new ConvexError({

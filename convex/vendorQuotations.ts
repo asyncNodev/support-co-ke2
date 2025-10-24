@@ -1,24 +1,13 @@
-import { query, mutation } from "./_generated/server";
+import { ConvexError, v } from "convex/values";
+
 import type { Id } from "./_generated/dataModel.d.ts";
-import { v } from "convex/values";
-import { ConvexError } from "convex/values";
+import { mutation, query } from "./_generated/server";
 
 // Get vendor's own quotations
 export const getMyQuotations = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.userId);
 
     if (!currentUser || currentUser.role !== "vendor") {
       return [];
@@ -36,7 +25,7 @@ export const getMyQuotations = query({
           ...quotation,
           product,
         };
-      })
+      }),
     );
 
     return quotationsWithProducts;
@@ -45,27 +34,21 @@ export const getMyQuotations = query({
 
 // Get pending RFQs for vendor's categories
 export const getPendingRFQs = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.userId);
 
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
-
-    if (!currentUser || currentUser.role !== "vendor" || !currentUser.categories) {
+    if (
+      !currentUser ||
+      currentUser.role !== "vendor" ||
+      !currentUser.categories
+    ) {
       return [];
     }
 
     // Get vendor's quotation preference
-    const preference = currentUser.quotationPreference ?? "all_including_guests";
+    const preference =
+      currentUser.quotationPreference ?? "all_including_guests";
 
     const allRFQs = await ctx.db
       .query("rfqs")
@@ -101,7 +84,7 @@ export const getPendingRFQs = query({
       if (rfq.isGuest && preference === "registered_all") {
         continue; // Skip guest RFQs
       }
-      
+
       // If RFQ has a buyerId, check if buyer is hospital or not
       if (rfq.buyerId && preference === "registered_hospitals_only") {
         const buyer = await ctx.db.get(rfq.buyerId);
@@ -121,11 +104,11 @@ export const getPendingRFQs = query({
           const alreadyQuoted = await ctx.db
             .query("sentQuotations")
             .withIndex("by_rfq", (q) => q.eq("rfqId", rfq._id))
-            .filter((q) => 
+            .filter((q) =>
               q.and(
                 q.eq(q.field("vendorId"), currentUser._id),
-                q.eq(q.field("productId"), item.productId)
-              )
+                q.eq(q.field("productId"), item.productId),
+              ),
             )
             .first();
 
@@ -137,11 +120,11 @@ export const getPendingRFQs = query({
             categoryId: product?.categoryId as Id<"categories">,
             alreadyQuoted: !!alreadyQuoted,
           };
-        })
+        }),
       );
 
       const relevantItems = itemsWithProducts.filter((item) =>
-        currentUser.categories?.includes(item.categoryId)
+        currentUser.categories?.includes(item.categoryId),
       );
 
       if (relevantItems.length > 0) {
@@ -171,21 +154,10 @@ export const createQuotation = mutation({
     productPhoto: v.optional(v.string()),
     productDescription: v.optional(v.string()),
     brand: v.optional(v.string()),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
-
+    const currentUser = await ctx.db.get(args.userId);
     if (!currentUser || currentUser.role !== "vendor") {
       throw new ConvexError({
         message: "Only vendors can create quotations",
@@ -232,20 +204,10 @@ export const updateQuotation = mutation({
     productPhoto: v.optional(v.string()),
     productDescription: v.optional(v.string()),
     brand: v.optional(v.string()),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+    const currentUser = await ctx.db.get(args.userId);
 
     if (!currentUser || currentUser.role !== "vendor") {
       throw new ConvexError({
@@ -284,20 +246,10 @@ export const updateQuotation = mutation({
 export const deleteQuotation = mutation({
   args: {
     quotationId: v.id("vendorQuotations"),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+    const currentUser = await ctx.db.get(args.userId);
 
     if (!currentUser || currentUser.role !== "vendor") {
       throw new ConvexError({
@@ -322,20 +274,9 @@ export const deleteQuotation = mutation({
 
 // Generate upload URL for quotation photos
 export const generateUploadUrl = mutation({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.userId);
 
     if (!currentUser || currentUser.role !== "vendor") {
       throw new ConvexError({
@@ -395,20 +336,9 @@ export const createQuotationInternal = mutation({
 
 // Get all quotations for admin
 export const getAllQuotationsForAdmin = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const admin = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db.get(args.userId);
 
     if (!admin || admin.role !== "admin") {
       throw new ConvexError({
@@ -432,10 +362,12 @@ export const getAllQuotationsForAdmin = query({
           .query("ratings")
           .withIndex("by_vendor", (q) => q.eq("vendorId", quotation.vendorId))
           .collect();
-        
-        const avgRating = vendorRatings.length > 0
-          ? vendorRatings.reduce((sum, r) => sum + r.rating, 0) / vendorRatings.length
-          : 0;
+
+        const avgRating =
+          vendorRatings.length > 0
+            ? vendorRatings.reduce((sum, r) => sum + r.rating, 0) /
+              vendorRatings.length
+            : 0;
 
         let rfqInfo = null;
         if (quotation.rfqId) {
@@ -444,10 +376,12 @@ export const getAllQuotationsForAdmin = query({
             let buyerInfo = null;
             if (rfq.buyerId) {
               const buyer = await ctx.db.get(rfq.buyerId);
-              buyerInfo = buyer ? {
-                name: buyer.name,
-                companyName: buyer.companyName,
-              } : null;
+              buyerInfo = buyer
+                ? {
+                    name: buyer.name,
+                    companyName: buyer.companyName,
+                  }
+                : null;
             } else if (rfq.isGuest) {
               buyerInfo = {
                 name: rfq.guestName || "Guest",
@@ -463,21 +397,25 @@ export const getAllQuotationsForAdmin = query({
 
         return {
           ...quotation,
-          vendor: vendor ? {
-            name: vendor.name,
-            email: vendor.email,
-            companyName: vendor.companyName || "N/A",
-            averageRating: avgRating,
-            totalRatings: vendorRatings.length,
-          } : null,
-          product: product ? {
-            name: product.name,
-            image: product.image,
-            description: product.description,
-          } : null,
+          vendor: vendor
+            ? {
+                name: vendor.name,
+                email: vendor.email,
+                companyName: vendor.companyName || "N/A",
+                averageRating: avgRating,
+                totalRatings: vendorRatings.length,
+              }
+            : null,
+          product: product
+            ? {
+                name: product.name,
+                image: product.image,
+                description: product.description,
+              }
+            : null,
           rfq: rfqInfo,
         };
-      })
+      }),
     );
   },
 });

@@ -189,6 +189,7 @@ export const syncProducts = action({
             sku: item.sku,
             specifications: item.specifications,
             price: item.price !== undefined ? parseFloat(item.price) || 0 : 0,
+            userId: identity.subject as Id<"users">,
           },
         );
         syncedProducts.push(productId);

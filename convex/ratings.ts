@@ -1,7 +1,7 @@
-import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+
 import type { Id } from "./_generated/dataModel";
+import { mutation, query } from "./_generated/server";
 
 // Submit a rating for a vendor
 export const submitRating = mutation({
@@ -15,20 +15,10 @@ export const submitRating = mutation({
     qualityRating: v.optional(v.number()),
     wouldRecommend: v.optional(v.boolean()),
     orderValue: v.optional(v.number()),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not authenticated",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const buyer = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+    const buyer = await ctx.db.get(args.userId);
 
     if (!buyer || buyer.role !== "buyer") {
       throw new ConvexError({
@@ -104,7 +94,7 @@ export const getVendorRatings = query({
           buyerName: buyer?.name || "Anonymous",
           buyerCompanyName: buyer?.companyName,
         };
-      })
+      }),
     );
 
     return ratingsWithBuyers;
@@ -135,27 +125,50 @@ export const getVendorStats = query({
     const totalRating = ratings.reduce((sum, r) => sum + r.rating, 0);
     const averageRating = totalRating / ratings.length;
 
-    const deliveryRatings = ratings.filter((r) => r.deliveryRating !== undefined);
-    const averageDelivery = deliveryRatings.length > 0
-      ? deliveryRatings.reduce((sum, r) => sum + (r.deliveryRating || 0), 0) / deliveryRatings.length
-      : 0;
+    const deliveryRatings = ratings.filter(
+      (r) => r.deliveryRating !== undefined,
+    );
+    const averageDelivery =
+      deliveryRatings.length > 0
+        ? deliveryRatings.reduce((sum, r) => sum + (r.deliveryRating || 0), 0) /
+          deliveryRatings.length
+        : 0;
 
-    const commRatings = ratings.filter((r) => r.communicationRating !== undefined);
-    const averageCommunication = commRatings.length > 0
-      ? commRatings.reduce((sum, r) => sum + (r.communicationRating || 0), 0) / commRatings.length
-      : 0;
+    const commRatings = ratings.filter(
+      (r) => r.communicationRating !== undefined,
+    );
+    const averageCommunication =
+      commRatings.length > 0
+        ? commRatings.reduce(
+            (sum, r) => sum + (r.communicationRating || 0),
+            0,
+          ) / commRatings.length
+        : 0;
 
     const qualityRatings = ratings.filter((r) => r.qualityRating !== undefined);
-    const averageQuality = qualityRatings.length > 0
-      ? qualityRatings.reduce((sum, r) => sum + (r.qualityRating || 0), 0) / qualityRatings.length
-      : 0;
+    const averageQuality =
+      qualityRatings.length > 0
+        ? qualityRatings.reduce((sum, r) => sum + (r.qualityRating || 0), 0) /
+          qualityRatings.length
+        : 0;
 
-    const recommendations = ratings.filter((r) => r.wouldRecommend !== undefined);
-    const recommendationRate = recommendations.length > 0
-      ? (recommendations.filter((r) => r.wouldRecommend === true).length / recommendations.length) * 100
-      : 0;
+    const recommendations = ratings.filter(
+      (r) => r.wouldRecommend !== undefined,
+    );
+    const recommendationRate =
+      recommendations.length > 0
+        ? (recommendations.filter((r) => r.wouldRecommend === true).length /
+            recommendations.length) *
+          100
+        : 0;
 
-    const distribution: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+    const distribution: Record<number, number> = {
+      5: 0,
+      4: 0,
+      3: 0,
+      2: 0,
+      1: 0,
+    };
     ratings.forEach((r) => {
       const roundedRating = Math.round(r.rating);
       if (roundedRating >= 1 && roundedRating <= 5) {
@@ -177,18 +190,9 @@ export const getVendorStats = query({
 
 // Check if buyer can rate a vendor for an RFQ
 export const canRateVendor = query({
-  args: { vendorId: v.id("users"), rfqId: v.id("rfqs") },
+  args: { vendorId: v.id("users"), rfqId: v.id("rfqs"), userId: v.id("users") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return { canRate: false, reason: "Not authenticated" };
-    }
-
-    const buyer = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
-
+    const buyer = await ctx.db.get(args.userId);
     if (!buyer || buyer.role !== "buyer") {
       return { canRate: false, reason: "Not a buyer" };
     }
@@ -206,8 +210,8 @@ export const canRateVendor = query({
       .filter((q) =>
         q.and(
           q.eq(q.field("vendorId"), args.vendorId),
-          q.eq(q.field("chosen"), true)
-        )
+          q.eq(q.field("chosen"), true),
+        ),
       )
       .first();
 

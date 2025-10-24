@@ -19,20 +19,10 @@ export const updateQuotationPreference = mutation({
       v.literal("registered_all"),
       v.literal("all_including_guests"),
     ),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+    const user = await ctx.db.get(args.userId);
 
     if (!user) {
       throw new ConvexError({
@@ -119,20 +109,9 @@ export const getUser = query({
 });
 
 export const getAllUsers = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const currentUser = await ctx.db.get(args.userId);
 
     if (!currentUser || currentUser.role !== "admin") {
       throw new ConvexError({
@@ -155,18 +134,7 @@ export const getUserDetails = query({
 export const verifyUser = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+    const currentUser = await ctx.db.get(args.userId);
 
     if (!currentUser || currentUser.role !== "admin") {
       throw new ConvexError({
@@ -184,20 +152,10 @@ export const assignCategoriesToVendor = mutation({
   args: {
     vendorId: v.id("users"),
     categories: v.array(v.id("categories")),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+    const currentUser = await ctx.db.get(args.userId);
 
     if (!currentUser || currentUser.role !== "admin") {
       throw new ConvexError({
@@ -214,18 +172,7 @@ export const assignCategoriesToVendor = mutation({
 export const toggleUserStatus = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+    const currentUser = await ctx.db.get(args.userId);
 
     if (!currentUser || currentUser.role !== "admin") {
       throw new ConvexError({
@@ -250,18 +197,7 @@ export const toggleUserStatus = mutation({
 export const deleteUser = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+    const currentUser = await ctx.db.get(args.userId);
 
     if (!currentUser || currentUser.role !== "admin") {
       throw new ConvexError({
@@ -278,18 +214,7 @@ export const deleteUser = mutation({
 export const approveUser = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "Not authenticated",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const admin = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+    const admin = await ctx.db.get(args.userId);
 
     if (!admin || admin.role !== "admin") {
       throw new ConvexError({
@@ -305,18 +230,7 @@ export const approveUser = mutation({
 export const rejectUser = mutation({
   args: { userId: v.id("users") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+    const currentUser = await ctx.db.get(args.userId);
 
     if (!currentUser || currentUser.role !== "admin") {
       throw new ConvexError({
@@ -331,20 +245,9 @@ export const rejectUser = mutation({
 });
 
 export const getPendingUsers = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "Not authenticated",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const admin = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const admin = await ctx.db.get(args.userId);
 
     if (!admin || admin.role !== "admin") {
       throw new ConvexError({
@@ -382,20 +285,10 @@ export const updateNotificationPreferences = mutation({
   args: {
     whatsappNotifications: v.optional(v.boolean()),
     emailNotifications: v.optional(v.boolean()),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError({
-        message: "User not logged in",
-        code: "UNAUTHENTICATED",
-      });
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .first();
+    const user = await ctx.db.get(args.userId);
 
     if (!user) {
       throw new ConvexError({
@@ -424,17 +317,10 @@ export const updateUser = mutation({
     companyName: v.string(),
     phone: v.string(),
     address: v.string(),
+    userId: v.id("users"),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_authId", (q) => q.eq("authId", identity.tokenIdentifier))
-      .unique();
+    const user = await ctx.db.get(args.userId);
 
     if (!user) {
       throw new Error("User not found");

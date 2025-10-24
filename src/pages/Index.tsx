@@ -13,7 +13,7 @@ import RFQChatbot from "@/components/RFQChatbot";
 
 export default function Index() {
   const navigate = useNavigate();
-  const { isAuthenticated, signinRedirect } = useAuth();
+  const { isAuthenticated, signinRedirect, registerRedirect } = useAuth();
   const { user } = useAuth() as {
     user: User | null;
   };
@@ -29,7 +29,7 @@ export default function Index() {
       signinRedirect();
       return;
     }
-    if (!user) {
+    if (!user?.role) {
       navigate("/register");
       return;
     }
@@ -42,7 +42,8 @@ export default function Index() {
       signinRedirect();
       return;
     }
-    if (!user) {
+    console.log("user.role:", user?.role);
+    if (!user?.role) {
       navigate("/register");
       return;
     }
@@ -81,6 +82,20 @@ export default function Index() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  // useEffect(() => {
+  //   //redirect to registration if user has no role
+  //   if (isAuthenticated && user && !user.role) {
+  //     registerRedirect();
+  //   }
+  //   if (user && user.role === "admin") {
+  //     navigate("/admin");
+  //   } else if (user && user.role === "vendor") {
+  //     navigate("/vendor");
+  //   } else if (user && user.role === "buyer") {
+  //     navigate("/buyer");
+  //   }
+  // }, [user, registerRedirect, navigate]);
 
   return (
     <div className="min-h-screen bg-background">
