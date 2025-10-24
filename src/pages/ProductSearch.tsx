@@ -31,10 +31,10 @@ export default function ProductSearch() {
     ) || [];
 
   const getDashboardLink = () => {
-    if (!currentUser) return "/";
-    if (currentUser.role === "admin") return "/admin";
-    if (currentUser.role === "vendor") return "/vendor";
-    if (currentUser.role === "buyer") return "/buyer";
+    if (!user) return "/";
+    if (user.role === "admin") return "/admin";
+    if (user.role === "vendor") return "/vendor";
+    if (user.role === "buyer") return "/buyer";
     return "/";
   };
 
