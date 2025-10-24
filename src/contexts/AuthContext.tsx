@@ -28,6 +28,8 @@ interface User {
     | "registered_hospitals_only"
     | "registered_all"
     | "all_including_guests";
+  whatsappNotifications?: boolean;
+  emailNotifications?: boolean;
 }
 
 interface AuthContextType {
