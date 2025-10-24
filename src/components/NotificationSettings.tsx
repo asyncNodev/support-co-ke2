@@ -1,26 +1,36 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMutation, useQuery } from "convex/react";
+import { Bell, CheckCircle, Mail, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
+
+import { useAuth } from "@/hooks/use-auth.ts";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { toast } from "sonner";
-import { Bell, MessageCircle, Mail, CheckCircle } from "lucide-react";
 
 export default function NotificationSettings() {
-  const currentUser = useQuery(api.users.getCurrentUser, {});
-  const updatePreferences = useMutation(api.users.updateNotificationPreferences);
-  
+  const { user, isAuthenticated } = useAuth();
+  const updatePreferences = useMutation(
+    api.users.updateNotificationPreferences,
+  );
+
   const [whatsappEnabled, setWhatsappEnabled] = useState(false);
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (currentUser) {
-      setWhatsappEnabled(currentUser.whatsappNotifications ?? false);
-      setEmailEnabled(currentUser.emailNotifications ?? false);
+    if (user) {
+      setWhatsappEnabled(user.whatsappNotifications ?? false);
+      setEmailEnabled(user.emailNotifications ?? false);
     }
-  }, [currentUser]);
+  }, [user]);
 
   const handleToggle = async (type: "whatsapp" | "email", value: boolean) => {
     setSaving(true);
@@ -46,11 +56,11 @@ export default function NotificationSettings() {
     }
   };
 
-  if (!currentUser) {
+  if (!user) {
     return null;
   }
 
-  const hasPhone = currentUser.phone && currentUser.phone.length > 0;
+  const hasPhone = user.phone && user.phone.length > 0;
 
   return (
     <Card>
@@ -60,7 +70,8 @@ export default function NotificationSettings() {
           <CardTitle>Notification Preferences</CardTitle>
         </div>
         <CardDescription>
-          Choose how you want to receive notifications about your RFQs and quotations
+          Choose how you want to receive notifications about your RFQs and
+          quotations
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -75,7 +86,7 @@ export default function NotificationSettings() {
             </div>
             <p className="text-sm text-muted-foreground">
               {hasPhone
-                ? `Receive instant notifications on WhatsApp (${currentUser.phone})`
+                ? `Receive instant notifications on WhatsApp (${user.phone})`
                 : "Add your phone number in your profile to enable WhatsApp notifications"}
             </p>
             {whatsappEnabled && hasPhone && (
@@ -103,7 +114,7 @@ export default function NotificationSettings() {
               </Label>
             </div>
             <p className="text-sm text-muted-foreground">
-              Receive notifications via email ({currentUser.email})
+              Receive notifications via email ({user.email})
             </p>
             {emailEnabled && (
               <div className="flex items-center gap-1 text-xs text-green-600 mt-2">
@@ -124,14 +135,14 @@ export default function NotificationSettings() {
         <div className="pt-4 border-t">
           <h4 className="font-medium mb-3">You'll be notified about:</h4>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            {currentUser.role === "vendor" && (
+            {user.role === "vendor" && (
               <>
                 <li>• New RFQs matching your categories</li>
                 <li>• When your quotation is chosen by a buyer</li>
                 <li>• Important platform updates</li>
               </>
             )}
-            {currentUser.role === "buyer" && (
+            {user.role === "buyer" && (
               <>
                 <li>• New quotations received for your RFQs</li>
                 <li>• Price comparisons and savings opportunities</li>
@@ -139,7 +150,7 @@ export default function NotificationSettings() {
                 <li>• RFQ status updates</li>
               </>
             )}
-            {currentUser.role === "admin" && (
+            {user.role === "admin" && (
               <>
                 <li>• New user registrations</li>
                 <li>• Platform activity and alerts</li>

@@ -14,7 +14,7 @@ export function useAuth() {
     const token =
       typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
     // return token;
-    return false;
+    return null;
   };
 
   return {
