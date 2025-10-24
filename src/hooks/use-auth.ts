@@ -65,7 +65,7 @@ export function useUser({ shouldRedirect }: UseUserProps = {}) {
     if (!isLoading && !isAuthenticated && shouldRedirect) {
       signinRedirect();
     }
-    console.log("user.role:", user?.role);
+    // console.log("user.role:", user?.role);
     if (!user?.role) registerRedirect();
   }, [isLoading, isAuthenticated, shouldRedirect, signinRedirect]);
 

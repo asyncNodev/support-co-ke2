@@ -132,9 +132,9 @@ export const getUserDetails = query({
 });
 
 export const verifyUser = mutation({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), adminId: v.id("users") },
   handler: async (ctx, args) => {
-    const currentUser = await ctx.db.get(args.userId);
+    const currentUser = await ctx.db.get(args.adminId);
 
     if (!currentUser || currentUser.role !== "admin") {
       throw new ConvexError({
@@ -170,9 +170,9 @@ export const assignCategoriesToVendor = mutation({
 });
 
 export const toggleUserStatus = mutation({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), adminId: v.id("users") },
   handler: async (ctx, args) => {
-    const currentUser = await ctx.db.get(args.userId);
+    const currentUser = await ctx.db.get(args.adminId);
 
     if (!currentUser || currentUser.role !== "admin") {
       throw new ConvexError({
@@ -195,9 +195,9 @@ export const toggleUserStatus = mutation({
 });
 
 export const deleteUser = mutation({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), adminId: v.id("users") },
   handler: async (ctx, args) => {
-    const currentUser = await ctx.db.get(args.userId);
+    const currentUser = await ctx.db.get(args.adminId);
 
     if (!currentUser || currentUser.role !== "admin") {
       throw new ConvexError({
@@ -212,9 +212,9 @@ export const deleteUser = mutation({
 });
 
 export const approveUser = mutation({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), adminId: v.id("users") },
   handler: async (ctx, args) => {
-    const admin = await ctx.db.get(args.userId);
+    const admin = await ctx.db.get(args.adminId);
 
     if (!admin || admin.role !== "admin") {
       throw new ConvexError({
@@ -228,9 +228,9 @@ export const approveUser = mutation({
 });
 
 export const rejectUser = mutation({
-  args: { userId: v.id("users") },
+  args: { userId: v.id("users"), adminId: v.id("users") },
   handler: async (ctx, args) => {
-    const currentUser = await ctx.db.get(args.userId);
+    const currentUser = await ctx.db.get(args.adminId);
 
     if (!currentUser || currentUser.role !== "admin") {
       throw new ConvexError({

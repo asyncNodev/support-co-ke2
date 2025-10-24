@@ -80,7 +80,7 @@ import VendorRatingDisplay from "@/components/VendorRatingDisplay.tsx";
 
 export default function VendorDashboard() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
   const { user } = useAuth() as { user: any };
   const categories = useQuery(api.categories.getCategories, {});
   const products = useQuery(api.products.getProducts, {});
@@ -159,14 +159,14 @@ export default function VendorDashboard() {
   // Handle redirects in useEffect
   useEffect(() => {
     if (!isAuthenticated) {
-      console.log("NOT authenticated");
+      // console.log("NOT authenticated");
       navigate("/");
     }
   }, [isAuthenticated, navigate]);
 
   useEffect(() => {
     if (user && user.role !== "vendor") {
-      console.log("NOT VENDOR");
+      // console.log("NOT VENDOR");
       navigate("/");
     }
   }, [user, navigate]);
@@ -230,7 +230,7 @@ export default function VendorDashboard() {
               Your vendor account is pending admin verification. You'll be able
               to submit quotations once verified.
             </p>
-            <Button variant="outline" onClick={() => navigate("/")}>
+            <Button variant="outline" onClick={() => logout()}>
               Go to Home
             </Button>
           </CardContent>

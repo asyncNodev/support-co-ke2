@@ -35,6 +35,7 @@ import AppHeader from "@/components/AppHeader";
 
 export default function UsersPage() {
   const { user } = useAuth() as { user: any };
+  const adminId = user?._id;
   const users = useQuery(
     api.users.getAllUsers,
     user?._id ? { userId: user._id } : "skip",
@@ -56,7 +57,7 @@ export default function UsersPage() {
 
   const handleApprove = async (userId: Id<"users">) => {
     try {
-      await approveUser({ userId });
+      await approveUser({ userId, adminId });
       toast.success("User approved successfully");
     } catch (error) {
       toast.error("Failed to approve user");
@@ -65,7 +66,7 @@ export default function UsersPage() {
 
   const handleReject = async (userId: Id<"users">) => {
     try {
-      await rejectUser({ userId });
+      await rejectUser({ userId, adminId });
       toast.success("User rejected");
     } catch (error) {
       toast.error("Failed to reject user");
@@ -74,7 +75,7 @@ export default function UsersPage() {
 
   const handleVerify = async (userId: Id<"users">) => {
     try {
-      await verifyUser({ userId });
+      await verifyUser({ userId, adminId });
       toast.success("User verified");
     } catch (error) {
       toast.error("Failed to verify user");

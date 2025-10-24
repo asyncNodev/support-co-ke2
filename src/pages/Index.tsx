@@ -42,7 +42,7 @@ export default function Index() {
       signinRedirect();
       return;
     }
-    console.log("user.role:", user?.role);
+    // console.log("user.role:", user?.role);
     if (!user?.role) {
       navigate("/register");
       return;
@@ -83,19 +83,19 @@ export default function Index() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // useEffect(() => {
-  //   //redirect to registration if user has no role
-  //   if (isAuthenticated && user && !user.role) {
-  //     registerRedirect();
-  //   }
-  //   if (user && user.role === "admin") {
-  //     navigate("/admin");
-  //   } else if (user && user.role === "vendor") {
-  //     navigate("/vendor");
-  //   } else if (user && user.role === "buyer") {
-  //     navigate("/buyer");
-  //   }
-  // }, [user, registerRedirect, navigate]);
+  useEffect(() => {
+    //redirect to registration if user has no role
+    if (isAuthenticated && user && !user.role) {
+      registerRedirect();
+    }
+    if (user && user.role === "admin") {
+      navigate("/admin");
+    } else if (user && user.role === "vendor") {
+      navigate("/vendor");
+    } else if (user && user.role === "buyer") {
+      navigate("/buyer");
+    }
+  }, [user, registerRedirect, navigate]);
 
   return (
     <div className="min-h-screen bg-background">
