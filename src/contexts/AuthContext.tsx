@@ -12,7 +12,7 @@ interface User {
   authId: string;
   email: string;
   name: string;
-  role: "admin" | "vendor" | "buyer";
+  role?: "admin" | "vendor" | "buyer";
   verified: boolean;
   status?: "pending" | "approved" | "rejected";
   avatar?: string;
