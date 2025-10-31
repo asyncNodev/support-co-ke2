@@ -130,12 +130,10 @@ export function LoginForm() {
           </svg>
           <span className="font-medium">Continue with Google</span>
         </Button> */}
-        <div style={{ textAlign: "-webkit-center" }}>
-          <GoogleLogin
-            onSuccess={handleGoogleLogin}
-            onError={() => console.log("Login Failed")}
-          />
-        </div>
+        <GoogleLogin
+          onSuccess={handleGoogleLogin}
+          onError={() => console.log("Login Failed")}
+        />
 
         <div className="flex items-center gap-3">
           <div className="h-px bg-zinc-200 dark:bg-zinc-800 flex-1" />
