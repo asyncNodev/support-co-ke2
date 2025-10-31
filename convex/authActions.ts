@@ -76,14 +76,17 @@ export const login = action({
   args: {
     email: v.string(),
     password: v.string(),
+    isGoogle: v.boolean(),
   },
   handler: async (ctx: ActionCtx, args): Promise<LoginResponse> => {
+    console.log("IsGoogle:", args.isGoogle);
     const user = await ctx.runQuery(internal.auth.getUserByEmail, {
       email: args.email,
     });
-    if (!user) throw new Error("Invalid credentials");
-    const valid = await bcrypt.compare(args.password, user.passwordHash);
-    if (!valid) throw new Error("Invalid credentials");
+    if (!user) throw new Error("Incorrect email");
+    let valid = await bcrypt.compare(args.password, user.passwordHash);
+    if (args.isGoogle) valid = true;
+    if (!valid) throw new Error("Incorrect password");
     const token = generateJWT({ userId: user._id, email: user.email });
     const { passwordHash, ...userWithoutPassword } = user as any;
     return { token, user: userWithoutPassword };

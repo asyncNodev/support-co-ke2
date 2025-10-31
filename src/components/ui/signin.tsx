@@ -23,7 +23,11 @@ export function SignInButton() {
       <DialogTrigger asChild>
         <Button>Sign In</Button>
       </DialogTrigger>
-      <DialogContent>
+      {/* Accessible description for screen readers */}
+      <DialogContent aria-describedby="signin-dialog-desc">
+        <p id="signin-dialog-desc" className="sr-only">
+          Sign in to access your account and features.
+        </p>
         <DialogHeader>
           <DialogTitle>Sign In</DialogTitle>
         </DialogHeader>
