@@ -22,7 +22,7 @@ export function LoginForm() {
     setError(null);
 
     try {
-      await login(email, password);
+      await login(email, password, false);
       toast.success("Logged in successfully");
     } catch (err: any) {
       setError("Invalid email or password");
@@ -39,11 +39,22 @@ export function LoginForm() {
   };
 
   const handleGoogleLogin = async (credentialResponse: CredentialResponse) => {
+    setIsLoading(true);
+    setError(null);
     if (credentialResponse.credential) {
       const user = jwtDecode<GoogleJwtPayload>(credentialResponse.credential);
-      await login(user.email, "");
-      toast.success("Logged in with Google");
+      try {
+        await login(user.email, "", true);
+        toast.success("Logged in successfully with Google");
+      } catch (err: any) {
+        setError("Invalid email or password");
+        toast.error("Invalid email or password");
+      } finally {
+        setIsLoading(false);
+      }
     } else {
+      setIsLoading(false);
+      setError("No credential received from Google login.");
       console.error("No credential received from Google login.");
     }
   };
@@ -195,15 +206,15 @@ export function LoginForm() {
               Logging in...
             </span>
           ) : (
-            "Login"
+            "Sign in"
           )}
         </Button>
 
-        <div className="text-center text-sm text-zinc-500 dark:text-zinc-400">
+        {/* <div className="text-center text-sm text-zinc-500 dark:text-zinc-400">
           <a href="/forgot-password" className="hover:underline">
             Forgot your password?
           </a>
-        </div>
+        </div> */}
       </div>
     </form>
   );

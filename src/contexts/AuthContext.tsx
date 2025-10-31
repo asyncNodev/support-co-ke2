@@ -34,13 +34,18 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, isGoogle: boolean) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
   isAuthenticated: boolean;
   signinRedirect: () => void; // Add this line
   registerRedirect: () => void; // Add this line
-  signup: (email: string, password: string, name: string) => Promise<void>; // Add this line
+  signup: (
+    email: string,
+    password: string,
+    name: string,
+    isGoogle: boolean,
+  ) => Promise<void>; // Add this line
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -95,14 +100,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(result.user as User);
     } catch {
       localStorage.removeItem("authToken");
-      localStorage.removeItem("user");
       setUser(null);
     } finally {
       setIsLoading(false);
     }
   }
 
-  const signup = async (email: string, password: string, name: string) => {
+  const signup = async (
+    email: string,
+    password: string,
+    name: string,
+    isGoogle: boolean,
+  ) => {
     try {
       // First register the user
       const registerResult = await convex.action(api.authActions.register, {
@@ -119,11 +128,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const loginResult = await convex.action(api.authActions.login, {
         email,
         password,
+        isGoogle,
       });
 
       // Store the token and user data
       localStorage.setItem("authToken", loginResult.token);
-      localStorage.setItem("user", JSON.stringify(loginResult.user));
       setUser(loginResult.user as User);
       window.location.href = "/register";
     } catch (error: any) {
@@ -132,13 +141,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, isGoogle: boolean) => {
     const result = await convex.action(api.authActions.login, {
       email,
       password,
+      isGoogle,
     });
     localStorage.setItem("authToken", result.token);
-    localStorage.setItem("user", JSON.stringify(result.user));
     setUser(result.user);
     if (!result.user?.role) {
       registerRedirect();
@@ -156,7 +165,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem("authToken");
-    localStorage.removeItem("user");
     setUser(null);
     window.location.href = "/";
   };

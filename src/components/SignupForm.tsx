@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext.tsx";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { GoogleLogin } from "@react-oauth/google";
 import type { CredentialResponse } from "@react-oauth/google";
 import { jwtDecode } from "jwt-decode";
@@ -24,9 +25,9 @@ export function SignupForm() {
     setError(null);
 
     try {
-      await signup(email, password, name);
+      await signup(email, password, name, false);
       toast.success("Signed up successfully");
-      window.location.href = "/register";
+      // window.location.href = "/register";
     } catch (err: any) {
       // console.log(err);
       setError("Invalid email or password");
@@ -45,7 +46,7 @@ export function SignupForm() {
   const handleGoogleLogin = async (credentialResponse: CredentialResponse) => {
     if (credentialResponse.credential) {
       const user = jwtDecode<GoogleJwtPayload>(credentialResponse.credential);
-      await signup(user.email, "", user.name);
+      await signup(user.email, "", user.name, true);
       toast.success("Signed up with Google");
     } else {
       console.error("No credential received from Google login.");
@@ -168,37 +169,9 @@ export function SignupForm() {
               aria-label={showPassword ? "Hide password" : "Show password"}
             >
               {showPassword ? (
-                // Eye-off icon (hidden)
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-3 w-3"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M13.875 18.825A10.05 10.05 0 0112 19c-5.523 0-10-4.477-10-10 0-1.657.336-3.236.938-4.675M15 12a3 3 0 11-6 0 3 3 0 016 0zm6.062-4.675A9.956 9.956 0 0122 9c0 5.523-4.477 10-10 10a9.956 9.956 0 01-4.675-.938M3 3l18 18"
-                  />
-                </svg>
+                <EyeSlashIcon className="h-4 w-4" aria-hidden />
               ) : (
-                // Eye icon (visible)
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-3 w-3"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0zm7-2c0 5.523-4.477 10-10 10S2 15.523 2 10 6.477 0 12 0s10 4.477 10 10z"
-                  />
-                </svg>
+                <EyeIcon className="h-4 w-4" aria-hidden />
               )}
             </button>
           </div>
