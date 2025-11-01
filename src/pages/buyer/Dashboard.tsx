@@ -60,29 +60,47 @@ import GroupBuyCard from "./_components/GroupBuyCard.tsx";
 export default function BuyerDashboard() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const { user } = useAuth() as { user: any };
+  interface User {
+    _id: string;
+    name: string;
+    role: string;
+    status?: string;
+    companyName?: string;
+    email?: string;
+    phone?: string;
+    // Add other properties as needed
+  }
+  const { user } = useAuth() as { user: User };
   const myRFQs = useQuery(
     api.rfqs.getMyRFQs,
-    isAuthenticated && user?._id ? { userId: user._id } : "skip",
+    isAuthenticated && user?._id ? { userId: user._id as Id<"users"> } : "skip",
   );
   const myQuotations = useQuery(
     api.rfqs.getMyQuotationsSent,
-    isAuthenticated && user?._id ? { userId: user._id } : "skip",
+    isAuthenticated && user?._id ? { userId: user._id as Id<"users"> } : "skip",
   );
   const activeGroupBuys = useQuery(api.groupBuys.getActiveGroupBuys, {});
-  const myGroupBuys = useQuery(api.groupBuys.getMyGroupBuys, {
-    userId: user?._id,
-  });
+  const myGroupBuys = useQuery(
+    api.groupBuys.getMyGroupBuys,
+    isAuthenticated && user?._id ? { userId: user._id as Id<"users"> } : "skip",
+  );
 
-  const myApprovalRequests = useQuery(api.approvals.getMyApprovalRequests, {
-    userId: user?._id,
-  });
+  const myApprovalRequests = useQuery(
+    api.approvals.getMyApprovalRequests,
+    isAuthenticated && user?._id ? { userId: user._id as Id<"users"> } : "skip",
+  );
 
-  const approvalRequests = useQuery(api.approvals.getMyApprovalRequests, {
-    userId: user?._id,
-  });
-  const myOrders = useQuery(api.orders.getMyOrders, { userId: user?._id });
-  const orderStats = useQuery(api.orders.getOrderStats, { userId: user?._id });
+  // Keep a separate variable only if you actually need the same data under a different name.
+  const approvalRequests = myApprovalRequests;
+
+  const myOrders = useQuery(
+    api.orders.getMyOrders,
+    isAuthenticated && user?._id ? { userId: user._id as Id<"users"> } : "skip",
+  );
+  const orderStats = useQuery(
+    api.orders.getOrderStats,
+    isAuthenticated && user?._id ? { userId: user._id as Id<"users"> } : "skip",
+  );
 
   const approveQuotation = useMutation(api.rfqs.chooseQuotation);
   const respondToApproval = useMutation(api.approvals.respondToApprovalRequest);
@@ -176,7 +194,7 @@ export default function BuyerDashboard() {
     try {
       await approveQuotation({
         sentQuotationId: quotationId,
-        userId: user?._id,
+        userId: user?._id as Id<"users">,
       });
       toast.success(
         "Quotation approved! Vendor contact information has been shared.",
@@ -204,7 +222,7 @@ export default function BuyerDashboard() {
       await declineQuotation({
         sentQuotationId: declineDialog.quotationId,
         reason: declineReason,
-        userId: user?._id,
+        userId: user?._id as Id<"users">,
       });
       toast.success("Quotation declined");
       setDeclineDialog({ open: false, quotationId: null });
@@ -257,35 +275,64 @@ export default function BuyerDashboard() {
         <h1 className="text-3xl font-bold mb-8">Buyer Dashboard</h1>
 
         <Tabs defaultValue="quotations" className="space-y-6">
-          <TabsList className="grid grid-cols-5 lg:grid-cols-6">
-            <TabsTrigger value="quotations" className="gap-2">
-              <FileText className="size-4" />
-              Quotations
-              {myQuotations && myQuotations.length > 0 && (
-                <Badge variant="secondary">{myQuotations.length}</Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="rfqs">
-              <FileText className="size-4 mr-2" />
-              <span className="hidden sm:inline">My RFQs</span>
-              <span className="sm:hidden">RFQs</span>
-            </TabsTrigger>
-            <TabsTrigger value="groupbuys">
-              <Users className="size-4 mr-2" />
-              <span className="hidden sm:inline">Group Buys</span>
-              <span className="sm:hidden">Groups</span>
-            </TabsTrigger>
-            <TabsTrigger value="approvals">
-              <CheckCircle2 className="size-4 mr-2" />
-              <span className="hidden sm:inline">Approvals</span>
-              <span className="sm:hidden">Approve</span>
-            </TabsTrigger>
-            <TabsTrigger value="orders">
-              <Package className="size-4 mr-2" />
-              <span className="hidden sm:inline">Orders</span>
-              <span className="sm:hidden">Orders</span>
-            </TabsTrigger>
-          </TabsList>
+          {/* Simple, robust responsive tabs (no measurement hooks). 
+            Wrapper gives consistent background for every row and fixed bottom spacing
+            so tab content never overlaps when tabs wrap. */}
+          <div
+            className="w-full max-w-[calc(100vw-2rem)] mx-auto"
+            style={{ marginBottom: "96px", boxSizing: "border-box" }}
+          >
+            <div className="w-full bg-gray-50 dark:bg-zinc-900 p-2 gap-y-3 rounded-md">
+              <TabsList className="flex flex-wrap gap-2 gap-y-3 items-center">
+                <TabsTrigger
+                  value="quotations"
+                  className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap"
+                >
+                  <FileText className="size-4" />
+                  Quotations
+                  {myQuotations && myQuotations.length > 0 && (
+                    <Badge variant="secondary">{myQuotations.length}</Badge>
+                  )}
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="rfqs"
+                  className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap"
+                >
+                  <FileText className="size-4 mr-2" />
+                  <span className="hidden sm:inline">My RFQs</span>
+                  <span className="sm:hidden">RFQs</span>
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="groupbuys"
+                  className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap"
+                >
+                  <Users className="size-4 mr-2" />
+                  <span className="hidden sm:inline">Group Buys</span>
+                  <span className="sm:hidden">Groups</span>
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="approvals"
+                  className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap"
+                >
+                  <CheckCircle2 className="size-4 mr-2" />
+                  <span className="hidden sm:inline">Approvals</span>
+                  <span className="sm:hidden">Approve</span>
+                </TabsTrigger>
+
+                <TabsTrigger
+                  value="orders"
+                  className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap"
+                >
+                  <Package className="size-4 mr-2" />
+                  <span className="hidden sm:inline">Orders</span>
+                  <span className="sm:hidden">Orders</span>
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          </div>
 
           {/* Quotations Tab */}
           <TabsContent value="quotations">
@@ -1106,7 +1153,7 @@ export default function BuyerDashboard() {
                         ? "approved"
                         : "rejected",
                     comments: approvalComments,
-                    userId: user?._id,
+                    userId: user?._id as Id<"users">,
                   });
                   toast.success(
                     showApprovalDialog.action === "approve"
