@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel.d.ts";
 import { EditQuotationDialog } from "@/pages/vendor/_components/EditQuotationDialog";
@@ -81,38 +81,48 @@ import VendorRatingDisplay from "@/components/VendorRatingDisplay.tsx";
 export default function VendorDashboard() {
   const navigate = useNavigate();
   const { isAuthenticated, logout } = useAuth();
-  const { user } = useAuth() as { user: any };
+  interface VendorUser {
+    _id: string;
+    name?: string;
+    companyName?: string;
+    role: string;
+    status: string;
+    verified: boolean;
+    quotationPreference?: string;
+    // Add other fields as needed
+  }
+  const { user } = useAuth() as { user: VendorUser };
   const categories = useQuery(api.categories.getCategories, {});
   const products = useQuery(api.products.getProducts, {});
   const myQuotations = useQuery(api.vendorQuotations.getMyQuotations, {
-    userId: user?._id,
+    userId: user?._id as Id<"users">,
   });
   const pendingRFQs = useQuery(api.vendorQuotations.getPendingRFQs, {
-    userId: user?._id,
+    userId: user?._id as Id<"users">,
   });
   const sentQuotations = useQuery(api.rfqs.getMyVendorQuotationsSent, {
-    userId: user?._id,
+    userId: user?._id as Id<"users">,
   });
   const groupBuyOpportunities = useQuery(
     api.groupBuys.getGroupBuyOpportunitiesForVendor,
     {},
   );
   const vendorPerformance = useQuery(api.vendorAnalytics.getVendorPerformance, {
-    userId: user?._id,
+    userId: user?._id as Id<"users">,
   });
   const marketComparison = useQuery(api.vendorAnalytics.getMarketComparison, {
-    userId: user?._id,
+    userId: user?._id as Id<"users">,
   });
   const vendorAdvisory = useQuery(api.vendorAdvisory.getVendorAdvisory, {
-    userId: user?._id,
+    userId: user?._id as Id<"users">,
   });
   const recentPerformance = useQuery(api.vendorAnalytics.getRecentPerformance, {
-    userId: user?._id,
+    userId: user?._id as Id<"users">,
   });
 
   // Add notifications query
   const notifications = useQuery(api.notifications.getMyNotifications, {
-    userId: user?._id,
+    userId: user?._id as Id<"users">,
   });
   const markAsRead = useMutation(api.notifications.markAsRead);
   const updateQuotationPreference = useMutation(
@@ -149,13 +159,10 @@ export default function VendorDashboard() {
   } | null>(null);
   const [editQuotationOpen, setEditQuotationOpen] = useState(false);
   const [catalogScannerOpen, setCatalogScannerOpen] = useState(false);
+  // keep measured height so content is always pushed below wrapped tab rows
+  const tabsListRef = useRef<HTMLDivElement | null>(null);
+  const [tabsHeight, setTabsHeight] = useState(0);
 
-  const createQuotation = useMutation(api.vendorQuotations.createQuotation);
-  const deleteQuotation = useMutation(api.vendorQuotations.deleteQuotation);
-
-  if (!user) {
-    return <div className="p-8">Loading...</div>;
-  }
   // Handle redirects in useEffect
   useEffect(() => {
     if (!isAuthenticated) {
@@ -171,6 +178,52 @@ export default function VendorDashboard() {
     }
   }, [user, navigate]);
 
+  useLayoutEffect(() => {
+    const el = tabsListRef.current;
+    if (!el) return;
+
+    // robust measure: wait for layout/paint using double rAF
+    const measure = () => {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          // setTabsHeight(Math.ceil(el.getBoundingClientRect().height));
+          setTabsHeight(Math.ceil(el.scrollHeight));
+        });
+      });
+    };
+
+    // initial measure
+    measure();
+
+    // observe size changes
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+
+    // observe DOM mutations that may change height (e.g. children added/removed)
+    const mo = new MutationObserver(measure);
+    mo.observe(el, { childList: true, subtree: true, attributes: true });
+
+    // listen for images loading inside the tabs area
+    const imgs = Array.from(el.querySelectorAll("img"));
+    const onImgLoad = () => measure();
+    imgs.forEach((img) => img.addEventListener("load", onImgLoad));
+
+    window.addEventListener("resize", measure);
+
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      imgs.forEach((img) => img.removeEventListener("load", onImgLoad));
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
+
+  const createQuotation = useMutation(api.vendorQuotations.createQuotation);
+  const deleteQuotation = useMutation(api.vendorQuotations.deleteQuotation);
+
+  if (!user) {
+    return <div className="p-8">Loading...</div>;
+  }
   // Check approval status
   if (user.status === "rejected") {
     return (
@@ -262,7 +315,7 @@ export default function VendorDashboard() {
         productDescription: productDescription || undefined,
         productPhoto: productPhoto || undefined,
         productSpecifications: productSpecifications || undefined,
-        userId: user?._id,
+        userId: user?._id as Id<"users">,
       });
 
       toast.success("Product quotation added successfully");
@@ -291,7 +344,10 @@ export default function VendorDashboard() {
     }
 
     try {
-      await deleteQuotation({ quotationId: quotationId, userId: user?._id });
+      await deleteQuotation({
+        quotationId: quotationId,
+        userId: user?._id as Id<"users">,
+      });
       toast.success("Quotation deleted successfully");
     } catch (error) {
       toast.error("Failed to delete quotation");
@@ -324,63 +380,113 @@ export default function VendorDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="products">
-          <TabsList className="grid w-full grid-cols-5 max-w-3xl">
-            <TabsTrigger value="products">
-              <Package className="size-4" /> Products
-            </TabsTrigger>
-            <TabsTrigger
-              value="performance"
-              className="flex items-center gap-2"
-            >
-              <BarChart3 className="size-4" /> Performance
-            </TabsTrigger>
-            <TabsTrigger value="advisory" className="flex items-center gap-2">
-              <Lightbulb className="size-4" /> Sales Advisory
-            </TabsTrigger>
-            <TabsTrigger value="my-rfqs">
-              <MessageCircle className="size-4" /> RFQs
-            </TabsTrigger>
-            <TabsTrigger value="quotations">Sent Quotations</TabsTrigger>
-            <TabsTrigger value="notifications">
-              Notifications
-              {notifications &&
-                notifications.filter((n) => !n.read).length > 0 && (
-                  <Badge variant="destructive" className="ml-2">
-                    {notifications.filter((n) => !n.read).length}
-                  </Badge>
-                )}
-            </TabsTrigger>
-            <TabsTrigger value="ratings">My Ratings</TabsTrigger>
-            <TabsTrigger value="groupbuys" className="flex items-center gap-2">
-              <Users className="size-4" />
-              Group Buys
-            </TabsTrigger>
-            <TabsTrigger value="orders" className="flex items-center gap-2">
-              <Package className="size-4" />
-              Orders
-            </TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
+          {/* wrap TabsList in a full-width background container so all rows share same style.
+              measure wrapper height (tabsListRef) and add bottom spacing so TabsContent never overlaps. */}
+          <div
+            ref={tabsListRef}
+            className="w-full max-w-[calc(100vw-2rem)] mx-auto"
+            style={{
+              marginBottom: tabsHeight ? `${tabsHeight + 5}px` : undefined,
+              boxSizing: "border-box",
+            }}
+          >
+            <div className="w-full bg-gray-50 dark:bg-zinc-900 p-2 gap-y-3 rounded-md">
+              <TabsList className="flex flex-wrap gap-2 gap-y-3 items-center">
+                <TabsTrigger
+                  value="products"
+                  className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap"
+                >
+                  <Package className="size-4" /> Products
+                </TabsTrigger>
+                <TabsTrigger
+                  value="performance"
+                  className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap"
+                >
+                  <BarChart3 className="size-4" /> Performance
+                </TabsTrigger>
+                <TabsTrigger
+                  value="advisory"
+                  className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap"
+                >
+                  <Lightbulb className="size-4" /> Sales Advisory
+                </TabsTrigger>
+                <TabsTrigger
+                  value="my-rfqs"
+                  className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap"
+                >
+                  <MessageCircle className="size-4" /> RFQs
+                </TabsTrigger>
+                <TabsTrigger
+                  value="quotations"
+                  className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap"
+                >
+                  Sent Quotations
+                </TabsTrigger>
+                <TabsTrigger
+                  value="notifications"
+                  className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap"
+                >
+                  Notifications
+                  {notifications &&
+                    notifications.filter((n) => !n.read).length > 0 && (
+                      <Badge variant="destructive" className="ml-2">
+                        {notifications.filter((n) => !n.read).length}
+                      </Badge>
+                    )}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="ratings"
+                  className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap"
+                >
+                  My Ratings
+                </TabsTrigger>
+                <TabsTrigger
+                  value="groupbuys"
+                  className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap"
+                >
+                  <Users className="size-4" />
+                  Group Buys
+                </TabsTrigger>
+                <TabsTrigger
+                  value="orders"
+                  className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap"
+                >
+                  <Package className="size-4" />
+                  Orders
+                </TabsTrigger>
+                <TabsTrigger
+                  value="settings"
+                  className="relative z-20 flex items-center gap-2 px-3 py-2 rounded-md whitespace-nowrap"
+                >
+                  Settings
+                </TabsTrigger>
+              </TabsList>
+            </div>
+          </div>
 
           <TabsContent value="products" className="space-y-4">
-            <div className="flex justify-between items-center">
+            {/* responsive: heading + buttons stack on small screens, buttons stack vertically on xs and inline on sm+ */}
+            <div className="w-full flex flex-col md:flex-row md:items-center md:justify-between gap-2">
               <h2 className="text-xl font-semibold">My Product Quotations</h2>
-              <div className="flex gap-2">
+
+              <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto mt-2 md:mt-0">
                 <Button
                   variant="outline"
                   onClick={() => setCatalogScannerOpen(true)}
+                  className="w-full sm:w-auto flex items-center justify-center whitespace-nowrap"
                 >
                   <ScanLine className="size-4 mr-2" />
-                  Scan Catalog
+                  <span>Scan Catalog</span>
                 </Button>
+
                 <Dialog
                   open={isAddDialogOpen}
                   onOpenChange={setIsAddDialogOpen}
                 >
                   <DialogTrigger asChild>
-                    <Button>
+                    <Button className="w-full sm:w-auto flex items-center justify-center whitespace-nowrap">
                       <Plus className="size-4 mr-2" />
-                      Add Product Quotation
+                      <span>Add Product Quotation</span>
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -1729,7 +1835,7 @@ export default function VendorDashboard() {
                       onClick={() => {
                         updateQuotationPreference({
                           preference: "registered_hospitals_only",
-                          userId: user?._id,
+                          userId: user?._id as Id<"users">,
                         });
                         toast.success("Preference updated");
                       }}
@@ -1757,7 +1863,7 @@ export default function VendorDashboard() {
                       onClick={() => {
                         updateQuotationPreference({
                           preference: "registered_all",
-                          userId: user?._id,
+                          userId: user?._id as Id<"users">,
                         });
                         toast.success("Preference updated");
                       }}
@@ -1782,7 +1888,7 @@ export default function VendorDashboard() {
                       onClick={() => {
                         updateQuotationPreference({
                           preference: "all_including_guests",
-                          userId: user?._id,
+                          userId: user?._id as Id<"users">,
                         });
                         toast.success("Preference updated");
                       }}
